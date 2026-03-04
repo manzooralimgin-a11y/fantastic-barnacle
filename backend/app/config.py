@@ -77,6 +77,7 @@ class Settings(BaseSettings):
             "tauri://localhost",
             "http://tauri.localhost",
             "https://tauri.localhost",
+            "http://localhost:3000",
         ]
         all_origins = list(dict.fromkeys(configured + desktop_origins))  # deduplicate, preserve order
         return all_origins

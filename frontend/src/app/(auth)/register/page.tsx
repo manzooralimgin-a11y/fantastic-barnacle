@@ -30,7 +30,7 @@ export default function RegisterPage() {
 
     try {
       await register({ full_name: fullName, email, password });
-      router.push("/login?registered=true");
+      router.push("/login");
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data

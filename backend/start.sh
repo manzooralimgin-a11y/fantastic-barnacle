@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Ensure Python can find the app package (needed for alembic env.py)
+export PYTHONPATH=/app
+
 echo "Running database migrations..."
 alembic upgrade head
 

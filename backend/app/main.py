@@ -243,6 +243,16 @@ app.include_router(
 )
 
 
+@app.post("/api/restore")
+async def trigger_migration(db: AsyncSession = Depends(get_db)):
+    """Triggers the master data restoration. Restricted to admin review."""
+    try:
+        from migrate_master import migrate_master
+        await migrate_master()
+        return {"status": "success", "message": "Master migration executed successfully."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/health")
 async def health_check(db: AsyncSession = Depends(get_db)):
     """Verifies that the API and the database are both reachable."""
@@ -259,16 +269,6 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         "database": db_status
     }
 
-
-@app.post("/api/admin/restore-data")
-async def trigger_migration(db: AsyncSession = Depends(get_db)):
-    """Triggers the master data restoration. Restricted to admin review."""
-    from migrate_master import migrate_master
-    try:
-        await migrate_master()
-        return {"status": "success", "message": "Master migration executed successfully."}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
 @app.get("/api/metrics", tags=["Observability"])
 async def get_metrics(window_minutes: int = 15):

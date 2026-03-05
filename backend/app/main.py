@@ -19,6 +19,7 @@ from app.config import settings
 from app.dependencies import get_current_tenant_user, require_roles
 from app.security.rate_limit import enforce_rate_limit, get_client_identifier
 from app.observability.metrics import api_metrics, get_queue_lag
+from app.database import get_db, AsyncSession
 
 logger = logging.getLogger("app.security")
 
@@ -243,8 +244,20 @@ app.include_router(
 
 
 @app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "service": settings.app_name}
+async def health_check(db: AsyncSession = Depends(get_db)):
+    """Verifies that the API and the database are both reachable."""
+    try:
+        from sqlalchemy import text
+        await db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    return {
+        "status": "healthy" if db_status == "connected" else "unhealthy",
+        "service": settings.app_name,
+        "database": db_status
+    }
 
 
 @app.get("/api/metrics", tags=["Observability"])

@@ -29,7 +29,10 @@ export interface User {
 }
 
 export async function login(credentials: LoginCredentials): Promise<TokenResponse> {
-  const { data } = await api.post<TokenResponse>("/auth/login", credentials);
+  console.log("AUTH_VERSION_4_FIX_JSON_03051610"); // Unique tag to verify deployment
+  const { data } = await api.post<TokenResponse>("/auth/login", credentials, {
+    headers: { "Content-Type": "application/json" }
+  });
   localStorage.setItem("access_token", data.access_token);
   localStorage.setItem("refresh_token", data.refresh_token);
   return data;

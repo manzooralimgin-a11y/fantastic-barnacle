@@ -32,9 +32,14 @@ export default function RegisterPage() {
       await register({ full_name: fullName, email, password });
       router.push("/login");
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail || "Registration failed. Please try again.";
+      const detail = (err as { response?: { data?: { detail?: string | Array<{ msg: string }> } } })
+        ?.response?.data?.detail;
+      let message = "Registration failed. Please try again.";
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        message = detail.map((d) => d.msg).join(", ");
+      }
       setError(message);
     } finally {
       setLoading(false);

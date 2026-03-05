@@ -31,9 +31,14 @@ export default function LoginPage() {
       setUser(user);
       router.push(getDefaultDashboardRoute(user.role));
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail || "Invalid email or password";
+      const detail = (err as { response?: { data?: { detail?: string | Array<{ msg: string }> } } })
+        ?.response?.data?.detail;
+      let message = "Invalid email or password";
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        message = detail.map((d) => d.msg).join(", ");
+      }
       setError(message);
     } finally {
       setLoading(false);

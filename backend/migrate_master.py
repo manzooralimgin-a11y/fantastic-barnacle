@@ -73,22 +73,33 @@ async def migrate_master():
             log(f"[RESTAURANT] Found {len(restaurants)} existing restaurants.")
 
         # =============================================================
-        # 2. ENSURE DEFAULT ADMIN USER EXISTS
+        # 2. ENSURE DEFAULT ADMIN USER EXISTS (with known credentials)
         # =============================================================
-        result = await db.execute(select(User).limit(1))
-        if not result.scalar_one_or_none():
+        admin_email = "admin@gestronomy.app"
+        admin_password = "Gestronomy2024!"
+        result = await db.execute(
+            select(User).where(User.email == admin_email)
+        )
+        existing_admin = result.scalar_one_or_none()
+        if not existing_admin:
             admin_user = User(
-                email="admin@gestronomy.app",
-                password_hash=hash_password("Gestronomy2024!"),
+                email=admin_email,
+                password_hash=hash_password(admin_password),
                 full_name="Admin",
                 role=UserRole.admin,
                 restaurant_id=restaurants[0].id,
             )
             db.add(admin_user)
             await db.flush()
-            log(f"[USER] Created default admin: admin@gestronomy.app (password: Gestronomy2024!)")
+            log(f"[USER] Created admin: {admin_email}")
         else:
-            log("[USER] Admin user already exists.")
+            # Always reset password to known value so login works after redeploy
+            existing_admin.password_hash = hash_password(admin_password)
+            existing_admin.role = UserRole.admin
+            existing_admin.is_active = True
+            existing_admin.restaurant_id = restaurants[0].id
+            await db.flush()
+            log(f"[USER] Admin user synced: {admin_email}")
 
         # =============================================================
         # 3. SEED PER-RESTAURANT DATA

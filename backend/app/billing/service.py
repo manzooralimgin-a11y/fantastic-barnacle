@@ -654,13 +654,16 @@ async def get_kds_orders(
     now = datetime.now(timezone.utc)
     kds_orders = []
     for order_id, order_items in orders_map.items():
-        # Check if a bill has already been generated for this order
+        # Check if a bill has been paid for this order
         from app.billing.models import Bill
         bill_result = await db.execute(
-            select(Bill.id).where(Bill.order_id == order_id)
+            select(Bill.id).where(
+                Bill.order_id == order_id,
+                Bill.status == "paid"
+            )
         )
         if bill_result.scalar_one_or_none():
-            continue  # Skip orders that already have a bill
+            continue  # Skip orders that are already paid
         
         order = await get_order_by_id(db, restaurant_id, order_id)
         table_number = None

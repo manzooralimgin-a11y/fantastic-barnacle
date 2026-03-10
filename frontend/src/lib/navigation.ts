@@ -5,7 +5,9 @@ import {
   CalendarDays,
   Calculator,
   ChefHat,
+  ClipboardList,
   FileText,
+  Flame,
   FlaskConical,
   Heart,
   LayoutDashboard,
@@ -73,6 +75,8 @@ export const navSections: NavSection[] = [
     title: "Service",
     items: [
       { label: "Reservations", href: "/reservations", icon: CalendarDays },
+      { label: "Waiter Station", href: "/orders", icon: ClipboardList },
+      { label: "Kitchen Board", href: "/kitchen-display", icon: Flame },
       { label: "Billing & POS", href: "/billing", icon: Receipt },
       { label: "Vouchers & Cards", href: "/vouchers", icon: Ticket, minRole: "manager" },
       { label: "QR Ordering", href: "/kds", icon: QrCode },
@@ -129,13 +133,13 @@ export const quickActions: QuickAction[] = [
   },
   {
     label: "Create New Order",
-    href: "/billing?action=new-order",
-    description: "Start a fresh order and jump into POS",
+    href: "/orders",
+    description: "Open waiter station to take orders",
   },
   {
     label: "Open Active Orders",
-    href: "/billing?tab=orders",
-    description: "Jump directly to live orders",
+    href: "/orders",
+    description: "View and manage all active orders",
   },
   {
     label: "Low Stock Review",
@@ -156,8 +160,8 @@ export const quickActions: QuickAction[] = [
   },
   {
     label: "Kitchen Queue",
-    href: "/kitchen?view=queue",
-    description: "Monitor prep status and station throughput",
+    href: "/kitchen-display",
+    description: "Monitor kitchen order board and prep status",
   },
   {
     label: "Reports",

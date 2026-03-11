@@ -99,12 +99,13 @@ async def _recalculate_order_totals(db: AsyncSession, restaurant_id: int, order_
         )
     )
     items = list(items_result.scalars().all())
-    subtotal = sum(float(i.total_price) for i in items)
-    tax_rate = 0.10  # 10% default
-    tax_amount = round(subtotal * tax_rate, 2)
-    order.subtotal = subtotal
+    subtotal_gross = sum(float(i.total_price) for i in items)
+    tax_rate = 0.19  # 19% default for Germany
+    tax_amount = round(subtotal_gross * tax_rate / (1 + tax_rate), 2)
+    subtotal_net = round(subtotal_gross - tax_amount, 2)
+    order.subtotal = subtotal_net
     order.tax_amount = tax_amount
-    order.total = round(subtotal + tax_amount - float(order.discount_amount) + float(order.tip_amount), 2)
+    order.total = round(subtotal_gross - float(order.discount_amount) + float(order.tip_amount), 2)
     await db.flush()
     await db.refresh(order)
     return order
@@ -251,7 +252,8 @@ async def generate_bill(db: AsyncSession, restaurant_id: int, payload: BillCreat
     count = (count_result.scalar() or 0) + 1
     bill_number = f"BILL-{datetime.now().year}-{count:04d}"
 
-    total = subtotal + payload.service_charge - float(order.discount_amount) + float(order.tip_amount)
+    subtotal_gross = float(order.subtotal) + float(order.tax_amount)
+    total = subtotal_gross + payload.service_charge - float(order.discount_amount) + float(order.tip_amount)
     # German standard: Tax is inclusive in the total price
     tax_amount = round(total * payload.tax_rate / (1 + payload.tax_rate), 2)
     subtotal_net = round(total - tax_amount, 2)

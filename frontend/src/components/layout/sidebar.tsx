@@ -62,10 +62,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           collapsed ? "justify-center px-0" : "justify-between px-5"
         )}>
           <Link href="/" className="flex items-center gap-2.5" onClick={onClose}>
-            {/* G Monogram */}
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-glow-sm shrink-0">
-              <span className="text-sm font-bold text-white tracking-tight">G</span>
-              <div className="absolute inset-0 rounded-xl animate-pulse-glow-primary opacity-40" />
+            {/* DAS ELB Logo */}
+            <div className="relative flex h-10 w-10 items-center justify-center bg-white rounded-xl p-1 shadow-glow-sm shrink-0">
+              <img src="/das-elb-logo.png" alt="DAS ELB" className="w-full h-auto object-contain" />
             </div>
             <AnimatePresence mode="wait">
               {!collapsed && (
@@ -74,9 +73,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -8 }}
                   transition={{ duration: 0.15 }}
-                  className="text-lg font-bold text-foreground tracking-tight"
+                  className="text-lg font-bold text-foreground tracking-widest uppercase"
                 >
-                  Gestronomy
+                  DAS ELB
                 </motion.span>
               )}
             </AnimatePresence>

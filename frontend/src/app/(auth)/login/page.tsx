@@ -53,7 +53,10 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <h1 className="text-3xl font-bold text-primary text-glow">Gestronomy</h1>
+        <div className="flex justify-center mb-4">
+          <img src="/das-elb-logo.png" alt="DAS ELB Logo" className="h-[72px] w-auto object-contain" />
+        </div>
+        <h1 className="text-3xl font-bold text-primary text-glow tracking-widest uppercase">DAS ELB</h1>
         <p className="mt-2 text-sm text-muted-foreground">Sign in to your account</p>
       </CardHeader>
       <CardContent>

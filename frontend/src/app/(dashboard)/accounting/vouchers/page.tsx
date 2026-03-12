@@ -23,10 +23,15 @@ export default function VouchersPage() {
   const [notes, setNotes] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
 
+  const getBaseUrl = () => {
+    const url = process.env.NEXT_PUBLIC_API_URL || 'https://gestronomy-api.onrender.com';
+    return url.replace(/\/+$/, ""); // ensure no trailing slash
+  };
+
   const fetchVouchers = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/vouchers`);
+      const res = await fetch(`${getBaseUrl()}/api/vouchers`);
       if (res.ok) {
         setVouchers(await res.json());
       }
@@ -55,7 +60,7 @@ export default function VouchersPage() {
         expiry_date: expiryDate ? new Date(expiryDate).toISOString() : null
       };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/vouchers`, {
+      const res = await fetch(`${getBaseUrl()}/api/vouchers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

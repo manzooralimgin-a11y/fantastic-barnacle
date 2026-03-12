@@ -48,7 +48,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-standard",
-          "glass border-r border-white/[0.06]",
+          "glass border-r border-border",
           // Desktop: collapsed (72px) or expanded (260px)
           collapsed ? "md:w-[72px]" : "md:w-[260px]",
           "md:translate-x-0",
@@ -58,7 +58,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       >
         {/* ── Logo area ── */}
         <div className={cn(
-          "flex py-4 items-center shrink-0 border-b border-white/[0.06]",
+          "flex py-4 items-center shrink-0 border-b border-border",
           collapsed ? "justify-center px-0 h-20" : "justify-center px-5 flex-col gap-2 h-32 relative"
         )}>
           <Link href="/" className="flex flex-col items-center justify-center gap-1.5" onClick={onClose}>
@@ -86,7 +86,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             onClick={onClose}
             type="button"
             aria-label="Close sidebar"
-            className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] md:hidden"
+            className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] md:hidden"
           >
             <X className="h-4 w-4" />
           </button>
@@ -144,8 +144,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                               ? "justify-center h-10 w-full"
                               : "gap-3 px-3 py-2",
                             isActive
-                              ? "bg-white/[0.08] text-primary nav-active-bar"
-                              : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                              ? "bg-primary/10 text-primary nav-active-bar"
+                              : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
                           )}
                         >
                           <Icon
@@ -193,7 +193,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* ── Bottom zone ── */}
         <div className={cn(
-          "shrink-0 border-t border-white/[0.06] py-3",
+          "shrink-0 border-t border-border py-3",
           collapsed ? "px-2" : "px-3"
         )}>
           {/* Settings link */}
@@ -201,7 +201,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             href="/settings"
             onClick={onClose}
             className={cn(
-              "flex items-center rounded-lg text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-white/[0.04] hover:text-foreground mb-2",
+              "flex items-center rounded-lg text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-foreground/[0.04] hover:text-foreground mb-2",
               collapsed ? "justify-center h-10" : "gap-3 px-3 py-2"
             )}
           >
@@ -235,7 +235,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               onClick={toggleSidebar}
               type="button"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-colors"
+              className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground transition-colors"
             >
               {collapsed ? (
                 <ChevronRight className="h-3.5 w-3.5" />

@@ -36,9 +36,9 @@
     --glow-purple: 270 70% 55%;
 
     /* Glass tokens */
-    --glass-bg: 160 10% 9% / 0.6;
-    --glass-border: 40 30% 90% / 0.08;
-    --glass-highlight: 40 30% 90% / 0.04;
+    --glass-bg: 0 0% 100% / 0.6;
+    --glass-border: 0 0% 0% / 0.08;
+    --glass-highlight: 0 0% 0% / 0.04;
 
     /* Typography tokens */
     --font-size-xs: 0.75rem;
@@ -111,6 +111,12 @@
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
+    
+    /* Glass tokens */
+    --glass-bg: 160 10% 9% / 0.6;
+    --glass-border: 40 30% 90% / 0.08;
+    --glass-highlight: 40 30% 90% / 0.04;
+    
     --chart-1: oklch(0.809 0.105 251.813);
     --chart-2: oklch(0.623 0.214 259.815);
     --chart-3: oklch(0.546 0.245 262.881);

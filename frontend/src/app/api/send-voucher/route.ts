@@ -7,7 +7,7 @@ const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_key_for_
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customerEmail, customerName, amountTotal, voucherCode, expiryDate, notes } = body;
+    const { customerEmail, customerName, amountTotal, voucherCode, qrCodeBase64, expiryDate, notes } = body;
 
     if (!customerEmail) {
       return NextResponse.json({ error: 'Customer email is required' }, { status: 400 });
@@ -21,6 +21,7 @@ export async function POST(request: Request) {
         customerName: customerName || '', 
         amountTotal: Number(amountTotal).toFixed(2), 
         voucherCode, 
+        qrCodeBase64,
         expiryDate, 
         notes 
       }) as React.ReactElement,

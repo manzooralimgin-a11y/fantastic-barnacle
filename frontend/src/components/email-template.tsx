@@ -4,6 +4,7 @@ interface VoucherEmailTemplateProps {
   customerName: string;
   amountTotal: string;
   voucherCode: string;
+  qrCodeBase64?: string;
   expiryDate?: string;
   notes?: string;
 }
@@ -12,6 +13,7 @@ export const EmailTemplate: React.FC<Readonly<VoucherEmailTemplateProps>> = ({
   customerName,
   amountTotal,
   voucherCode,
+  qrCodeBase64,
   expiryDate,
   notes,
 }) => (
@@ -27,6 +29,9 @@ export const EmailTemplate: React.FC<Readonly<VoucherEmailTemplateProps>> = ({
     <div style={{ background: '#f8fafc', padding: '30px', borderRadius: '12px', margin: '30px 0', border: '1px solid #e2e8f0', textAlign: 'center' }}>
       <h2 style={{ margin: '0 0 15px 0', color: '#10b981', fontSize: '32px' }}>{amountTotal} €</h2>
       <div style={{ background: '#ffffff', padding: '15px', borderRadius: '8px', display: 'inline-block', border: '2px dashed #cbd5e1' }}>
+        {qrCodeBase64 && (
+          <img src={qrCodeBase64} alt="Gutschein QR Code" style={{ display: 'block', margin: '0 auto 15px auto', width: '150px', height: '150px' }} />
+        )}
         <p style={{ margin: '0', fontSize: '24px', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '2px' }}>{voucherCode}</p>
       </div>
       {expiryDate && <p style={{ margin: '15px 0 0 0', color: '#64748b', fontSize: '14px' }}>Gültig bis: {new Date(expiryDate).toLocaleDateString('de-DE')}</p>}

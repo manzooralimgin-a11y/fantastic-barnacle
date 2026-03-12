@@ -133,8 +133,10 @@ from app.vouchers.router import router as vouchers_router  # noqa: E402
 from app.menu_designer.router import router as menu_designer_router  # noqa: E402
 from app.signage.router import router as signage_router  # noqa: E402
 from app.integrations.router import router as integrations_router  # noqa: E402
+from app.integrations.mcp_server import router as mcp_router  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
+app.include_router(mcp_router)
 app.include_router(
     agents_router,
     prefix="/api/agents",

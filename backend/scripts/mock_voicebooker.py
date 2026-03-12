@@ -29,12 +29,12 @@ def send_mock_booking():
             "booking_id": f"BK-TEST-{int(time.time())}",
             "customer": {
                 "customer_id": "CUST-MOCK-1",
-                "name": "Max Mustermann",
+                "name": "manzoor",
                 "phone": "+49123456789"
             },
             "restaurant_id": "REST-1",
             "party_size": 4,
-            "datetime": "2026-03-20T19:30:00+01:00",
+            "datetime": "2026-03-15T18:00:00+01:00",
             "source": "voicebooker",
             "notes": "Test booking from mock script"
         }

@@ -156,67 +156,49 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-                <svg
-                  className="h-5 w-5 text-emerald-500"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
+                <Bot className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
-                <CardTitle className="text-base">VoiceBooker.de Integration</CardTitle>
-                <CardDescription>Configure your AI phone assistant webhooks</CardDescription>
+                <CardTitle className="text-base">VoiceBooker AI Integration (MCP)</CardTitle>
+                <CardDescription>Configure your AI phone assistant via Model Context Protocol</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Webhook Receiver URL</label>
-                <div className="flex gap-2">
-                  <Input 
-                    readOnly 
-                    value="https://gestronomy-api.onrender.com/webhooks/voicebooker" 
-                    className="bg-gray-50 font-mono text-xs" 
-                  />
-                  <Button variant="outline" onClick={() => navigator.clipboard.writeText("https://gestronomy-api.onrender.com/webhooks/voicebooker")}>
-                    Copy
-                  </Button>
+            <div className="space-y-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-lg flex gap-3">
+                <span className="text-xl">🛡️</span>
+                <div className="text-sm">
+                  <p className="font-semibold text-blue-900 dark:text-blue-100">Native MCP Connection</p>
+                  <p className="text-blue-700 dark:text-blue-300">Your server now acts as a high-security AI bridge. VoiceBooker will automatically discover tools for availability and booking.</p>
                 </div>
-                <p className="text-xs text-gray-500">Paste this URL into the VoiceBooker.de dashboard to automatically receive reservations.</p>
-              </div>
-              
-              <div className="space-y-2 mt-4">
-                <label className="text-sm font-medium text-gray-700">Webhook Secret Key (HMAC-SHA256)</label>
-                <div className="flex gap-2">
-                  <Input 
-                    type="password" 
-                    readOnly 
-                    value="dev_secret_key" 
-                    className="bg-gray-50 font-mono text-xs" 
-                  />
-                  <Button variant="outline" onClick={() => navigator.clipboard.writeText("dev_secret_key")}>
-                    Copy
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500">This secret ensures incoming reservations are securely signed by VoiceBooker.</p>
               </div>
 
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">MCP Server URL (SSE)</label>
+                <div className="flex gap-2">
+                  <Input 
+                    readOnly 
+                    value="https://gestronomy-api.onrender.com/mcp/voicebooker/sse" 
+                    className="bg-gray-50 font-mono text-xs" 
+                  />
+                  <Button variant="outline" onClick={() => navigator.clipboard.writeText("https://gestronomy-api.onrender.com/mcp/voicebooker/sse")}>
+                    Copy
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">Paste this URL into the VoiceBooker dashboard under "Add MCP Server".</p>
+              </div>
+              
               <div className="mt-4 flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50/50 p-4">
                 <div className="flex items-center gap-3">
                   <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
                   <div>
-                    <p className="text-sm font-medium text-emerald-900">Endpoint Active</p>
-                    <p className="text-xs text-emerald-700">Ready to receive incoming calls</p>
+                    <p className="text-sm font-medium text-emerald-900">MCP Server Active</p>
+                    <p className="text-xs text-emerald-700">Listening for AI agent queries</p>
                   </div>
                 </div>
                 <Button size="sm" variant="outline" className="text-emerald-700 border-emerald-200 hover:bg-emerald-100">
-                  View Logs
+                  View Connect Logs
                 </Button>
               </div>
             </div>

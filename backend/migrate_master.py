@@ -479,16 +479,82 @@ async def migrate_master():
                 else:
                     sec_map[s["name"]] = existing.id
 
+            # Detailed layout for Restaurant section based on user image
             table_list_restaurant = [
-                ("16", 2), ("16/1", 4), ("15", 2), ("14", 2), ("13", 2), ("12", 2), ("11", 2),
-                ("25", 4), ("24/1", 2), ("24", 4), ("24/3", 4), ("2", 4),
-                ("23/1", 2), ("23", 8), ("23/3", 4), ("22/1", 2), ("22", 7), ("22/3", 4), ("22/4", 4),
-                ("21/1", 2), ("21", 5), ("21/2", 4), ("21/3", 4), ("21/4", 4),
-                ("1/1", 4), ("1", 1), ("2/1", 4), ("2 ", 1), ("3/1", 4), ("3", 1), ("4/1", 4), ("4", 1), ("5/1", 4), ("5", 1),
-                ("1000 TAGUNG / MEETING", 0), ("10", 4),
-                ("31/1", 2), ("32", 4), ("32/1", 4), ("33/1", 2), ("33", 4), ("31", 4),
-                ("39", 4), ("33/2", 4), ("38", 4), ("34", 4), ("34/2", 4),
-                ("37", 4), ("35", 4), ("35/2", 4), ("36", 4), ("36/2", 4)
+                # Table number, capacity, x, y, rotation, width, height, shape
+                # Row 1 (Top Left arc)
+                ("16", 2, 50, 200, -30, 80, 80, "square"),
+                ("16/1", 4, 150, 150, -15, 80, 80, "square"),
+                ("25", 4, 280, 80, -25, 80, 80, "square"),
+                ("24/3", 4, 420, 70, 0, 80, 80, "square"),
+                ("23/3", 4, 520, 120, 0, 80, 80, "square"),
+                ("22/4", 4, 650, 80, 0, 80, 80, "square"),
+                ("21/4", 4, 760, 40, 0, 80, 80, "square"),
+
+                # Row 2
+                ("15", 2, 130, 260, -30, 80, 80, "square"),
+                ("2", 4, 240, 210, -20, 80, 80, "square"),
+                ("24", 4, 380, 170, -30, 80, 80, "square"),
+                ("23", 8, 460, 240, -30, 100, 160, "rectangle"),
+                ("22/3", 4, 650, 180, 0, 80, 80, "square"),
+                ("21/3", 4, 760, 140, 0, 80, 80, "square"),
+
+                # Row 3
+                ("14", 2, 220, 320, -30, 80, 80, "square"),
+                ("24/1", 2, 330, 270, 0, 80, 80, "square"),
+                ("22", 7, 570, 320, -35, 100, 160, "rectangle"),
+                ("21/2", 4, 760, 240, 0, 80, 80, "square"),
+
+                # Row 4
+                ("13", 2, 300, 380, -35, 80, 80, "square"),
+                ("23/1", 2, 410, 340, 0, 80, 80, "square"),
+                ("21", 5, 680, 380, -35, 100, 160, "rectangle"),
+
+                # Row 5
+                ("12", 2, 380, 440, -35, 80, 80, "square"),
+                ("2", 2, 470, 400, 0, 80, 80, "square"),
+                ("22/1", 2, 580, 420, 0, 80, 80, "square"),
+
+                # Row 6
+                ("11", 2, 460, 520, -35, 80, 80, "square"),
+                ("10", 4, 550, 500, 0, 80, 80, "square"),
+                ("21/1", 2, 660, 480, 0, 80, 80, "square"),
+                ("32/1", 4, 850, 450, 0, 80, 80, "square"),
+
+                # Main Grid (Right side)
+                ("1/1", 4, 440, 600, 0, 80, 80, "square"),
+                ("1", 1, 530, 600, 0, 80, 80, "round"),
+                ("31/1", 2, 690, 620, 0, 80, 60, "rectangle"),
+                ("32", 4, 760, 580, 0, 80, 80, "square"),
+
+                ("2/1", 4, 440, 700, 0, 80, 80, "square"),
+                ("2", 1, 530, 700, 0, 80, 80, "round"),
+                ("33/1", 2, 640, 720, 0, 80, 60, "rectangle"),
+                ("33", 4, 760, 680, 0, 80, 80, "square"),
+                ("31", 4, 850, 610, 0, 80, 80, "square"),
+
+                ("3/1", 4, 440, 800, 0, 80, 80, "square"),
+                ("3", 1, 530, 800, 0, 80, 80, "round"),
+                ("39", 4, 640, 790, 0, 80, 80, "square"),
+                ("34", 4, 760, 800, 0, 80, 80, "square"),
+                ("33/2", 4, 850, 710, 0, 80, 80, "square"),
+
+                ("4/1", 4, 440, 900, 0, 80, 80, "square"),
+                ("4", 1, 530, 900, 0, 80, 80, "round"),
+                ("38", 4, 640, 880, 0, 80, 100, "rectangle"),
+                ("34/2", 4, 850, 810, 0, 80, 80, "square"),
+
+                ("5/1", 4, 440, 1000, 0, 80, 80, "square"),
+                ("5", 1, 530, 1000, 0, 80, 80, "round"),
+                ("37", 4, 640, 1000, 0, 80, 100, "rectangle"),
+                ("35", 4, 760, 910, 0, 80, 80, "square"),
+                ("35/2", 4, 850, 930, 0, 80, 80, "square"),
+
+                ("36", 4, 760, 1020, 0, 80, 80, "square"),
+                ("36/2", 4, 850, 1020, 0, 80, 80, "square"),
+
+                # Tagung Zone in Restaurant
+                ("1000 TAGUNG / MEETING", 0, 100, 600, 0, 250, 350, "rectangle")
             ]
 
             table_list_terrasse = [
@@ -510,17 +576,50 @@ async def migrate_master():
             tables_data = []
             
             # Map structural arrays into standardized database dictionaries
-            for idx, (tnum, cap) in enumerate(table_list_restaurant):
-                tables_data.append({"section_id": sec_map.get("Restaurant"), "table_number": str(tnum).strip(), "capacity": cap, "min_capacity": max(1, cap//2), "shape": "square", "position_x": idx % 5, "position_y": idx // 5})
+            for t_info in table_list_restaurant:
+                tnum, cap, x, y, rot, w, h, shp = t_info
+                tables_data.append({
+                    "section_id": sec_map.get("Restaurant"), 
+                    "table_number": str(tnum).strip(), 
+                    "capacity": cap, 
+                    "min_capacity": max(1, cap//2) if cap > 0 else 0, 
+                    "shape": shp, 
+                    "position_x": int(x), 
+                    "position_y": int(y),
+                    "rotation": float(rot),
+                    "width": float(w),
+                    "height": float(h)
+                })
                 
             for idx, (tnum, cap) in enumerate(table_list_terrasse):
-                tables_data.append({"section_id": sec_map.get("Terrasse"), "table_number": str(tnum).strip(), "capacity": cap, "min_capacity": max(1, cap//2), "shape": "square", "position_x": idx % 5, "position_y": idx // 5})
+                tables_data.append({
+                    "section_id": sec_map.get("Terrasse"), 
+                    "table_number": str(tnum).strip(), 
+                    "capacity": cap, 
+                    "min_capacity": max(1, cap//2), 
+                    "shape": "square", 
+                    "position_x": (idx % 8) * 100 + 50, 
+                    "position_y": (idx // 8) * 100 + 50,
+                    "rotation": 0.0,
+                    "width": 80.0,
+                    "height": 80.0
+                })
                 
             for idx, (tnum, cap) in enumerate(table_list_tagung):
-                tables_data.append({"section_id": sec_map.get("Tagung"), "table_number": str(tnum).strip(), "capacity": cap, "min_capacity": max(1, cap//2), "shape": "square", "position_x": idx % 5, "position_y": idx // 5})
+                tables_data.append({
+                    "section_id": sec_map.get("Tagung"), 
+                    "table_number": str(tnum).strip(), 
+                    "capacity": cap, 
+                    "min_capacity": max(1, cap//2), 
+                    "shape": "square", 
+                    "position_x": (idx % 5) * 150 + 100, 
+                    "position_y": (idx // 5) * 150 + 100,
+                    "rotation": 0.0,
+                    "width": 120.0,
+                    "height": 80.0
+                })
 
             table_count = 0
-            table_objs = []
             for t in tables_data:
                 if not t.get("section_id"):
                     continue
@@ -528,17 +627,24 @@ async def migrate_master():
                     select(Table).where(
                         Table.restaurant_id == rid,
                         Table.table_number == t["table_number"],
+                        Table.section_id == t["section_id"]
                     )
                 )
                 existing = res.scalar_one_or_none()
                 if not existing:
                     new_table = Table(restaurant_id=rid, **t)
                     db.add(new_table)
-                    await db.flush()
-                    table_objs.append(new_table)
                     table_count += 1
                 else:
-                    table_objs.append(existing)
+                    # Update existing table positions/metadata in case they changed
+                    existing.position_x = t["position_x"]
+                    existing.position_y = t["position_y"]
+                    existing.rotation = t["rotation"]
+                    existing.width = t["width"]
+                    existing.height = t["height"]
+                    existing.shape = t["shape"]
+                    existing.capacity = t["capacity"]
+                    table_count += 1
 
             log(f"  [SEATING] {len(sec_map)} sections, {table_count} new tables")
 

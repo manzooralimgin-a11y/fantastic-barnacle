@@ -40,6 +40,9 @@ interface TableItem {
   status: string;
   position_x: number;
   position_y: number;
+  rotation: number;
+  width: number;
+  height: number;
   is_active: boolean;
 }
 
@@ -849,59 +852,58 @@ export default function ReservationsPage() {
                         <p className="text-xs text-muted-foreground">seats</p>
                       </div>
                     </div>
-                    {/* Table grid */}
-                    <div className="p-4">
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+                    {/* Table Coordinate System (Floor Plan) */}
+                    <div className="p-4 bg-muted/20 overflow-auto">
+                      <div 
+                        className="relative bg-white/50 dark:bg-black/20 rounded-2xl border border-dashed border-border shadow-inner"
+                        style={{ width: "1000px", height: "1200px" }}
+                      >
                         {sectionTables.map((table) => {
                           const sc = STATUS_COLORS[table.status] || STATUS_COLORS.available;
                           const res = getTableReservation(table.id);
+                          
+                          // Liquid Glass Effect Logic
+                          const glassStyle = {
+                            position: "absolute" as const,
+                            left: `${table.position_x}px`,
+                            top: `${table.position_y}px`,
+                            width: `${table.width || 80}px`,
+                            height: `${table.height || 80}px`,
+                            transform: `rotate(${table.rotation || 0}deg)`,
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                          };
+
                           return (
                             <div
                               key={table.id}
-                              className={`relative border ${res ? "border-amber-400/50 bg-amber-500/5" : `border-border ${sc.bg}`} rounded-lg p-2 hover:shadow-md transition-all cursor-pointer group text-center`}
+                              style={glassStyle}
+                              className={`
+                                group cursor-pointer
+                                border border-white/40 dark:border-white/10
+                                backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.12)]
+                                flex flex-col items-center justify-center
+                                ${table.shape === "round" ? "rounded-full" : "rounded-2xl"}
+                                ${res ? "bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.2)]" : 
+                                  table.status === "available" ? "bg-white/60 dark:bg-white/5" :
+                                  table.status === "occupied" ? "bg-blue-400/20" : "bg-purple-400/20"}
+                              `}
+                              onClick={() => handleChangeTableStatus(table.id, table.status === "available" ? "occupied" : "available")}
                             >
-                              <div className={`absolute top-1 right-1 h-2 w-2 rounded-full ${sc.dot}`} />
-                              <p className="text-sm font-bold text-foreground leading-tight truncate" title={table.table_number}>
-                                {table.table_number}
+                              {/* Reflection glaze */}
+                              <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none rounded-[inherit]" />
+                              
+                              <p className={`text-xs font-black tracking-tighter ${res ? "text-amber-600" : "text-foreground"}`}>
+                                #{table.table_number}
                               </p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{table.capacity} seats</p>
-                              {res && (
-                                <p className="text-[10px] text-amber-500 font-medium truncate mt-0.5" title={res.guest_name}>
-                                  {res.guest_name}
-                                </p>
-                              )}
-                              {/* hover actions */}
-                              <div className="absolute inset-0 bg-card/95 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1 z-10">
-                                {table.status === "available" && (
-                                  <button
-                                    onClick={() => handleChangeTableStatus(table.id, "occupied")}
-                                    className="px-2 py-1 rounded bg-blue-500 text-white text-[10px] font-medium"
-                                  >
-                                    Seat
-                                  </button>
-                                )}
-                                {table.status === "occupied" && (
-                                  <button
-                                    onClick={() => handleChangeTableStatus(table.id, "cleaning")}
-                                    className="px-2 py-1 rounded bg-purple-500 text-white text-[10px] font-medium"
-                                  >
-                                    Clean
-                                  </button>
-                                )}
-                                {(table.status === "cleaning" || table.status === "blocked") && (
-                                  <button
-                                    onClick={() => handleChangeTableStatus(table.id, "available")}
-                                    className="px-2 py-1 rounded bg-emerald-500 text-white text-[10px] font-medium"
-                                  >
-                                    Free
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleChangeTableStatus(table.id, table.status === "blocked" ? "available" : "blocked")}
-                                  className="px-2 py-1 rounded bg-muted text-muted-foreground text-[10px]"
-                                >
-                                  {table.status === "blocked" ? "Unblock" : "Block"}
-                                </button>
+                              <p className="text-[9px] font-medium text-muted-foreground opacity-70">
+                                {table.capacity}
+                              </p>
+
+                              {/* Hover Tooltip/Action Overlay */}
+                              <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-20">
+                                <div className="bg-black/80 backdrop-blur-lg text-white text-[10px] px-2 py-1 rounded shadow-xl whitespace-nowrap">
+                                  {table.status.toUpperCase()} {res ? `| ${res.guest_name}` : ""}
+                                </div>
                               </div>
                             </div>
                           );

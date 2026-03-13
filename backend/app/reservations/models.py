@@ -34,6 +34,9 @@ class Table(Base):
     status: Mapped[str] = mapped_column(String(20), default="available", nullable=False)
     position_x: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     position_y: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rotation: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    width: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    height: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 

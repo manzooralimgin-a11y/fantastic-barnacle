@@ -45,6 +45,9 @@ class TableRead(BaseModel):
     status: str
     position_x: int
     position_y: int
+    rotation: float
+    width: float
+    height: float
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -59,6 +62,9 @@ class TableCreate(BaseModel):
     status: str = "available"
     position_x: int = 0
     position_y: int = 0
+    rotation: float = 0.0
+    width: float = 1.0
+    height: float = 1.0
     is_active: bool = True
 
 
@@ -71,6 +77,9 @@ class TableUpdate(BaseModel):
     status: str | None = None
     position_x: int | None = None
     position_y: int | None = None
+    rotation: float | None = None
+    width: float | None = None
+    height: float | None = None
     is_active: bool | None = None
 
 

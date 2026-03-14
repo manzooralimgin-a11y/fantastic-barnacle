@@ -1,4 +1,10 @@
 import asyncio
+import os
+import sys
+
+# Add parent directory to sys.path to allow importing 'app'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from logging.config import fileConfig
 
 from alembic import context

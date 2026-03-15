@@ -41,6 +41,12 @@ interface TableItem {
   capacity: number;
   status: string;
   is_active: boolean;
+  position_x: number;
+  position_y: number;
+  rotation: number;
+  width: number;
+  height: number;
+  shape: string;
 }
 
 interface ActiveOrder {
@@ -156,6 +162,7 @@ export default function WaiterStationPage() {
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [tableSearch, setTableSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "map">("map");
 
   // Order builder data
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
@@ -573,7 +580,7 @@ export default function WaiterStationPage() {
           )}
         </div>
 
-        {/* Search & Filter */}
+        {/* Search & Filter & View Toggle */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -585,6 +592,7 @@ export default function WaiterStationPage() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
             />
           </div>
+          
           <select
             value={sectionFilter ?? ""}
             onChange={e => setSectionFilter(e.target.value ? Number(e.target.value) : null)}
@@ -595,10 +603,29 @@ export default function WaiterStationPage() {
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
+
+          <div className="flex items-center bg-card rounded-xl border border-border p-1">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                viewMode === "grid" ? "bg-emerald-500/10 text-emerald-500" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode("map")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                viewMode === "map" ? "bg-emerald-500/10 text-emerald-500" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Map
+            </button>
+          </div>
         </div>
 
         {/* Table sections */}
-        <div className="space-y-5">
+        <div className="space-y-6">
           {sections
             .filter(s => s.is_active && tablesBySection[s.id]?.length)
             .sort((a, b) => a.sort_order - b.sort_order)
@@ -607,52 +634,118 @@ export default function WaiterStationPage() {
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                   {section.name}
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {tablesBySection[section.id]?.map(table => {
-                    const config = STATUS_CONFIG[table.status] || STATUS_CONFIG.available;
-                    const order = orderForTable(table.table_number);
-                    const isClickable = table.status === "available" || table.status === "occupied";
 
-                    return (
-                      <button
-                        key={table.id}
-                        onClick={() => handleTableClick(table)}
-                        disabled={!isClickable}
-                        className={`relative p-4 rounded-2xl border transition-all duration-200 text-left
-                          ${config.bg} border-border/50
-                          ${isClickable
-                            ? "hover:scale-[1.02] hover:shadow-lg hover:border-emerald-500/30 cursor-pointer active:scale-[0.98]"
-                            : "opacity-60 cursor-not-allowed"
-                          }
-                          ${order && activeOrders.find(o => o.id === order.id && o.item_count > 0)
-                            ? "ring-1 ring-blue-500/30"
-                            : ""
-                          }
-                        `}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-lg font-bold text-foreground">T{table.table_number}</span>
-                          <span className={`h-2.5 w-2.5 rounded-full ${config.dot}`} />
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                          <Users className="h-3 w-3" />
-                          <span>{table.capacity}</span>
-                        </div>
-                        <span className={`text-xs font-medium ${config.text}`}>
-                          {config.label}
-                        </span>
-                        {order && (
-                          <div className="mt-2 pt-2 border-t border-border/30 text-xs">
-                            <span className="text-muted-foreground">{order.item_count} items</span>
-                            <span className="float-right font-mono font-semibold text-foreground">
-                              &euro;{order.total.toFixed(2)}
-                            </span>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    {tablesBySection[section.id]?.map(table => {
+                      const config = STATUS_CONFIG[table.status] || STATUS_CONFIG.available;
+                      const order = orderForTable(table.table_number);
+                      const isClickable = table.status === "available" || table.status === "occupied";
+
+                      return (
+                        <button
+                          key={table.id}
+                          onClick={() => handleTableClick(table)}
+                          disabled={!isClickable}
+                          className={`relative p-4 rounded-2xl border transition-all duration-200 text-left
+                            ${config.bg} border-border/50
+                            ${isClickable
+                              ? "hover:scale-[1.02] hover:shadow-lg hover:border-emerald-500/30 cursor-pointer active:scale-[0.98]"
+                              : "opacity-60 cursor-not-allowed"
+                            }
+                            ${order && activeOrders.find(o => o.id === order.id && o.item_count > 0)
+                              ? "ring-1 ring-blue-500/30"
+                              : ""
+                            }
+                          `}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-lg font-bold text-foreground">T{table.table_number}</span>
+                            <span className={`h-2.5 w-2.5 rounded-full ${config.dot}`} />
                           </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                            <Users className="h-3 w-3" />
+                            <span>{table.capacity}</span>
+                          </div>
+                          <span className={`text-xs font-medium ${config.text}`}>
+                            {config.label}
+                          </span>
+                          {order && (
+                            <div className="mt-2 pt-2 border-t border-border/30 text-xs">
+                              <span className="text-muted-foreground">{order.item_count} items</span>
+                              <span className="float-right font-mono font-semibold text-foreground">
+                                &euro;{order.total.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Map View */
+                  <div className="p-4 bg-muted/10 rounded-3xl overflow-auto border border-border/40">
+                    <div 
+                      className="relative bg-white/50 dark:bg-black/20 rounded-2xl border border-dashed border-border/60 shadow-inner mx-auto"
+                      style={{ width: "1000px", height: "1100px" }}
+                    >
+                      {tablesBySection[section.id]?.map(table => {
+                        const config = STATUS_CONFIG[table.status] || STATUS_CONFIG.available;
+                        const order = orderForTable(table.table_number);
+                        const isClickable = table.status === "available" || table.status === "occupied";
+                        
+                        // Liquid Glass Effect Logic
+                        const glassStyle = {
+                          position: "absolute" as const,
+                          left: `${table.position_x ?? 0}px`,
+                          top: `${table.position_y ?? 0}px`,
+                          width: `${table.width || 80}px`,
+                          height: `${table.height || 80}px`,
+                          transform: `rotate(${table.rotation || 0}deg)`,
+                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        };
+
+                        return (
+                          <div
+                            key={table.id}
+                            style={glassStyle}
+                            className={`
+                              group cursor-pointer
+                              border border-white/40 dark:border-white/10
+                              backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.12)]
+                              flex flex-col items-center justify-center
+                              ${table.shape === "round" ? "rounded-full" : "rounded-2xl"}
+                              ${order ? "bg-blue-400/20 shadow-[0_0_20px_rgba(96,165,250,0.3)]" : 
+                                table.status === "available" ? "bg-white/60 dark:bg-white/5" :
+                                table.status === "occupied" ? "bg-blue-400/10" : "bg-purple-400/20"}
+                              ${!isClickable ? "opacity-40 grayscale pointer-events-none" : "hover:scale-105 active:scale-95"}
+                            `}
+                            onClick={() => handleTableClick(table)}
+                          >
+                            {/* Reflection glaze */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none rounded-[inherit]" />
+                            
+                            <p className="text-xs font-black tracking-tighter text-foreground">
+                              {table.table_number}
+                            </p>
+                            <p className="text-[9px] font-medium text-muted-foreground opacity-70">
+                              {table.capacity}
+                            </p>
+
+                            {order && (
+                              <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-lg border border-white/20">
+                                {order.item_count}
+                              </div>
+                            )}
+
+                            {/* Status Indicator Dot */}
+                            <div className={`absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full ${config.dot}`} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Euro, Mail, QrCode } from "lucide-react";
+import { Plus, Euro, Mail, QrCode, Send, Eye, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import * as Dialog from "@/components/ui/dialog";
+import api from "@/lib/api";
+
+
 
 export default function VouchersPage() {
   const [vouchers, setVouchers] = useState<any[]>([]);
@@ -23,18 +27,17 @@ export default function VouchersPage() {
   const [notes, setNotes] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
 
-  const getBaseUrl = () => {
-    const url = process.env.NEXT_PUBLIC_API_URL || '';
-    return url.replace(/\/+$/, ""); // ensure no trailing slash
-  };
+  // Modal State
+  const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [resending, setResending] = useState<number | null>(null);
+
 
   const fetchVouchers = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${getBaseUrl()}/api/vouchers`);
-      if (res.ok) {
-        setVouchers(await res.json());
-      }
+      const res = await api.get("/vouchers");
+      setVouchers(res.data);
     } catch (e) {
       console.error("Failed to fetch vouchers:", e);
       toast.error("Database connection failed");
@@ -60,13 +63,7 @@ export default function VouchersPage() {
         expiry_date: expiryDate ? new Date(expiryDate).toISOString() : null
       };
 
-      const res = await fetch(`${getBaseUrl()}/api/vouchers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error("Creation failed");
+      await api.post("/vouchers", payload);
       
       toast.success(customerEmail ? "Voucher Generated & Email Sent Securely!" : "Voucher Created! (No email assigned)");
       
@@ -84,6 +81,24 @@ export default function VouchersPage() {
       setCreating(false);
     }
   };
+
+  const handleResendEmail = async (voucherId: number) => {
+    try {
+      setResending(voucherId);
+      await api.post(`/vouchers/${voucherId}/resend-email`);
+      toast.success("Email resend triggered successfully");
+    } catch (e) {
+      toast.error("Failed to resend email");
+    } finally {
+      setResending(null);
+    }
+  };
+
+  const handleOpenQR = (voucher: any) => {
+    setSelectedVoucher(voucher);
+    setShowQRModal(true);
+  };
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -219,8 +234,23 @@ export default function VouchersPage() {
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(v.status)}</TableCell>
-                      <TableCell className="text-right text-xs">
-                        {format(new Date(v.created_at), 'dd MMM yyyy')}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenQR(v)} title="View QR">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {v.customer_email && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleResendEmail(v.id)}
+                              disabled={resending === v.id}
+                              title="Resend Email"
+                            >
+                              <Send className={`h-4 w-4 ${resending === v.id ? 'animate-pulse' : ''}`} />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -230,6 +260,48 @@ export default function VouchersPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* QR Code Modal */}
+      <Dialog.Dialog open={showQRModal} onOpenChange={setShowQRModal}>
+        <Dialog.DialogContent className="sm:max-w-md">
+          <Dialog.DialogHeader>
+            <Dialog.DialogTitle>Voucher QR Code</Dialog.DialogTitle>
+            <Dialog.DialogDescription>
+              {selectedVoucher?.code} - €{selectedVoucher?.amount_remaining}
+            </Dialog.DialogDescription>
+          </Dialog.DialogHeader>
+          <div className="flex flex-col items-center justify-center p-6 bg-card rounded-xl">
+             {selectedVoucher?.qr_code_base64 ? (
+               <img 
+                 src={selectedVoucher.qr_code_base64} 
+                 alt="QR Code" 
+                 className="w-64 h-64"
+               />
+             ) : (
+               <div className="w-64 h-64 flex items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground">
+                 Loading QR...
+               </div>
+             )}
+             <p className="mt-4 font-mono text-lg font-bold tracking-widest">{selectedVoucher?.code}</p>
+          </div>
+          <Dialog.DialogFooter className="sm:justify-between">
+            <Button variant="outline" onClick={() => setShowQRModal(false)}>Close</Button>
+            <Button 
+              className="gap-2"
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = selectedVoucher.qr_code_base64;
+                link.download = `Voucher-${selectedVoucher.code}.png`;
+                link.click();
+              }}
+            >
+              <Download className="h-4 w-4" /> Download PNG
+            </Button>
+          </Dialog.DialogFooter>
+        </Dialog.DialogContent>
+      </Dialog.Dialog>
+
     </div>
+
   );
 }

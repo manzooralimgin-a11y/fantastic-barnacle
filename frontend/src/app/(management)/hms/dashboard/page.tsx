@@ -68,13 +68,14 @@ export default function HMSDashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-editorial font-bold text-white tracking-tight">
+          <h1 className="text-4xl font-editorial font-bold text-foreground tracking-tight">
             Hotel Management
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-foreground-muted mt-1">
             {overview.hotel_name} • {overview.city} • Integrated AgentCore HMS
           </p>
         </div>
+
         <div className="flex items-center gap-3">
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 py-1 px-3">
                 <LayoutDashboard className="w-3 h-3 mr-2" />
@@ -83,57 +84,58 @@ export default function HMSDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Inventory" value={overview.total_rooms} icon={Bed} trend="+0% vs LW" color="blue" />
-        <StatCard label="Live Occupancy" value={overview.occupied} icon={Users} trend="+12% vs LW" color="emerald" />
-        <StatCard label="Available Now" value={overview.available} icon={TrendingUp} trend="-2 since 8am" color="gold" />
-        <StatCard label="In Turnover" value={overview.cleaning} icon={CleaningBuckets} trend="4 pending" color="amber" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard label="Total Inventory" value={overview.total_rooms} icon={Bed} trend="+0% vs LW" />
+        <StatCard label="Live Occupancy" value={overview.occupied} icon={Users} trend="+12% vs LW" />
+        <StatCard label="Available Now" value={overview.available} icon={TrendingUp} trend="-2 since 8am" />
+        <StatCard label="In Turnover" value={overview.cleaning} icon={CleaningBuckets} trend="4 pending" />
       </div>
 
-      <Card className="glass-card border-white/5 bg-black/40 overflow-hidden">
-        <CardHeader className="border-b border-white/5 bg-white/[0.02] flex flex-row items-center justify-between">
+
+      <Card className="bg-card shadow-[var(--shadow-soft)] border-none overflow-hidden">
+        <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02] flex flex-row items-center justify-between px-6 py-6">
           <div>
-            <CardTitle className="text-lg font-editorial">Room Status Board</CardTitle>
-            <p className="text-xs text-muted-foreground">Real-time room occupancy and housekeeping status</p>
+            <CardTitle className="text-lg font-editorial text-foreground">Room Status Board</CardTitle>
+            <p className="text-xs text-foreground-muted">Real-time room occupancy and housekeeping status</p>
           </div>
           <button className="text-xs font-medium text-primary hover:underline">View All Rooms</button>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
-              <thead className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold bg-white/[0.01]">
+              <thead className="text-[10px] uppercase tracking-widest text-foreground-muted font-bold bg-foreground/[0.01]">
                 <tr>
-                  <th className="px-6 py-4">Room No.</th>
-                  <th className="px-6 py-4">Type</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Actions</th>
+                  <th className="px-6 py-5">Room No.</th>
+                  <th className="px-6 py-5">Type</th>
+                  <th className="px-6 py-5">Status</th>
+                  <th className="px-6 py-5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-foreground/10">
                 {rooms.map((room) => (
-                  <tr key={room.id} className="group hover:bg-white/[0.02] transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-white group-hover:text-primary transition-colors">
+                  <tr key={room.id} className="group hover:bg-foreground/[0.01] transition-colors">
+                    <td className="px-6 py-5 font-mono font-bold text-foreground">
                       {room.number}
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground">
+                    <td className="px-6 py-5 text-foreground-muted">
                       {room.room_type_name}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       <Badge 
                         variant="secondary" 
                         className={cn(
-                            "capitalize px-2.5 py-0.5 text-[10px] font-bold tracking-wide border",
-                            room.status === "available" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                            room.status === "occupied" && "bg-blue-500/10 text-blue-400 border-blue-500/20",
-                            room.status === "cleaning" && "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                            room.status === "maintenance" && "bg-red-500/10 text-red-400 border-red-500/20"
+                            "capitalize px-3 py-1 text-[10px] font-bold tracking-wide border rounded-full shadow-none",
+                            room.status === "available" && "bg-foreground/10 text-foreground border-transparent",
+                            room.status === "occupied" && "bg-primary text-primary-foreground border-transparent",
+                            room.status === "cleaning" && "bg-primary/10 text-primary border-transparent",
+                            room.status === "maintenance" && "bg-foreground text-primary-foreground border-primary"
                         )}
                       >
                         {room.status}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4">
-                        <button className="text-xs text-white/40 hover:text-white transition-colors">Manage</button>
+                    <td className="px-6 py-5 text-right">
+                        <button className="text-xs text-foreground/40 hover:text-foreground transition-colors font-medium">Manage</button>
                     </td>
                   </tr>
                 ))}
@@ -142,35 +144,30 @@ export default function HMSDashboardPage() {
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
 
-function StatCard({ label, value, icon: Icon, trend, color }: any) {
-  const colors: any = {
-    blue: "text-blue-400 bg-blue-500/5 border-blue-500/10",
-    emerald: "text-emerald-400 bg-emerald-500/5 border-emerald-500/10",
-    gold: "text-[#D4AF37] bg-[#D4AF37]/5 border-[#D4AF37]/10",
-    amber: "text-amber-400 bg-amber-500/5 border-amber-500/10",
-  }
-
+function StatCard({ label, value, icon: Icon, trend }: any) {
   return (
-    <Card className="glass-card border-white/5 bg-black/40 hover:border-white/10 transition-all duration-300">
+    <Card className="bg-card shadow-[var(--shadow-soft)] border-none hover:translate-y-[-2px] transition-all duration-300">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-          <div className={cn("p-2 rounded-lg border", colors[color])}>
-            <Icon className="w-4 h-4" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">{label}</p>
+          <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+            <Icon className="w-5 h-5" />
           </div>
         </div>
         <div className="flex items-baseline gap-2">
-          <h3 className="text-3xl font-editorial font-bold text-white">{value}</h3>
-          <span className="text-[10px] font-medium text-muted-foreground">{trend}</span>
+          <h3 className="text-4xl font-editorial font-bold text-foreground">{value}</h3>
+          <span className="text-[10px] font-medium text-foreground/60">{trend}</span>
         </div>
       </CardContent>
     </Card>
   );
 }
+
 
 function CleaningBuckets(props: any) {
     return (

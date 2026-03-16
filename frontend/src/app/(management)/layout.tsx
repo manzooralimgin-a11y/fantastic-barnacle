@@ -40,12 +40,13 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="atmospheric-bg min-h-screen">
-      {/* Floating orbs — atmospheric color for glass bleed-through */}
+      {/* Floating orbs — boutique brand colors for glass bleed-through */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute top-[10%] left-[15%] w-[400px] h-[400px] rounded-full bg-[rgba(59,130,246,0.08)] blur-[120px] animate-orb-drift" />
-        <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full bg-[rgba(147,51,234,0.05)] blur-[100px] animate-orb-drift" style={{ animationDelay: "-7s" }} />
-        <div className="absolute top-[60%] left-[50%] w-[300px] h-[300px] rounded-full bg-[rgba(37,99,235,0.04)] blur-[100px] animate-orb-drift" style={{ animationDelay: "-14s" }} />
+        <div className="absolute top-[10%] left-[15%] w-[400px] h-[400px] rounded-full bg-[rgba(197,160,89,0.08)] blur-[120px] animate-orb-drift" />
+        <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full bg-[rgba(26,47,36,0.12)] blur-[100px] animate-orb-drift" style={{ animationDelay: "-7s" }} />
+        <div className="absolute top-[60%] left-[50%] w-[300px] h-[300px] rounded-full bg-[rgba(197,160,89,0.04)] blur-[100px] animate-orb-drift" style={{ animationDelay: "-14s" }} />
       </div>
+
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

@@ -8,22 +8,23 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[rgba(212,175,55,0.08)] border-[rgba(212,175,55,0.12)] text-gold hover:border-[rgba(212,175,55,0.2)]",
+          "bg-[var(--color-brand-gold)] opacity-10 text-[var(--color-brand-green)]",
         secondary:
-          "bg-[rgba(255,253,240,0.04)] border-[rgba(255,253,240,0.08)] text-foreground-muted",
+          "bg-foreground/5 border-foreground/10 text-foreground-muted",
         destructive:
-          "bg-[rgba(230,57,70,0.08)] border-[rgba(230,57,70,0.12)] text-status-danger",
+          "bg-red-500/10 border-red-500/20 text-red-500",
         outline:
-          "bg-transparent border-[rgba(255,253,240,0.1)] text-foreground",
+          "bg-transparent border-foreground/10 text-foreground",
         success:
-          "bg-[rgba(82,183,136,0.08)] border-[rgba(82,183,136,0.12)] text-status-success",
+          "bg-emerald-500/10 border-emerald-500/20 text-emerald-600",
         warning:
-          "bg-[rgba(232,197,71,0.08)] border-[rgba(232,197,71,0.12)] text-status-warning",
+          "bg-[var(--color-brand-gold)]/10 border-[var(--color-brand-gold)]/20 text-[var(--color-brand-gold)]",
         info:
-          "bg-[rgba(106,173,207,0.08)] border-[rgba(106,173,207,0.12)] text-status-info",
+          "bg-blue-500/10 border-blue-500/20 text-blue-600",
         glass:
-          "glass-card border-[var(--glass-border)] text-foreground shadow-none",
+          "bg-white/5 backdrop-blur-md border-white/10 text-foreground shadow-none",
       },
+
     },
     defaultVariants: {
       variant: "default",

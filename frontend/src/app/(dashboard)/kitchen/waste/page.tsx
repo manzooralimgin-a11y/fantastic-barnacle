@@ -77,8 +77,8 @@ export default function WastePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Waste Tracking</h1>
-        <p className="text-sm text-gray-500">Monitor and reduce food waste</p>
+        <h1 className="text-2xl font-bold text-foreground">Waste Tracking</h1>
+        <p className="text-sm text-muted-foreground">Monitor and reduce food waste</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

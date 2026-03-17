@@ -17,8 +17,8 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-        <p className="text-sm text-gray-500">Generate and download operational reports</p>
+        <h1 className="text-2xl font-bold text-foreground">Reports</h1>
+        <p className="text-sm text-muted-foreground">Generate and download operational reports</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -33,7 +33,7 @@ export default function ReportsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="mb-4 text-sm text-gray-500">{report.description}</p>
+                <p className="mb-4 text-sm text-muted-foreground">{report.description}</p>
                 <Button variant="outline" size="sm" className="w-full">
                   <Download className="mr-2 h-4 w-4" />
                   Generate Report

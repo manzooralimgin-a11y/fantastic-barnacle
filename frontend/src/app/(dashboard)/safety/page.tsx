@@ -48,8 +48,8 @@ export default function SafetyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Safety & Compliance</h1>
-        <p className="text-sm text-gray-500">HACCP monitoring and compliance tracking</p>
+        <h1 className="text-2xl font-bold text-foreground">Safety & Compliance</h1>
+        <p className="text-sm text-muted-foreground">HACCP monitoring and compliance tracking</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
@@ -58,7 +58,7 @@ export default function SafetyPage() {
             <div className="relative mb-3">
               <svg className="h-32 w-32" viewBox="0 0 100 100">
                 <circle
-                  className="text-gray-100"
+                  className="text-muted"
                   strokeWidth="8"
                   stroke="currentColor"
                   fill="transparent"
@@ -80,12 +80,12 @@ export default function SafetyPage() {
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl font-bold text-gray-900">
+                <span className="text-3xl font-bold text-foreground">
                   {score?.overall_score ?? 0}%
                 </span>
               </div>
             </div>
-            <p className="text-sm font-medium text-gray-500">Compliance Score</p>
+            <p className="text-sm font-medium text-muted-foreground">Compliance Score</p>
           </CardContent>
         </Card>
 
@@ -116,13 +116,13 @@ export default function SafetyPage() {
           {haccpLoading ? (
             <Loading className="py-8" />
           ) : (haccp ?? []).length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-400">No HACCP entries</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No HACCP entries</p>
           ) : (
             <div className="space-y-2">
               {(haccp ?? []).slice(0, 10).map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 p-3"
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
                 >
                   <div className="flex items-center gap-3">
                     <Badge
@@ -137,13 +137,13 @@ export default function SafetyPage() {
                       {entry.status}
                     </Badge>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{entry.checkpoint}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-medium text-foreground">{entry.checkpoint}</p>
+                      <p className="text-xs text-muted-foreground">
                         {entry.recorded_by} &middot; {formatDateTime(entry.recorded_at)}
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-mono text-gray-600">
+                  <span className="text-sm font-mono text-muted-foreground">
                     {entry.temperature}&deg;F
                   </span>
                 </div>

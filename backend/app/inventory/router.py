@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -50,7 +50,7 @@ router = APIRouter()
 @router.get("/items", response_model=list[InventoryItemRead])
 async def list_items(
     category: str | None = None,
-    limit: int = 100,
+    limit: int = Query(default=50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_tenant_user),
 ):
@@ -79,7 +79,7 @@ async def edit_item(
 @router.get("/orders", response_model=list[PurchaseOrderRead])
 async def list_orders(
     status: str | None = None,
-    limit: int = 100,
+    limit: int = Query(default=50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_tenant_user),
 ):

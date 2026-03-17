@@ -38,8 +38,8 @@ export default function WorkforcePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Workforce</h1>
-        <p className="text-sm text-gray-500">Schedule management and labor tracking</p>
+        <h1 className="text-2xl font-bold text-foreground">Workforce</h1>
+        <p className="text-sm text-muted-foreground">Schedule management and labor tracking</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -55,7 +55,7 @@ export default function WorkforcePage() {
         />
         <StatCard
           title="Labor Cost"
-          value={`$${(data?.labor_cost_today ?? 0).toLocaleString()}`}
+          value={`€${(data?.labor_cost_today ?? 0).toLocaleString()}`}
           icon={DollarSign}
         />
       </div>
@@ -67,22 +67,22 @@ export default function WorkforcePage() {
         <CardContent>
           <div className="overflow-x-auto">
             <div className="min-w-[700px]">
-              <div className="grid grid-cols-8 gap-px bg-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 p-2 text-xs font-medium text-gray-500">Time</div>
+              <div className="grid grid-cols-8 gap-px bg-border rounded-lg overflow-hidden">
+                <div className="bg-muted p-2 text-xs font-medium text-muted-foreground">Time</div>
                 {DAYS.map((day) => (
-                  <div key={day} className="bg-gray-50 p-2 text-center text-xs font-medium text-gray-500">
+                  <div key={day} className="bg-muted p-2 text-center text-xs font-medium text-muted-foreground">
                     {day}
                   </div>
                 ))}
                 {HOURS.map((hour) => (
                   <>
-                    <div key={`h-${hour}`} className="bg-white p-2 text-xs text-gray-400">
+                    <div key={`h-${hour}`} className="bg-card p-2 text-xs text-muted-foreground">
                       {hour}:00
                     </div>
                     {DAYS.map((day) => (
                       <div
                         key={`${day}-${hour}`}
-                        className="bg-white p-1 min-h-[32px]"
+                        className="bg-card p-1 min-h-[32px]"
                       >
                         {(data?.shifts ?? [])
                           .filter(

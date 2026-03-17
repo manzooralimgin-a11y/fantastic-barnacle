@@ -27,7 +27,7 @@ export function StatCard({ title, value, change, target, icon: Icon, className, 
             {title}
           </p>
           <p className={cn(
-            "font-editorial font-light tracking-tight",
+            "font-editorial font-normal tracking-tight",
             featured ? "text-3xl text-gold" : "text-2xl text-foreground"
           )}>
             {value}

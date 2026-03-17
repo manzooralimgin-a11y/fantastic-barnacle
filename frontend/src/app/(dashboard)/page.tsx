@@ -92,12 +92,12 @@ export default function DashboardPage() {
 
   // Fetch dashboard data
   useEffect(() => {
-    api.get("/dashboard/kpis").then(({ data }) => setKPIs(data)).catch(() => {});
-    api.get("/dashboard/alerts").then(({ data }) => setAlerts(data)).catch(() => {});
-    api.get("/dashboard/activity").then(({ data }) => setAgentActivity(data)).catch(() => {});
-    api.get("/dashboard/exceptions").then(({ data }) => setExceptions(data)).catch(() => {});
-    api.get("/dashboard/recommendations").then(({ data }) => setRecommendations(data)).catch(() => {});
-    api.get("/dashboard/audit-timeline").then(({ data }) => setAuditTimeline(data)).catch(() => {});
+    api.get("/dashboard/kpis").then(({ data }) => setKPIs(data)).catch((e) => console.error("Dashboard API error:", e));
+    api.get("/dashboard/alerts").then(({ data }) => setAlerts(data)).catch((e) => console.error("Dashboard API error:", e));
+    api.get("/dashboard/activity").then(({ data }) => setAgentActivity(data)).catch((e) => console.error("Dashboard API error:", e));
+    api.get("/dashboard/exceptions").then(({ data }) => setExceptions(data)).catch((e) => console.error("Dashboard API error:", e));
+    api.get("/dashboard/recommendations").then(({ data }) => setRecommendations(data)).catch((e) => console.error("Dashboard API error:", e));
+    api.get("/dashboard/audit-timeline").then(({ data }) => setAuditTimeline(data)).catch((e) => console.error("Dashboard API error:", e));
   }, [setKPIs, setAlerts, setAgentActivity, setExceptions, setRecommendations, setAuditTimeline]);
 
   useEffect(() => {
@@ -155,7 +155,7 @@ export default function DashboardPage() {
         <div className="relative pt-4 lg:pt-8">
           <div className="flex items-end justify-between">
             <div className="space-y-3">
-              <h1 className="text-4xl md:text-5xl lg:text-7xl font-editorial font-light text-foreground tracking-tight leading-[0.95]">
+              <h1 className="text-4xl md:text-5xl lg:text-7xl font-editorial font-normal text-foreground tracking-tight leading-[0.95]">
                 {getGreeting()},
                 <br />
                 <span className="text-gold-shimmer font-normal">{firstName}</span>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
             </div>
             <AnimatedCounter
               value={todayStrip.reservationsToday}
-              className="text-4xl font-editorial font-light text-gold"
+              className="text-4xl font-editorial font-normal text-gold"
             />
           </div>
         </motion.div>
@@ -212,7 +212,7 @@ export default function DashboardPage() {
             </div>
             <AnimatedCounter
               value={todayStrip.openOrders}
-              className="text-2xl font-editorial font-light text-foreground"
+              className="text-2xl font-editorial font-normal text-foreground"
             />
           </div>
         </motion.div>
@@ -226,7 +226,7 @@ export default function DashboardPage() {
             </div>
             <AnimatedCounter
               value={todayStrip.lowStockItems}
-              className="text-2xl font-editorial font-light text-foreground"
+              className="text-2xl font-editorial font-normal text-foreground"
             />
           </div>
         </motion.div>
@@ -240,7 +240,7 @@ export default function DashboardPage() {
             </div>
             <AnimatedCounter
               value={todayStrip.criticalAlerts}
-              className={`text-2xl font-editorial font-light ${todayStrip.criticalAlerts > 0 ? "text-status-danger" : "text-foreground"}`}
+              className={`text-2xl font-editorial font-normal ${todayStrip.criticalAlerts > 0 ? "text-status-danger" : "text-foreground"}`}
             />
           </div>
         </motion.div>

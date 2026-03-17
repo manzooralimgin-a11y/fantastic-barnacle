@@ -74,8 +74,8 @@ export default function GuestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Guest Profiles</h1>
-        <p className="text-sm text-gray-500">Customer insights and engagement tracking</p>
+        <h1 className="text-2xl font-bold text-foreground">Guest Profiles</h1>
+        <p className="text-sm text-muted-foreground">Customer insights and engagement tracking</p>
       </div>
 
       <Card>

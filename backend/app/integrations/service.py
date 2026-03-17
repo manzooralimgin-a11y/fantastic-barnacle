@@ -44,7 +44,7 @@ async def store_webhook_event(
     )
     db.add(event)
     try:
-        await db.commit()
+        await db.flush()
     except IntegrityError:
         await db.rollback()
         return False

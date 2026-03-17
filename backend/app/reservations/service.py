@@ -1,7 +1,7 @@
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.reservations.models import FloorSection, Reservation, Table, TableSession, WaitlistEntry
@@ -195,12 +195,41 @@ async def create_reservation(db: AsyncSession, restaurant_id: int, payload: Rese
                 Table.capacity >= payload.party_size,
                 Table.is_active == True,
                 Table.status == "available",
-            ).order_by(Table.capacity).limit(1)
+            ).order_by(Table.capacity)
         )
-        table = available.scalar_one_or_none()
-        if table:
+        candidate_tables = list(available.scalars().all())
+
+        # Check each candidate table for time conflicts on the requested date/time
+        assigned_table = None
+        req_start = datetime.combine(payload.reservation_date, payload.start_time)
+        req_duration = payload.duration_min or 90
+        req_end = req_start + timedelta(minutes=req_duration)
+
+        for table in candidate_tables:
+            # Find existing reservations for this table on the same date
+            conflicts = await db.execute(
+                select(Reservation).where(
+                    Reservation.restaurant_id == restaurant_id,
+                    Reservation.table_id == table.id,
+                    Reservation.reservation_date == payload.reservation_date,
+                    Reservation.status.in_(["confirmed", "seated"]),
+                )
+            )
+            has_conflict = False
+            for existing in conflicts.scalars().all():
+                existing_start = datetime.combine(payload.reservation_date, existing.start_time)
+                existing_end = existing_start + timedelta(minutes=existing.duration_min)
+                # Check for time overlap
+                if not (req_end <= existing_start or req_start >= existing_end):
+                    has_conflict = True
+                    break
+            if not has_conflict:
+                assigned_table = table
+                break
+
+        if assigned_table:
             payload_dict = payload.model_dump()
-            payload_dict["table_id"] = table.id
+            payload_dict["table_id"] = assigned_table.id
             res = Reservation(**payload_dict, restaurant_id=restaurant_id)
         else:
             res = Reservation(**payload.model_dump(), restaurant_id=restaurant_id)
@@ -366,13 +395,14 @@ async def check_availability(
         for ts in time_slots:
             h, m = map(int, ts.split(":"))
             slot_time = time(h, m)
+            slot_start_dt = datetime.combine(reservation_date, slot_time)
+            slot_end_dt = slot_start_dt + timedelta(minutes=90)
             conflict = False
             for booked_time, duration in reserved_table_times.get(table.id, []):
-                booked_end = (datetime.combine(reservation_date, booked_time)
-                              + timedelta(minutes=duration)).time()
-                slot_end = (datetime.combine(reservation_date, slot_time)
-                            + timedelta(minutes=90)).time()
-                if not (slot_end <= booked_time or slot_time >= booked_end):
+                booked_start_dt = datetime.combine(reservation_date, booked_time)
+                booked_end_dt = booked_start_dt + timedelta(minutes=duration)
+                # Using datetime instead of time avoids midnight-crossing bugs
+                if not (slot_end_dt <= booked_start_dt or slot_start_dt >= booked_end_dt):
                     conflict = True
                     break
             if not conflict:

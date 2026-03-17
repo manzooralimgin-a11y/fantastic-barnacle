@@ -51,8 +51,8 @@ export default function MarketingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Marketing & Reputation</h1>
-        <p className="text-sm text-gray-500">Online reputation and review management</p>
+        <h1 className="text-2xl font-bold text-foreground">Marketing & Reputation</h1>
+        <p className="text-sm text-muted-foreground">Online reputation and review management</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -81,17 +81,17 @@ export default function MarketingPage() {
           {reviewsLoading ? (
             <Loading className="py-8" />
           ) : (reviews ?? []).length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-400">No reviews yet</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No reviews yet</p>
           ) : (
             <div className="space-y-4">
               {(reviews ?? []).slice(0, 8).map((review) => (
                 <div
                   key={review.id}
-                  className="rounded-lg border border-gray-100 p-4"
+                  className="rounded-lg border border-border p-4"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-foreground">
                         {review.author}
                       </span>
                       <Badge variant="outline">{review.platform}</Badge>
@@ -125,8 +125,8 @@ export default function MarketingPage() {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">{review.content}</p>
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="text-sm text-muted-foreground">{review.content}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
                     {formatRelativeTime(review.created_at)}
                   </p>
                 </div>

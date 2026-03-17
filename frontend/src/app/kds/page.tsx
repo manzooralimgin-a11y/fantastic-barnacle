@@ -45,7 +45,7 @@ interface KDSStation {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
   ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : "https://gestronomy-api.onrender.com/api";
+  : "/api";
 
 function getToken(): string | null {
   if (typeof window !== "undefined") {

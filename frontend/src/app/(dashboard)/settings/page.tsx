@@ -9,8 +9,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500">Manage your restaurant configuration</p>
+        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground">Manage your restaurant configuration</p>
       </div>
 
       <div className="space-y-6 max-w-3xl">
@@ -29,19 +29,19 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Restaurant Name</label>
+                <label className="text-sm font-medium text-muted-foreground">Restaurant Name</label>
                 <Input placeholder="My Restaurant" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Phone</label>
+                <label className="text-sm font-medium text-muted-foreground">Phone</label>
                 <Input placeholder="+1 (555) 000-0000" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Email</label>
+                <label className="text-sm font-medium text-muted-foreground">Email</label>
                 <Input placeholder="contact@restaurant.com" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Address</label>
+                <label className="text-sm font-medium text-muted-foreground">Address</label>
                 <Input placeholder="123 Main St" />
               </div>
             </div>
@@ -64,11 +64,11 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Default Autonomy Level</label>
+                <label className="text-sm font-medium text-muted-foreground">Default Autonomy Level</label>
                 <Input placeholder="supervised" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Decision Threshold ($)</label>
+                <label className="text-sm font-medium text-muted-foreground">Decision Threshold (€)</label>
                 <Input placeholder="500" type="number" />
               </div>
             </div>
@@ -98,15 +98,15 @@ export default function SettingsPage() {
               ].map((pref) => (
                 <div
                   key={pref.label}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 p-4"
+                  className="flex items-center justify-between rounded-lg border border-border p-4"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{pref.label}</p>
-                    <p className="text-xs text-gray-500">{pref.desc}</p>
+                    <p className="text-sm font-medium text-foreground">{pref.label}</p>
+                    <p className="text-xs text-muted-foreground">{pref.desc}</p>
                   </div>
                   <label className="relative inline-flex cursor-pointer items-center">
                     <input type="checkbox" className="peer sr-only" />
-                    <div className="h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-brand-500 peer-checked:after:translate-x-full" />
+                    <div className="h-6 w-11 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-card after:transition-all peer-checked:bg-brand-500 peer-checked:after:translate-x-full" />
                   </label>
                 </div>
               ))}
@@ -136,11 +136,11 @@ export default function SettingsPage() {
               ].map((apiKey) => (
                 <div
                   key={apiKey.name}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 p-4"
+                  className="flex items-center justify-between rounded-lg border border-border p-4"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{apiKey.name}</p>
-                    <p className="text-xs font-mono text-gray-400">{apiKey.key}</p>
+                    <p className="text-sm font-medium text-foreground">{apiKey.name}</p>
+                    <p className="text-xs font-mono text-muted-foreground">{apiKey.key}</p>
                   </div>
                   <Button variant="outline" size="sm">
                     Regenerate
@@ -175,18 +175,18 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">MCP Server URL (SSE)</label>
+                <label className="text-sm font-medium text-muted-foreground">MCP Server URL (SSE)</label>
                 <div className="flex gap-2">
                   <Input 
                     readOnly 
-                    value="https://gestronomy-api.onrender.com/mcp/voicebooker/sse" 
-                    className="bg-gray-50 font-mono text-xs" 
+                    value={`${process.env.NEXT_PUBLIC_API_URL || ''}/mcp/voicebooker/sse`} 
+                    className="bg-muted font-mono text-xs" 
                   />
-                  <Button variant="outline" onClick={() => navigator.clipboard.writeText("https://gestronomy-api.onrender.com/mcp/voicebooker/sse")}>
+                  <Button variant="outline" onClick={() => navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_API_URL || ''}/mcp/voicebooker/sse`)}>
                     Copy
                   </Button>
                 </div>
-                <p className="text-xs text-gray-500">Paste this URL into the VoiceBooker dashboard under "Add MCP Server".</p>
+                <p className="text-xs text-muted-foreground">Paste this URL into the VoiceBooker dashboard under "Add MCP Server".</p>
               </div>
               
               <div className="mt-4 flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50/50 p-4">

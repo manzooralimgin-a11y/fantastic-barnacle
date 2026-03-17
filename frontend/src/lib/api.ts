@@ -6,7 +6,7 @@ import axios from "axios";
  * This allows the desktop app to switch API endpoints without rebuilding.
  */
 function getApiBaseUrl(): string {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
     const override = localStorage.getItem("gestronomy_api_url");
     if (override) return override.replace(/\/+$/, "") + "/api";
   }

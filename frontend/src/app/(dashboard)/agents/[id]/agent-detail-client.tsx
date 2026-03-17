@@ -66,8 +66,8 @@ export function AgentDetailClient({ agentName }: { agentName: string }) {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">{agent?.display_name ?? agentName}</h1>
-                <p className="text-sm text-gray-500">{agent?.description}</p>
+                <h1 className="text-2xl font-bold text-foreground">{agent?.display_name ?? agentName}</h1>
+                <p className="text-sm text-muted-foreground">{agent?.description}</p>
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -77,19 +77,19 @@ export function AgentDetailClient({ agentName }: { agentName: string }) {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-500">Status</span>
+                            <span className="text-sm text-muted-foreground">Status</span>
                             <Badge variant={agent?.is_active ? "success" : "secondary"}>
                                 {agent?.is_active ? "Active" : "Inactive"}
                             </Badge>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-500">Autonomy Level</span>
+                            <span className="text-sm text-muted-foreground">Autonomy Level</span>
                             <Badge>{agent?.autonomy_level}</Badge>
                         </div>
                         {agent?.config && Object.entries(agent.config).map(([key, value]) => (
                             <div key={key} className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">{key.replace(/_/g, " ")}</span>
-                                <span className="text-sm font-medium text-gray-700">{String(value)}</span>
+                                <span className="text-sm text-muted-foreground">{key.replace(/_/g, " ")}</span>
+                                <span className="text-sm font-medium text-muted-foreground">{String(value)}</span>
                             </div>
                         ))}
                     </CardContent>

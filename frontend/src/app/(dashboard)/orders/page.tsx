@@ -123,7 +123,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
 };
 
 const ITEM_STATUS: Record<string, { dot: string; text: string; label: string }> = {
-  pending: { dot: "bg-gray-400", text: "text-muted-foreground/60", label: "Waiting" },
+  pending: { dot: "bg-muted-foreground", text: "text-muted-foreground/60", label: "Waiting" },
   preparing: { dot: "bg-amber-400 animate-pulse", text: "text-amber-400", label: "Preparing" },
   ready: { dot: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]", text: "text-emerald-400", label: "Ready" },
   served: { dot: "bg-white/[0.03]0", text: "text-muted-foreground", label: "Served" },

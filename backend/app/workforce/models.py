@@ -20,6 +20,7 @@ from app.database import Base
 class Employee(Base):
     __tablename__ = "employees"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     user_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -36,6 +37,7 @@ class Employee(Base):
 class Schedule(Base):
     __tablename__ = "schedules"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
     total_hours: Mapped[float] = mapped_column(Float, default=0, nullable=False)
@@ -69,6 +71,7 @@ class Shift(Base):
 class Applicant(Base):
     __tablename__ = "applicants"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -81,6 +84,7 @@ class Applicant(Base):
 class TrainingModule(Base):
     __tablename__ = "training_modules"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[str] = mapped_column(String(100), nullable=False)
     duration_min: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

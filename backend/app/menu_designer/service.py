@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.menu_designer.models import MenuTemplate, MenuDesign
@@ -6,93 +6,110 @@ from app.menu_designer.models import MenuTemplate, MenuDesign
 
 # ── Templates ──
 
-async def get_templates(db: AsyncSession) -> list[MenuTemplate]:
-    result = await db.execute(select(MenuTemplate).order_by(MenuTemplate.created_at.desc()))
+async def get_templates(db: AsyncSession, restaurant_id: int) -> list[MenuTemplate]:
+    result = await db.execute(
+        select(MenuTemplate)
+        .where(MenuTemplate.restaurant_id == restaurant_id)
+        .order_by(MenuTemplate.created_at.desc())
+    )
     return list(result.scalars().all())
 
 
-async def get_template(db: AsyncSession, template_id: int) -> MenuTemplate | None:
-    result = await db.execute(select(MenuTemplate).where(MenuTemplate.id == template_id))
+async def get_template(db: AsyncSession, restaurant_id: int, template_id: int) -> MenuTemplate | None:
+    result = await db.execute(
+        select(MenuTemplate).where(MenuTemplate.id == template_id, MenuTemplate.restaurant_id == restaurant_id)
+    )
     return result.scalar_one_or_none()
 
 
-async def create_template(db: AsyncSession, data: dict) -> MenuTemplate:
-    t = MenuTemplate(**data)
+async def create_template(db: AsyncSession, restaurant_id: int, data: dict) -> MenuTemplate:
+    t = MenuTemplate(**data, restaurant_id=restaurant_id)
     db.add(t)
-    await db.commit()
+    await db.flush()
     await db.refresh(t)
     return t
 
 
-async def delete_template(db: AsyncSession, template_id: int) -> bool:
-    t = await get_template(db, template_id)
+async def delete_template(db: AsyncSession, restaurant_id: int, template_id: int) -> bool:
+    t = await get_template(db, restaurant_id, template_id)
     if not t or t.is_system:
         return False
     await db.delete(t)
-    await db.commit()
+    await db.flush()
     return True
 
 
 # ── Designs ──
 
-async def get_designs(db: AsyncSession) -> list[MenuDesign]:
-    result = await db.execute(select(MenuDesign).order_by(MenuDesign.updated_at.desc()))
+async def get_designs(db: AsyncSession, restaurant_id: int) -> list[MenuDesign]:
+    result = await db.execute(
+        select(MenuDesign)
+        .where(MenuDesign.restaurant_id == restaurant_id)
+        .order_by(MenuDesign.updated_at.desc())
+    )
     return list(result.scalars().all())
 
 
-async def get_design(db: AsyncSession, design_id: int) -> MenuDesign | None:
-    result = await db.execute(select(MenuDesign).where(MenuDesign.id == design_id))
+async def get_design(db: AsyncSession, restaurant_id: int, design_id: int) -> MenuDesign | None:
+    result = await db.execute(
+        select(MenuDesign).where(MenuDesign.id == design_id, MenuDesign.restaurant_id == restaurant_id)
+    )
     return result.scalar_one_or_none()
 
 
-async def create_design(db: AsyncSession, data: dict) -> MenuDesign:
-    d = MenuDesign(**data)
+async def create_design(db: AsyncSession, restaurant_id: int, data: dict) -> MenuDesign:
+    d = MenuDesign(**data, restaurant_id=restaurant_id)
     db.add(d)
-    await db.commit()
+    await db.flush()
     await db.refresh(d)
     return d
 
 
-async def update_design(db: AsyncSession, design_id: int, data: dict) -> MenuDesign | None:
-    d = await get_design(db, design_id)
+async def update_design(db: AsyncSession, restaurant_id: int, design_id: int, data: dict) -> MenuDesign | None:
+    d = await get_design(db, restaurant_id, design_id)
     if not d:
         return None
     for k, v in data.items():
         if v is not None:
             setattr(d, k, v)
-    await db.commit()
+    await db.flush()
     await db.refresh(d)
     return d
 
 
-async def publish_design(db: AsyncSession, design_id: int):
-    d = await get_design(db, design_id)
+async def publish_design(db: AsyncSession, restaurant_id: int, design_id: int):
+    d = await get_design(db, restaurant_id, design_id)
     if not d:
         return None
-    # Unpublish all others
-    all_designs = await get_designs(db)
-    for od in all_designs:
-        if od.id != design_id and od.status == "published":
-            od.status = "draft"
+    # Unpublish all other published designs for this restaurant
+    await db.execute(
+        update(MenuDesign)
+        .where(
+            MenuDesign.restaurant_id == restaurant_id,
+            MenuDesign.status == "published",
+            MenuDesign.id != design_id,
+        )
+        .values(status="draft")
+    )
     d.status = "published"
-    await db.commit()
+    await db.flush()
     await db.refresh(d)
     return d
 
 
-async def delete_design(db: AsyncSession, design_id: int) -> bool:
-    d = await get_design(db, design_id)
+async def delete_design(db: AsyncSession, restaurant_id: int, design_id: int) -> bool:
+    d = await get_design(db, restaurant_id, design_id)
     if not d:
         return False
     await db.delete(d)
-    await db.commit()
+    await db.flush()
     return True
 
 
-async def get_design_preview(db: AsyncSession, design_id: int):
+async def get_design_preview(db: AsyncSession, restaurant_id: int, design_id: int):
     """Get design data merged with menu items for preview."""
     from app.menu.models import MenuCategory, MenuItem
-    d = await get_design(db, design_id)
+    d = await get_design(db, restaurant_id, design_id)
     if not d:
         return None
 

@@ -40,8 +40,8 @@ export default function SimulationPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Simulation</h1>
-          <p className="text-sm text-gray-500">What-if scenario builder and analysis</p>
+          <h1 className="text-2xl font-bold text-foreground">Simulation</h1>
+          <p className="text-sm text-muted-foreground">What-if scenario builder and analysis</p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -52,9 +52,9 @@ export default function SimulationPage() {
       {(scenarios ?? []).length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <FlaskConical className="h-12 w-12 text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900">No scenarios yet</h3>
-            <p className="mt-2 max-w-sm text-sm text-gray-500">
+            <FlaskConical className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold text-foreground">No scenarios yet</h3>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
               Create your first simulation scenario to test business decisions before implementing them.
             </p>
           </CardContent>
@@ -72,8 +72,8 @@ export default function SimulationPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="mb-3 text-sm text-gray-500">{scenario.description}</p>
-                <div className="flex items-center justify-between text-xs text-gray-400">
+                <p className="mb-3 text-sm text-muted-foreground">{scenario.description}</p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <Badge variant="outline">{scenario.type}</Badge>
                   <span>Last run: {scenario.last_run_at ?? "Never"}</span>
                 </div>

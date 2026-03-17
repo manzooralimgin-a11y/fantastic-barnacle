@@ -9,6 +9,7 @@ from app.database import Base
 class Equipment(Base):
     __tablename__ = "equipment"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(String(100), nullable=False)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -51,6 +52,7 @@ class MaintenanceTicket(Base):
 class EnergyReading(Base):
     __tablename__ = "energy_readings"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     zone: Mapped[str] = mapped_column(String(100), nullable=False)
     reading_kwh: Mapped[float] = mapped_column(Float, nullable=False)
     cost: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)

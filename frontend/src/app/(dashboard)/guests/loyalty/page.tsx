@@ -39,8 +39,8 @@ export default function LoyaltyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Loyalty Program</h1>
-        <p className="text-sm text-gray-500">Member tiers and rewards overview</p>
+        <h1 className="text-2xl font-bold text-foreground">Loyalty Program</h1>
+        <p className="text-sm text-muted-foreground">Member tiers and rewards overview</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -66,14 +66,14 @@ export default function LoyaltyPage() {
           <CardTitle className="text-base">Tier Distribution</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 mb-6">
-            <p className="text-sm text-gray-400">Tier distribution chart placeholder</p>
+          <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted mb-6">
+            <p className="text-sm text-muted-foreground">Tier distribution chart placeholder</p>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {(data?.tier_distribution ?? []).map((tier) => (
               <div
                 key={tier.tier}
-                className={`rounded-lg p-4 text-center ${TIER_COLORS[tier.tier] ?? "bg-gray-100 text-gray-700"}`}
+                className={`rounded-lg p-4 text-center ${TIER_COLORS[tier.tier] ?? "bg-muted text-muted-foreground"}`}
               >
                 <Award className="mx-auto h-6 w-6 mb-2" />
                 <p className="text-lg font-bold">{tier.count}</p>

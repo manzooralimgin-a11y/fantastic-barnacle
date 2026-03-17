@@ -51,23 +51,23 @@ export default function HiringPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Hiring Pipeline</h1>
-        <p className="text-sm text-gray-500">Track candidates through the hiring process</p>
+        <h1 className="text-2xl font-bold text-foreground">Hiring Pipeline</h1>
+        <p className="text-sm text-muted-foreground">Track candidates through the hiring process</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {STAGES.map((stage) => (
           <div key={stage} className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700">
+              <h3 className="text-sm font-semibold text-muted-foreground">
                 {STAGE_LABELS[stage]}
               </h3>
               <Badge variant="secondary">{grouped[stage].length}</Badge>
             </div>
             <div className="space-y-2">
               {grouped[stage].length === 0 ? (
-                <div className="rounded-lg border-2 border-dashed border-gray-200 p-4 text-center">
-                  <p className="text-xs text-gray-400">No candidates</p>
+                <div className="rounded-lg border-2 border-dashed border-border p-4 text-center">
+                  <p className="text-xs text-muted-foreground">No candidates</p>
                 </div>
               ) : (
                 grouped[stage].map((candidate) => (
@@ -76,11 +76,11 @@ export default function HiringPage() {
                     className={`${STAGE_COLORS[stage] ?? ""}`}
                   >
                     <CardContent className="p-3">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-foreground">
                         {candidate.name}
                       </p>
-                      <p className="text-xs text-gray-500">{candidate.position}</p>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground">{candidate.position}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Applied: {candidate.applied_date}
                       </p>
                     </CardContent>

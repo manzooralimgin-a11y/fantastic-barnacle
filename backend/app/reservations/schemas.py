@@ -1,6 +1,7 @@
 from datetime import date, datetime, time
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ── Floor Section ──
@@ -98,12 +99,12 @@ class ReservationRead(BaseModel):
     guest_phone: str | None = None
     guest_email: str | None = None
     table_id: int | None = None
-    party_size: int
+    party_size: int = Field(ge=1, le=100)
     reservation_date: date
     start_time: time
     end_time: time | None = None
     duration_min: int
-    status: str
+    status: Literal["confirmed", "seated", "arrived", "completed", "cancelled", "no_show"]
     special_requests: str | None = None
     notes: str | None = None
     source: str
@@ -117,12 +118,12 @@ class ReservationCreate(BaseModel):
     guest_phone: str | None = None
     guest_email: str | None = None
     table_id: int | None = None
-    party_size: int
+    party_size: int = Field(ge=1, le=100)
     reservation_date: date
     start_time: time
     end_time: time | None = None
     duration_min: int = 90
-    status: str = "confirmed"
+    status: Literal["confirmed", "seated", "arrived", "completed", "cancelled", "no_show"] = "confirmed"
     special_requests: str | None = None
     notes: str | None = None
     source: str = "phone"
@@ -133,12 +134,12 @@ class ReservationUpdate(BaseModel):
     guest_phone: str | None = None
     guest_email: str | None = None
     table_id: int | None = None
-    party_size: int | None = None
+    party_size: int | None = Field(default=None, ge=1, le=100)
     reservation_date: date | None = None
     start_time: time | None = None
     end_time: time | None = None
     duration_min: int | None = None
-    status: str | None = None
+    status: Literal["confirmed", "seated", "arrived", "completed", "cancelled", "no_show"] | None = None
     special_requests: str | None = None
     notes: str | None = None
 
@@ -164,7 +165,7 @@ class WaitlistEntryRead(BaseModel):
 class WaitlistEntryCreate(BaseModel):
     guest_name: str
     guest_phone: str | None = None
-    party_size: int
+    party_size: int = Field(ge=1, le=100)
     estimated_wait_min: int = 15
     notes: str | None = None
 
@@ -200,7 +201,7 @@ class TableSessionCreate(BaseModel):
 
 class AvailabilityQuery(BaseModel):
     reservation_date: date
-    party_size: int
+    party_size: int = Field(ge=1, le=100)
     start_time: time | None = None
 
 

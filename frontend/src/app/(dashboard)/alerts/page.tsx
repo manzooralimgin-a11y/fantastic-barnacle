@@ -38,15 +38,15 @@ export default function AlertsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Alerts</h1>
-        <p className="text-sm text-gray-500">System notifications and alerts</p>
+        <h1 className="text-2xl font-bold text-foreground">Alerts</h1>
+        <p className="text-sm text-muted-foreground">System notifications and alerts</p>
       </div>
 
       {(!alerts || alerts.length === 0) ? (
         <Card>
           <CardContent className="py-16 text-center">
-            <Bell className="mx-auto h-12 w-12 text-gray-300" />
-            <p className="mt-4 text-sm text-gray-500">No alerts at the moment</p>
+            <Bell className="mx-auto h-12 w-12 text-muted-foreground" />
+            <p className="mt-4 text-sm text-muted-foreground">No alerts at the moment</p>
           </CardContent>
         </Card>
       ) : (
@@ -60,11 +60,11 @@ export default function AlertsPage() {
                   <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${config.color}`} />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium text-gray-900">{alert.title}</h3>
+                      <h3 className="text-sm font-medium text-foreground">{alert.title}</h3>
                       <Badge variant={config.variant}>{alert.severity}</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">{alert.message}</p>
-                    <p className="mt-1 text-xs text-gray-400">{alert.source} &middot; {new Date(alert.created_at).toLocaleString()}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{alert.message}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{alert.source} &middot; {new Date(alert.created_at).toLocaleString()}</p>
                   </div>
                 </CardContent>
               </Card>

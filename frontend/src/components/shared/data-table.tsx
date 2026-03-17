@@ -81,7 +81,7 @@ export function DataTable({
         <tbody>
           {data.map((row, rowIndex) => (
             <tr
-              key={rowIndex}
+              key={row.id || rowIndex}
               className={cn(
                 "border-b border-white/[0.04] transition-colors hover:bg-white/[0.04]",
                 rowIndex % 2 === 0 ? "bg-transparent" : "bg-white/[0.02]"

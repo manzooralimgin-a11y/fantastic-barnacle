@@ -43,8 +43,8 @@ export default function AgentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Agent Fleet</h1>
-        <p className="text-sm text-gray-500">Monitor and manage your AI agents</p>
+        <h1 className="text-2xl font-bold text-foreground">Agent Fleet</h1>
+        <p className="text-sm text-muted-foreground">Monitor and manage your AI agents</p>
       </div>
 
       {error ? (
@@ -55,7 +55,7 @@ export default function AgentsPage() {
         </Card>
       ) : agents && agents.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-gray-400">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No agents configured yet.
           </CardContent>
         </Card>
@@ -76,13 +76,13 @@ export default function AgentsPage() {
                       </CardTitle>
                       <div
                         className={`h-2.5 w-2.5 rounded-full ${
-                          agent.is_active ? "bg-green-500" : "bg-gray-300"
+                          agent.is_active ? "bg-green-500" : "bg-muted-foreground"
                         }`}
                       />
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="mb-3 text-sm text-gray-500">{description}</p>
+                    <p className="mb-3 text-sm text-muted-foreground">{description}</p>
                     <div className="flex items-center gap-2">
                       <Badge variant={AUTONOMY_VARIANT[agent.autonomy_level] ?? "secondary"}>
                         {agent.autonomy_level}

@@ -96,7 +96,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
 const RES_STATUS: Record<string, { bg: string; text: string; dot: string }> = {
   confirmed: { bg: "bg-emerald-500/10", text: "text-emerald-600", dot: "bg-emerald-500" },
   seated: { bg: "bg-blue-500/10", text: "text-blue-600", dot: "bg-blue-500" },
-  completed: { bg: "bg-gray-500/10", text: "text-gray-500", dot: "bg-gray-400" },
+  completed: { bg: "bg-muted", text: "text-muted-foreground", dot: "bg-muted-foreground" },
   cancelled: { bg: "bg-red-500/10", text: "text-red-600", dot: "bg-red-500" },
   no_show: { bg: "bg-amber-500/10", text: "text-amber-600", dot: "bg-amber-500" },
 };

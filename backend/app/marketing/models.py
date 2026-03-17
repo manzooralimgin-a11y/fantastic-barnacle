@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, JSON, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -9,6 +9,7 @@ from app.database import Base
 class Review(Base):
     __tablename__ = "reviews"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     platform: Mapped[str] = mapped_column(String(100), nullable=False)
     rating: Mapped[float | None] = mapped_column(Float, nullable=True)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -26,6 +27,7 @@ class Review(Base):
 class Campaign(Base):
     __tablename__ = "campaigns"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False)
     target_segment: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -42,6 +44,7 @@ class Campaign(Base):
 class SocialPost(Base):
     __tablename__ = "social_posts"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     platform: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     media_urls: Mapped[dict | None] = mapped_column(JSON, nullable=True)

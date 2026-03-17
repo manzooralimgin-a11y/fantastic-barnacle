@@ -238,6 +238,7 @@ app.include_router(
     vouchers_router,
     prefix="/api/vouchers",
     tags=["Vouchers"],
+    dependencies=[Depends(get_current_tenant_user)],
 )
 app.include_router(
     menu_designer_router,
@@ -267,8 +268,8 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         from sqlalchemy import text
         await db.execute(text("SELECT 1"))
         db_status = "connected"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
+    except Exception:
+        db_status = "error"
     
     return {
         "status": "healthy",
@@ -278,7 +279,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     }
 
 
-@app.get("/api/metrics", tags=["Observability"])
+@app.get("/api/metrics", tags=["Observability"], dependencies=[Depends(require_roles(UserRole.admin))])
 async def get_metrics(window_minutes: int = 15):
     """Exposes internal API metrics, endpoint analytics, and background queue lag."""
     snapshot = await api_metrics.snapshot(window_minutes=window_minutes)

@@ -264,7 +264,7 @@ function CheckoutInner() {
           </div>
 
           {/* Receipt preview (German style) */}
-          <div className="bg-white text-black p-8 shadow-2xl rounded-sm font-mono text-[13px] leading-tight space-y-4 max-w-sm mx-auto">
+          <div className="bg-card text-foreground p-8 shadow-2xl rounded-sm font-mono text-[13px] leading-tight space-y-4 max-w-sm mx-auto">
             <div className="text-center space-y-1">
               <div className="flex flex-col items-center mb-1">
                 <img src="/das-elb-logo.png" alt="DAS ELB Logo" className="w-16 h-auto mb-1 grayscale object-contain" />

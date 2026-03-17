@@ -31,8 +31,8 @@ export default function TrainingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Training</h1>
-        <p className="text-sm text-gray-500">Learning management and training modules</p>
+        <h1 className="text-2xl font-bold text-foreground">Training</h1>
+        <p className="text-sm text-muted-foreground">Learning management and training modules</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -52,17 +52,17 @@ export default function TrainingPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="mb-3 text-sm text-gray-500">{mod.description}</p>
-              <div className="flex items-center justify-between text-xs text-gray-400">
+              <p className="mb-3 text-sm text-muted-foreground">{mod.description}</p>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{mod.duration_minutes} min</span>
                 <Badge variant="outline">{mod.category}</Badge>
               </div>
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-gray-500">Completion</span>
-                  <span className="font-medium text-gray-700">{mod.completion_rate}%</span>
+                  <span className="text-muted-foreground">Completion</span>
+                  <span className="font-medium text-muted-foreground">{mod.completion_rate}%</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-gray-100">
+                <div className="h-2 w-full rounded-full bg-muted">
                   <div
                     className="h-2 rounded-full bg-brand-500"
                     style={{ width: `${mod.completion_rate}%` }}

@@ -33,14 +33,21 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div style={{ padding: 20, background: '#fee', color: '#900', height: '100vh', width: '100vw', zIndex: 9999, position: 'fixed', top: 0, left: 0, overflow: 'auto' }}>
           <h1>Something went wrong.</h1>
-          <h3 style={{fontFamily: 'monospace'}}>{this.state.error && this.state.error.toString()}</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
-            {this.state.errorInfo && this.state.errorInfo.componentStack}
-          </pre>
-          <hr />
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
-            {this.state.error && this.state.error.stack}
-          </pre>
+          {process.env.NODE_ENV === "development" && (
+            <>
+              <h3 style={{fontFamily: 'monospace'}}>{this.state.error && this.state.error.toString()}</h3>
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+                {this.state.errorInfo && this.state.errorInfo.componentStack}
+              </pre>
+              <hr />
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+                {this.state.error && this.state.error.stack}
+              </pre>
+            </>
+          )}
+          {process.env.NODE_ENV !== "development" && (
+            <p>An unexpected error occurred. Please try refreshing the page.</p>
+          )}
         </div>
       );
     }

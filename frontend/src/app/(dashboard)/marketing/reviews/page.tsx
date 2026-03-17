@@ -93,8 +93,8 @@ export default function ReviewsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reviews</h1>
-        <p className="text-sm text-gray-500">Manage and respond to customer reviews</p>
+        <h1 className="text-2xl font-bold text-foreground">Reviews</h1>
+        <p className="text-sm text-muted-foreground">Manage and respond to customer reviews</p>
       </div>
 
       <Card>

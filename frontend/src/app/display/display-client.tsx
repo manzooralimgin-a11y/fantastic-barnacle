@@ -77,7 +77,7 @@ export function DisplayClient() {
         <div className="text-center">
           <div className="mb-4 text-6xl">📺</div>
           <h1 className="mb-2 text-2xl font-bold">{error}</h1>
-          <p className="text-gray-400">Retrying automatically...</p>
+          <p className="text-muted-foreground">Retrying automatically...</p>
         </div>
       </div>
     );
@@ -88,8 +88,8 @@ export function DisplayClient() {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-black text-white">
         <div className="text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-white mx-auto" />
-          <p className="text-gray-400">Loading display...</p>
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-border border-t-white mx-auto" />
+          <p className="text-muted-foreground">Loading display...</p>
         </div>
       </div>
     );
@@ -101,7 +101,7 @@ export function DisplayClient() {
       <div className="flex h-screen w-screen items-center justify-center bg-gradient-to-br from-gray-900 to-black text-white">
         <div className="text-center">
           <h1 className="mb-2 text-3xl font-bold">{data.screen.name}</h1>
-          <p className="text-gray-400">No content scheduled</p>
+          <p className="text-muted-foreground">No content scheduled</p>
         </div>
       </div>
     );
@@ -173,7 +173,7 @@ function MenuItemsSlide({ data, title }: { data: Record<string, unknown>; title:
             <div className="flex-1">
               <h3 className="text-2xl font-semibold">{item.name}</h3>
               {item.description && (
-                <p className="mt-1 text-lg text-gray-400">{item.description}</p>
+                <p className="mt-1 text-lg text-muted-foreground">{item.description}</p>
               )}
             </div>
             <span className="ml-4 text-2xl font-bold text-amber-400">
@@ -236,8 +236,8 @@ function ImageSlide({ data }: { data: Record<string, unknown> }) {
 
   if (!url) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gray-900">
-        <p className="text-gray-500">No image configured</p>
+      <div className="flex h-full w-full items-center justify-center bg-card">
+        <p className="text-muted-foreground">No image configured</p>
       </div>
     );
   }

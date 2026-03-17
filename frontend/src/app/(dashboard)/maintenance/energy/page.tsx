@@ -37,8 +37,8 @@ export default function EnergyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Energy Management</h1>
-        <p className="text-sm text-gray-500">Usage monitoring and savings optimization</p>
+        <h1 className="text-2xl font-bold text-foreground">Energy Management</h1>
+        <p className="text-sm text-muted-foreground">Usage monitoring and savings optimization</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -66,15 +66,15 @@ export default function EnergyPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-                <span className="text-sm text-gray-500">Total kWh</span>
-                <span className="text-lg font-bold text-gray-900">
+              <div className="flex items-center justify-between rounded-lg bg-muted p-4">
+                <span className="text-sm text-muted-foreground">Total kWh</span>
+                <span className="text-lg font-bold text-foreground">
                   {(data?.total_kwh_month ?? 0).toLocaleString()} kWh
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-                <span className="text-sm text-gray-500">Total Cost</span>
-                <span className="text-lg font-bold text-gray-900">
+              <div className="flex items-center justify-between rounded-lg bg-muted p-4">
+                <span className="text-sm text-muted-foreground">Total Cost</span>
+                <span className="text-lg font-bold text-foreground">
                   {formatCurrency(data?.total_cost_month ?? 0)}
                 </span>
               </div>
@@ -91,7 +91,7 @@ export default function EnergyPage() {
           </CardHeader>
           <CardContent>
             {(data?.recommendations ?? []).length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-400">
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 No recommendations at this time
               </p>
             ) : (
@@ -99,15 +99,15 @@ export default function EnergyPage() {
                 {(data?.recommendations ?? []).map((rec) => (
                   <div
                     key={rec.id}
-                    className="rounded-lg border border-gray-100 p-3"
+                    className="rounded-lg border border-border p-3"
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-900">{rec.title}</p>
+                      <p className="text-sm font-medium text-foreground">{rec.title}</p>
                       <span className="text-xs font-medium text-green-600">
                         Save {formatCurrency(rec.potential_savings)}/mo
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">{rec.description}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{rec.description}</p>
                   </div>
                 ))}
               </div>

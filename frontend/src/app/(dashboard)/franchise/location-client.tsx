@@ -41,10 +41,10 @@ export function LocationDetailClient() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           {location?.name ?? "Location Details"}
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           {location?.address}, {location?.city}, {location?.state}
         </p>
       </div>
@@ -78,21 +78,21 @@ export function LocationDetailClient() {
             <CardTitle className="text-base">Key Metrics</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-              <span className="text-sm text-gray-500">Labor %</span>
-              <span className="text-lg font-bold text-gray-900">
+            <div className="flex items-center justify-between rounded-lg bg-muted p-4">
+              <span className="text-sm text-muted-foreground">Labor %</span>
+              <span className="text-lg font-bold text-foreground">
                 {formatPercent(location?.labor_pct ?? 0)}
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-              <span className="text-sm text-gray-500">Food Cost %</span>
-              <span className="text-lg font-bold text-gray-900">
+            <div className="flex items-center justify-between rounded-lg bg-muted p-4">
+              <span className="text-sm text-muted-foreground">Food Cost %</span>
+              <span className="text-lg font-bold text-foreground">
                 {formatPercent(location?.food_cost_pct ?? 0)}
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-              <span className="text-sm text-gray-500">Covers Today</span>
-              <span className="text-lg font-bold text-gray-900">
+            <div className="flex items-center justify-between rounded-lg bg-muted p-4">
+              <span className="text-sm text-muted-foreground">Covers Today</span>
+              <span className="text-lg font-bold text-foreground">
                 {location?.covers_today ?? 0}
               </span>
             </div>
@@ -104,8 +104,8 @@ export function LocationDetailClient() {
             <CardTitle className="text-base">Performance Trends</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-400">Performance chart placeholder</p>
+            <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted">
+              <p className="text-sm text-muted-foreground">Performance chart placeholder</p>
             </div>
           </CardContent>
         </Card>

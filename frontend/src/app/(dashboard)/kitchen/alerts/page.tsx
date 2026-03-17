@@ -83,13 +83,13 @@ export default function KitchenAlertsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Vision Alerts</h1>
-        <p className="text-sm text-gray-500">All kitchen vision alerts</p>
+        <h1 className="text-2xl font-bold text-foreground">Vision Alerts</h1>
+        <p className="text-sm text-muted-foreground">All kitchen vision alerts</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Type:</span>
+          <span className="text-sm text-muted-foreground">Type:</span>
           {ALERT_TYPES.map((t) => (
             <Button
               key={t}
@@ -102,7 +102,7 @@ export default function KitchenAlertsPage() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Severity:</span>
+          <span className="text-sm text-muted-foreground">Severity:</span>
           {SEVERITIES.map((s) => (
             <Button
               key={s}

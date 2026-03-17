@@ -14,7 +14,7 @@ async def generate_qr_code(db: AsyncSession, table_id: int) -> QRTableCode:
     code = secrets.token_urlsafe(16)
     qr = QRTableCode(table_id=table_id, code=code, is_active=True)
     db.add(qr)
-    await db.commit()
+    await db.flush()
     await db.refresh(qr)
     return qr
 
@@ -38,7 +38,7 @@ async def get_table_by_code(db: AsyncSession, code: str):
     # Update scan count
     qr.scan_count += 1
     qr.last_scanned_at = datetime.now(timezone.utc)
-    await db.commit()
+    await db.flush()
 
     # Get table + section
     table_result = await db.execute(select(Table).where(Table.id == qr.table_id))
@@ -153,7 +153,7 @@ async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, it
         )
         db.add(oi)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(order)
 
     return {

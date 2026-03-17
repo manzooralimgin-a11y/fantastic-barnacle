@@ -87,7 +87,7 @@ export function LiveMetrics() {
     <div>
       {/* Section header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-editorial font-light text-foreground tracking-tight">
+        <h2 className="text-2xl font-editorial font-normal text-foreground tracking-tight">
           Live Performance
         </h2>
         <span className="text-[10px] font-body font-semibold text-foreground-dim uppercase tracking-[0.15em]">

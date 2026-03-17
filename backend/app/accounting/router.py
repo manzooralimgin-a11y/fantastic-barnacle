@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounting.schemas import (
@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 @router.get("/gl", response_model=list[GLEntryRead])
-async def list_gl_entries(limit: int = 100, db: AsyncSession = Depends(get_db)):
+async def list_gl_entries(limit: int = Query(default=50, ge=1, le=500), db: AsyncSession = Depends(get_db)):
     return await get_gl_entries(db, limit)
 
 
@@ -36,7 +36,7 @@ async def profit_and_loss(period: str | None = None, db: AsyncSession = Depends(
 
 @router.get("/invoices", response_model=list[InvoiceRead])
 async def list_invoices(
-    status: str | None = None, limit: int = 100, db: AsyncSession = Depends(get_db)
+    status: str | None = None, limit: int = Query(default=50, ge=1, le=500), db: AsyncSession = Depends(get_db)
 ):
     return await get_invoices(db, status, limit)
 

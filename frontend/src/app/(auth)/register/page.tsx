@@ -56,13 +56,13 @@ export default function RegisterPage() {
         <div className="flex justify-center mb-4">
           <img src="/das-elb-logo.png" alt="DAS ELB Logo" className="h-[72px] w-auto object-contain" />
         </div>
-        <h1 className="text-3xl font-bold text-brand-500 tracking-widest uppercase">DAS ELB</h1>
-        <p className="mt-2 text-sm text-gray-500">Create your account</p>
+        <h1 className="text-3xl font-bold text-gold tracking-widest uppercase">DAS ELB</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Create your account</p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="fullName" className="text-sm font-medium text-gray-700">
+            <label htmlFor="fullName" className="text-sm font-medium text-foreground">
               Full Name
             </label>
             <Input
@@ -76,7 +76,7 @@ export default function RegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="text-sm font-medium text-foreground">
               Email
             </label>
             <Input
@@ -90,7 +90,7 @@ export default function RegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="text-sm font-medium text-foreground">
               Password
             </label>
             <Input
@@ -104,7 +104,7 @@ export default function RegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+            <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
               Confirm Password
             </label>
             <Input
@@ -129,9 +129,9 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-brand-500 hover:underline">
+          <Link href="/login" className="font-medium text-gold hover:underline">
             Sign in
           </Link>
         </p>

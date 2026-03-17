@@ -67,8 +67,8 @@ export default function AccountingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Accounting</h1>
-        <p className="text-sm text-gray-500">Financial overview and general ledger</p>
+        <h1 className="text-2xl font-bold text-foreground">Accounting</h1>
+        <p className="text-sm text-muted-foreground">Financial overview and general ledger</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

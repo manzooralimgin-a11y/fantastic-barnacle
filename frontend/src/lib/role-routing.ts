@@ -14,14 +14,6 @@ export function getDefaultDashboardRoute(role: string | undefined, section: "ges
     }
   }
 
-  // DEFAULT: Gestronomy (Restaurant)
-  switch (userRole) {
-    case "admin":
-      return "/reports";
-    case "manager":
-      return "/reservations";
-    case "staff":
-    default:
-      return "/billing";
-  }
+  // DEFAULT: Gestronomy (Restaurant) — always land on the main dashboard
+  return "/";
 }

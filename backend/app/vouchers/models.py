@@ -9,6 +9,7 @@ from app.database import Base
 class Voucher(Base):
     __tablename__ = "vouchers"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     code: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     amount_total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     amount_remaining: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
@@ -38,6 +39,7 @@ class VoucherRedemption(Base):
 class CustomerCard(Base):
     __tablename__ = "customer_cards"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     guest_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("guest_profiles.id", ondelete="SET NULL"), nullable=True
     )

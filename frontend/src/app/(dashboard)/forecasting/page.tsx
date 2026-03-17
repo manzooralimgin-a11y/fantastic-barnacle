@@ -29,8 +29,8 @@ export default function ForecastingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Forecasting</h1>
-        <p className="text-sm text-gray-500">AI-powered demand and revenue forecasting</p>
+        <h1 className="text-2xl font-bold text-foreground">Forecasting</h1>
+        <p className="text-sm text-muted-foreground">AI-powered demand and revenue forecasting</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -57,8 +57,8 @@ export default function ForecastingPage() {
             <CardTitle className="text-base">Demand Forecast</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-400">Demand forecast chart placeholder</p>
+            <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted">
+              <p className="text-sm text-muted-foreground">Demand forecast chart placeholder</p>
             </div>
           </CardContent>
         </Card>
@@ -68,8 +68,8 @@ export default function ForecastingPage() {
             <CardTitle className="text-base">Revenue Forecast</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-400">Revenue forecast chart placeholder</p>
+            <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted">
+              <p className="text-sm text-muted-foreground">Revenue forecast chart placeholder</p>
             </div>
           </CardContent>
         </Card>
@@ -81,15 +81,15 @@ export default function ForecastingPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-lg bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">Revenue Accuracy</p>
-              <p className="text-xl font-bold text-gray-900">
+            <div className="rounded-lg bg-muted p-4">
+              <p className="text-sm text-muted-foreground">Revenue Accuracy</p>
+              <p className="text-xl font-bold text-foreground">
                 {accuracy?.revenue_accuracy ?? 0}%
               </p>
             </div>
-            <div className="rounded-lg bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">Last Updated</p>
-              <p className="text-xl font-bold text-gray-900">
+            <div className="rounded-lg bg-muted p-4">
+              <p className="text-sm text-muted-foreground">Last Updated</p>
+              <p className="text-xl font-bold text-foreground">
                 {accuracy?.last_updated ?? "N/A"}
               </p>
             </div>

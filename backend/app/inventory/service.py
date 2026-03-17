@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -176,15 +176,27 @@ async def receive_purchase_order(
     # Update inventory stock levels from received items
     received = payload.received_items_json
     if isinstance(received, dict) and "items" in received:
+        # Batch-load all referenced inventory items in one query to avoid N+1
+        received_item_ids = [
+            ri.get("inventory_item_id")
+            for ri in received["items"]
+            if ri.get("inventory_item_id") and ri.get("quantity", 0)
+        ]
+        inv_items_by_id: dict[int, InventoryItem] = {}
+        if received_item_ids:
+            inv_result = await db.execute(
+                select(InventoryItem).where(
+                    InventoryItem.id.in_(received_item_ids),
+                    InventoryItem.restaurant_id == restaurant_id,
+                )
+            )
+            inv_items_by_id = {item.id: item for item in inv_result.scalars().all()}
+
         for ri in received["items"]:
             item_id = ri.get("inventory_item_id")
             qty = ri.get("quantity", 0)
             if item_id and qty:
-                inv_result = await db.execute(
-                    select(InventoryItem).where(InventoryItem.id == item_id)
-                    .where(InventoryItem.restaurant_id == restaurant_id)
-                )
-                inv_item = inv_result.scalar_one_or_none()
+                inv_item = inv_items_by_id.get(item_id)
                 if inv_item:
                     inv_item.current_stock += qty
                     # Record movement
@@ -332,12 +344,21 @@ async def get_price_comparison(db: AsyncSession, restaurant_id: int, item_id: in
     )
     catalog_items = list(catalog_result.scalars().all())
 
+    # Batch-load all referenced vendors in one query to avoid N+1
+    vendor_ids = list({ci.vendor_id for ci in catalog_items})
+    vendors_by_id: dict[int, Vendor] = {}
+    if vendor_ids:
+        vendor_result = await db.execute(
+            select(Vendor).where(
+                Vendor.id.in_(vendor_ids),
+                Vendor.restaurant_id == restaurant_id,
+            )
+        )
+        vendors_by_id = {v.id: v for v in vendor_result.scalars().all()}
+
     vendors_data = []
     for ci in catalog_items:
-        vendor_result = await db.execute(
-            select(Vendor).where(Vendor.id == ci.vendor_id, Vendor.restaurant_id == restaurant_id)
-        )
-        vendor = vendor_result.scalar_one_or_none()
+        vendor = vendors_by_id.get(ci.vendor_id)
         vendors_data.append({
             "vendor_id": ci.vendor_id,
             "vendor_name": vendor.name if vendor else "Unknown",

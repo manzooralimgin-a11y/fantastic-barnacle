@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, JSON, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -9,6 +9,7 @@ from app.database import Base
 class SignageScreen(Base):
     __tablename__ = "signage_screens"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     screen_code: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
@@ -22,6 +23,7 @@ class SignageScreen(Base):
 class SignageContent(Base):
     __tablename__ = "signage_content"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(50), nullable=False)  # menu_items, promotion, image, custom_text, daily_special
     content_data_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -32,6 +34,7 @@ class SignageContent(Base):
 class SignagePlaylist(Base):
     __tablename__ = "signage_playlists"
 
+    restaurant_id: Mapped[int] = mapped_column(ForeignKey("restaurants.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     items_json: Mapped[list | None] = mapped_column(JSON, nullable=True)  # ordered content refs [{content_id, duration_override}]
     schedule_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # {days: [1-7], start_time, end_time}

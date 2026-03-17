@@ -1,5 +1,7 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ── Vouchers ──
@@ -7,11 +9,11 @@ class VoucherRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     code: str
-    amount_total: float
-    amount_remaining: float
+    amount_total: float = Field(ge=0)
+    amount_remaining: float = Field(ge=0)
     customer_name: str | None
     customer_email: str | None
-    status: str
+    status: Literal["active", "used", "expired", "cancelled"]
     expiry_date: datetime | None
     notes: str | None
     created_at: datetime
@@ -19,7 +21,7 @@ class VoucherRead(BaseModel):
 
 
 class VoucherCreate(BaseModel):
-    amount_total: float
+    amount_total: float = Field(ge=0)
     customer_name: str | None = None
     customer_email: str | None = None
     expiry_date: datetime | None = None
@@ -27,7 +29,7 @@ class VoucherCreate(BaseModel):
 
 
 class VoucherUpdate(BaseModel):
-    status: str | None = None # manual override to 'used' or 'expired'
+    status: Literal["active", "used", "expired", "cancelled"] | None = None  # manual override
     notes: str | None = None
 
 
@@ -44,7 +46,7 @@ class VoucherValidateResponse(BaseModel):
 class VoucherRedeem(BaseModel):
     code: str
     order_id: int | None = None
-    deduction_amount: float
+    deduction_amount: float = Field(ge=0)
 
 
 class VoucherRedemptionRead(BaseModel):
@@ -53,7 +55,7 @@ class VoucherRedemptionRead(BaseModel):
     voucher_id: int
     order_id: int | None
     guest_id: int | None
-    discount_applied: float
+    discount_applied: float = Field(ge=0)
     redeemed_at: datetime
 
 

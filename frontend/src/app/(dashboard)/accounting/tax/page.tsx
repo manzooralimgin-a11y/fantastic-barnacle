@@ -8,8 +8,8 @@ export default function TaxPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tax Management</h1>
-        <p className="text-sm text-gray-500">Tax filing and compliance automation</p>
+        <h1 className="text-2xl font-bold text-foreground">Tax Management</h1>
+        <p className="text-sm text-muted-foreground">Tax filing and compliance automation</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -27,8 +27,8 @@ export default function TaxPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-500/10 mb-4">
               <FileText className="h-8 w-8 text-brand-500" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Coming Soon</h3>
-            <p className="mt-2 max-w-sm text-sm text-gray-500">
+            <h3 className="text-lg font-semibold text-foreground">Coming Soon</h3>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
               Automated tax filing, sales tax calculations, and compliance reporting will be available here.
             </p>
           </div>

@@ -31,8 +31,8 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Financial Reports</h1>
-        <p className="text-sm text-gray-500">Generate and view financial reports</p>
+        <h1 className="text-2xl font-bold text-foreground">Financial Reports</h1>
+        <p className="text-sm text-muted-foreground">Generate and view financial reports</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -36,8 +36,8 @@ export default function PricingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dynamic Pricing</h1>
-        <p className="text-sm text-gray-500">AI-powered pricing optimization</p>
+        <h1 className="text-2xl font-bold text-foreground">Dynamic Pricing</h1>
+        <p className="text-sm text-muted-foreground">AI-powered pricing optimization</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -70,19 +70,19 @@ export default function PricingPage() {
         <CardContent>
           {(data?.rules ?? []).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <DollarSign className="h-12 w-12 text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500">No pricing rules configured</p>
+              <DollarSign className="h-12 w-12 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No pricing rules configured</p>
             </div>
           ) : (
             <div className="space-y-3">
               {(data?.rules ?? []).map((rule) => (
                 <div
                   key={rule.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 p-4"
+                  className="flex items-center justify-between rounded-lg border border-border p-4"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{rule.name}</p>
-                    <p className="text-xs text-gray-500">{rule.condition}</p>
+                    <p className="text-sm font-medium text-foreground">{rule.name}</p>
+                    <p className="text-xs text-muted-foreground">{rule.condition}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-mono font-medium">

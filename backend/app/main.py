@@ -132,15 +132,11 @@ from app.menu_designer.router import router as menu_designer_router  # noqa: E40
 from app.signage.router import router as signage_router  # noqa: E402
 from app.integrations.router import router as integrations_router  # noqa: E402
 from app.hms.router import router as hms_router  # noqa: E402
-<<<<<<< Updated upstream
-=======
 from app.hms.public_router import router as hms_public_router  # noqa: E402
 from app.reservations.public_router import router as res_public_router  # noqa: E402
 from app.billing.stripe_router import router as stripe_router  # noqa: E402
 from app.websockets.router import router as ws_router  # noqa: E402
->>>>>>> Stashed changes
 from app.integrations.mcp_server import mcp_app  # noqa: E402
-
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 app.mount("/mcp/voicebooker", mcp_app)
 app.include_router(

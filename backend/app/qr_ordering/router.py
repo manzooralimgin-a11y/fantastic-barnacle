@@ -39,6 +39,13 @@ async def get_table_info(code: str, db: AsyncSession = Depends(get_db)):
     return info
 
 
+@router.get("/menu")
+async def get_general_menu(db: AsyncSession = Depends(get_db)):
+    """Get full menu (public, no code required)."""
+    menu = await service.get_public_menu(db)
+    return {"categories": menu}
+
+
 @router.get("/menu/{code}")
 async def get_menu_for_code(code: str, db: AsyncSession = Depends(get_db)):
     """Get full menu (validates QR code is active)."""

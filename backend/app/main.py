@@ -132,6 +132,13 @@ from app.menu_designer.router import router as menu_designer_router  # noqa: E40
 from app.signage.router import router as signage_router  # noqa: E402
 from app.integrations.router import router as integrations_router  # noqa: E402
 from app.hms.router import router as hms_router  # noqa: E402
+<<<<<<< Updated upstream
+=======
+from app.hms.public_router import router as hms_public_router  # noqa: E402
+from app.reservations.public_router import router as res_public_router  # noqa: E402
+from app.billing.stripe_router import router as stripe_router  # noqa: E402
+from app.websockets.router import router as ws_router  # noqa: E402
+>>>>>>> Stashed changes
 from app.integrations.mcp_server import mcp_app  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
@@ -258,6 +265,13 @@ app.include_router(
     tags=["HMS"],
     dependencies=[Depends(get_current_tenant_user)],
 )
+<<<<<<< Updated upstream
+=======
+app.include_router(stripe_router, prefix="/api/webhooks/stripe", tags=["Webhooks"])
+app.include_router(hms_public_router, prefix="/api/public/hotel", tags=["Public Hotel"])
+app.include_router(res_public_router, prefix="/api/public/restaurant", tags=["Public Restaurant"])
+app.include_router(ws_router, prefix="/ws")
+>>>>>>> Stashed changes
 app.include_router(integrations_router)
 
 

@@ -11,6 +11,7 @@ import {
   Volume2,
   ArrowRight,
 } from "lucide-react";
+import { useWebSocket } from "@/lib/websocket";
 
 /* ── types ── */
 interface KDSItem {
@@ -103,9 +104,17 @@ export default function KDSPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000); // Auto-refresh every 5s
+    // Keep 30s fallback polling just in case, but WS will handle real-time
+    const interval = setInterval(fetchData, 30000); 
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // WebSocket for real-time updates
+  useWebSocket("NEW_ORDER", (data) => {
+    console.log("New order received via WS:", data);
+    fetchData(); // Simplest: re-fetch all active orders
+    // In a more complex app, we could append to 'orders' state directly
+  });
 
   // Timer tick — update elapsed seconds locally
   useEffect(() => {

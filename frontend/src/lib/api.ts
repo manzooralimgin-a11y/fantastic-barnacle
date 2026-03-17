@@ -13,7 +13,15 @@ function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return `${process.env.NEXT_PUBLIC_API_URL}/api`;
   }
+<<<<<<< Updated upstream
   return "http://localhost:8000/api";
+=======
+  // Standard Render fallback
+  if (typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
+    return "https://gestronomy-api.onrender.com/api";
+  }
+  return "http://localhost:8002/api";
+>>>>>>> Stashed changes
 }
 
 const api = axios.create({

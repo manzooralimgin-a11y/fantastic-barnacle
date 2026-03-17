@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { CalendarPlus, Search, Edit, X, FileText, Receipt, Printer, Building2 } from "lucide-react";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useWebSocket } from "@/lib/websocket";
 import Meldeschein, { MeldescheinData, emptyMeldeschein } from "@/components/hms/meldeschein";
 import Rechnung, { RechnungData, RechnungItem, emptyRechnung, ZahlungsMethode, ZahlungsStatus } from "@/components/hms/rechnung";
 
@@ -95,6 +96,11 @@ export default function ReservationsPage() {
   useEffect(() => {
     api.get("/hms/reservations").then(r => setReservations(r.data.items || r.data || [])).catch(() => {});
   }, []);
+
+  useWebSocket("NEW_HOTEL_BOOKING", (data) => {
+    console.log("New hotel booking:", data);
+    api.get("/hms/reservations").then(r => setReservations(r.data.items || r.data || [])).catch(() => {});
+  });
 
   const filtered = reservations.filter(r => {
     const matchesSearch = !search || r.guest_name.toLowerCase().includes(search.toLowerCase()) || r.id.toLowerCase().includes(search.toLowerCase());

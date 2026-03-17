@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.reservations.models import Table, FloorSection, QRTableCode
 from app.menu.models import MenuCategory, MenuItem
 from app.billing.models import TableOrder, OrderItem
+from app.websockets.connection_manager import manager
 
 
 async def generate_qr_code(db: AsyncSession, table_id: int) -> QRTableCode:
@@ -155,6 +156,19 @@ async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, it
 
     await db.flush()
     await db.refresh(order)
+
+    # Broadcast to KDS via WebSockets
+    await manager.broadcast(
+        {
+            "type": "NEW_ORDER",
+            "order_id": order.id,
+            "table_number": table.table_number,
+            "guest_name": guest_name,
+            "total": total,
+            "items_count": len(items)
+        },
+        restaurant_id=table.restaurant_id or 1
+    )
 
     return {
         "order_id": order.id,

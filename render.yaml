@@ -1,4 +1,4 @@
-# Render Blueprint — Gestronomy
+# Render Blueprint — Gestronomy Full Ecosystem
 # https://render.com/docs/blueprint-spec
 
 databases:
@@ -6,7 +6,7 @@ databases:
     plan: free
     databaseName: gestronomy
     user: gestronomy
-    ipAllowList: []  # allow all (managed by Render)
+    ipAllowList: []
 
 services:
   # --- Backend API ---
@@ -34,9 +34,11 @@ services:
       - key: DEBUG
         value: "false"
       - key: CORS_ORIGINS
-        value: https://gestronomy-web.onrender.com
+        value: https://gestronomy-web.onrender.com,https://das-elb-hotel.onrender.com,https://das-elb-rest.onrender.com
       - key: ANTHROPIC_API_KEY
-        sync: false  # user sets manually
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
       - key: CELERY_BROKER_URL
         fromService:
           name: gestronomy-redis
@@ -48,7 +50,7 @@ services:
           type: redis
           property: connectionString
 
-  # --- Frontend ---
+  # --- Main Management Web App ---
   - type: web
     name: gestronomy-web
     runtime: docker
@@ -59,7 +61,29 @@ services:
       - key: NEXT_PUBLIC_API_URL
         value: https://gestronomy-api.onrender.com
 
-  # --- Redis ---
+  # --- Das Elb Hotel (Landing/Public) ---
+  - type: web
+    name: das-elb-hotel
+    runtime: docker
+    plan: free
+    dockerfilePath: ./das-elb-hotel/Dockerfile
+    dockerContext: ./das-elb-hotel
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://gestronomy-api.onrender.com
+
+  # --- Das Elb Rest (QR App/Direct Order) ---
+  - type: web
+    name: das-elb-rest
+    runtime: docker
+    plan: free
+    dockerfilePath: ./das-elb-rest/Dockerfile
+    dockerContext: ./das-elb-rest
+    envVars:
+      - key: VITE_API_URL
+        value: https://gestronomy-api.onrender.com
+
+  # --- Redis (Shared) ---
   - type: redis
     name: gestronomy-redis
     plan: free

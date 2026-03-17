@@ -30,6 +30,7 @@ from app.dashboard.models import KPISnapshot, Alert
 from app.core.models import AgentAction
 from app.inventory.models import InventoryItem
 from app.workforce.models import Employee
+from app.hms.models import HotelProperty, RoomType, Room, HotelReservation
 
 
 async def migrate_master():
@@ -725,6 +726,60 @@ async def migrate_master():
                 for a in actions:
                     db.add(AgentAction(**a, confidence=0.95, input_data={}, output_data={}))
                 log(f"  [AGENTS] {len(actions)} actions seeded")
+
+            # ---------------------------------------------------------
+            # 3k. HMS (Hotel Management System)
+            # ---------------------------------------------------------
+            res = await db.execute(select(HotelProperty).limit(1))
+            property = res.scalar_one_or_none()
+            if not property:
+                log("  [HMS] No property found — creating 'Das Elb Hotel'...")
+                property = HotelProperty(
+                    name="Das Elb Hotel",
+                    address="Elbufer 12",
+                    city="Hamburg",
+                    country="Germany",
+                    timezone="Europe/Berlin",
+                    currency="EUR",
+                    settings_json={"allow_pets": True, "checkout_time": "11:00"},
+                )
+                db.add(property)
+                await db.flush()
+                await db.refresh(property)
+            
+            res = await db.execute(select(RoomType).where(RoomType.property_id == property.id))
+            room_types = list(res.scalars().all())
+            if not room_types:
+                log("  [HMS] Seeding room types...")
+                types_spec = [
+                    {"name": "Standard Single", "base_occupancy": 1, "max_occupancy": 1, "base_price": 89.0},
+                    {"name": "Standard Double", "base_occupancy": 2, "max_occupancy": 2, "base_price": 129.0},
+                    {"name": "Deluxe River View", "base_occupancy": 2, "max_occupancy": 3, "base_price": 189.0},
+                    {"name": "The Elb Suite", "base_occupancy": 2, "max_occupancy": 4, "base_price": 349.0},
+                ]
+                for ts in types_spec:
+                    rt = RoomType(property_id=property.id, **ts)
+                    db.add(rt)
+                    room_types.append(rt)
+                await db.flush()
+            
+            res = await db.execute(select(Room).where(Room.property_id == property.id))
+            if not res.scalars().all():
+                log("  [HMS] Seeding rooms...")
+                # Add 5 rooms per type
+                for idx, rt in enumerate(room_types):
+                    for rnum in range(1, 6):
+                        room_number = f"{idx+1}0{rnum}"
+                        room = Room(
+                            property_id=property.id,
+                            room_number=room_number,
+                            room_type_id=rt.id,
+                            floor=idx+1,
+                            status="available"
+                        )
+                        db.add(room)
+                await db.flush()
+                log("  [HMS] 20 rooms seeded.")
 
         await db.commit()
         log("Master Migration Complete!")

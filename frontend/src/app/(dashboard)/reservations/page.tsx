@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AuditTimeline } from "@/components/dashboard/audit-timeline";
+import { useWebSocket } from "@/lib/websocket";
 
 /* ── types ── */
 interface FloorSection {
@@ -315,6 +316,11 @@ export default function ReservationsPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useWebSocket("NEW_RESERVATION", (data) => {
+    console.log("New restaurant reservation:", data);
+    fetchData();
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

@@ -27,6 +27,7 @@ dependencies = [
     "celery[redis]>=5.4.0",
     # Integrations
     "qrcode[pil]>=7.4.2",
+        "stripe",
     # AI / LLM
     "anthropic>=0.39.0",
     # ML / Data (Heavy dependencies removed for Render free tier deployment)

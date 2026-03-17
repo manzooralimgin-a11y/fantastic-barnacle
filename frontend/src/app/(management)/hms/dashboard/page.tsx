@@ -33,12 +33,12 @@ const fallbackOverview: HotelOverview = {
 };
 
 const fallbackRooms: RoomStatus[] = [
-  { id: "1", number: "101", room_type_name: "Deluxe Suite", status: "occupied" },
-  { id: "2", number: "102", room_type_name: "Standard Double", status: "available" },
-  { id: "3", number: "201", room_type_name: "Executive King", status: "occupied" },
-  { id: "4", number: "202", room_type_name: "Standard Double", status: "cleaning" },
-  { id: "5", number: "301", room_type_name: "Penthouse", status: "available" },
-  { id: "6", number: "302", room_type_name: "Standard Double", status: "maintenance" },
+  { id: "1", number: "101", room_type_name: "Komfort", status: "occupied" },
+  { id: "2", number: "102", room_type_name: "Komfort", status: "available" },
+  { id: "3", number: "201", room_type_name: "Komfort Plus", status: "occupied" },
+  { id: "4", number: "202", room_type_name: "Komfort Plus", status: "cleaning" },
+  { id: "5", number: "301", room_type_name: "Suite", status: "available" },
+  { id: "6", number: "302", room_type_name: "Suite", status: "maintenance" },
 ];
 
 export default function HMSDashboardPage() {

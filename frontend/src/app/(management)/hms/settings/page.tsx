@@ -45,7 +45,7 @@ export default function SettingsPage() {
             <Bed className="w-5 h-5 text-primary" /><CardTitle className="text-lg font-editorial text-foreground">Room Configuration</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-3">
-            {["Standard Double — 15 rooms", "Deluxe Suite — 8 rooms", "Executive King — 5 rooms", "Penthouse — 2 rooms"].map(r => (
+            {["Komfort — 15 rooms", "Komfort Plus — 10 rooms", "Suite — 5 rooms"].map(r => (
               <div key={r} className="flex items-center justify-between p-3 bg-muted rounded-lg"><span className="text-sm text-foreground">{r}</span><button className="text-xs font-medium text-primary hover:underline">Edit</button></div>
             ))}
           </CardContent>

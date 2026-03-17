@@ -8,10 +8,9 @@ import { TrendingUp, Bed, BarChart3, Zap } from "lucide-react";
 type RoomType = { id: string; name: string; base_rate: number; current_rate: number; occupancy: number; suggested_rate: number };
 
 const fallbackRoomTypes: RoomType[] = [
-  { id: "1", name: "Standard Double", base_rate: 89, current_rate: 95, occupancy: 78, suggested_rate: 99 },
-  { id: "2", name: "Deluxe Suite", base_rate: 149, current_rate: 159, occupancy: 65, suggested_rate: 145 },
-  { id: "3", name: "Executive King", base_rate: 189, current_rate: 199, occupancy: 82, suggested_rate: 209 },
-  { id: "4", name: "Penthouse", base_rate: 349, current_rate: 379, occupancy: 50, suggested_rate: 349 },
+  { id: "1", name: "Komfort", base_rate: 89, current_rate: 95, occupancy: 78, suggested_rate: 99 },
+  { id: "2", name: "Komfort Plus", base_rate: 129, current_rate: 139, occupancy: 72, suggested_rate: 145 },
+  { id: "3", name: "Suite", base_rate: 199, current_rate: 209, occupancy: 65, suggested_rate: 219 },
 ];
 
 const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return d; });

@@ -9,14 +9,14 @@ import { cn } from "@/lib/utils";
 type Task = { id: string; room: string; type: string; priority: "urgent" | "normal" | "low"; assigned_to: string; status: "pending" | "in-progress" | "done" | "inspecting"; last_cleaned: string };
 
 const fallbackTasks: Task[] = [
-  { id: "1", room: "102", type: "Standard Double", priority: "urgent", assigned_to: "Elena M.", status: "pending", last_cleaned: "2026-03-16" },
-  { id: "2", room: "202", type: "Standard Double", priority: "normal", assigned_to: "Stefan K.", status: "in-progress", last_cleaned: "2026-03-16" },
-  { id: "3", room: "301", type: "Penthouse", priority: "normal", assigned_to: "Elena M.", status: "in-progress", last_cleaned: "2026-03-15" },
-  { id: "4", room: "105", type: "Deluxe Suite", priority: "normal", assigned_to: "Anna B.", status: "done", last_cleaned: "2026-03-17" },
-  { id: "5", room: "303", type: "Standard Double", priority: "low", assigned_to: "Stefan K.", status: "done", last_cleaned: "2026-03-17" },
-  { id: "6", room: "201", type: "Executive King", priority: "normal", assigned_to: "Anna B.", status: "inspecting", last_cleaned: "2026-03-17" },
-  { id: "7", room: "401", type: "Penthouse", priority: "urgent", assigned_to: "Elena M.", status: "pending", last_cleaned: "2026-03-14" },
-  { id: "8", room: "104", type: "Standard Double", priority: "low", assigned_to: "Stefan K.", status: "pending", last_cleaned: "2026-03-16" },
+  { id: "1", room: "102", type: "Komfort", priority: "urgent", assigned_to: "Elena M.", status: "pending", last_cleaned: "2026-03-16" },
+  { id: "2", room: "202", type: "Komfort Plus", priority: "normal", assigned_to: "Stefan K.", status: "in-progress", last_cleaned: "2026-03-16" },
+  { id: "3", room: "301", type: "Suite", priority: "normal", assigned_to: "Elena M.", status: "in-progress", last_cleaned: "2026-03-15" },
+  { id: "4", room: "105", type: "Komfort", priority: "normal", assigned_to: "Anna B.", status: "done", last_cleaned: "2026-03-17" },
+  { id: "5", room: "303", type: "Komfort Plus", priority: "low", assigned_to: "Stefan K.", status: "done", last_cleaned: "2026-03-17" },
+  { id: "6", room: "201", type: "Komfort Plus", priority: "normal", assigned_to: "Anna B.", status: "inspecting", last_cleaned: "2026-03-17" },
+  { id: "7", room: "401", type: "Suite", priority: "urgent", assigned_to: "Elena M.", status: "pending", last_cleaned: "2026-03-14" },
+  { id: "8", room: "104", type: "Komfort", priority: "low", assigned_to: "Stefan K.", status: "pending", last_cleaned: "2026-03-16" },
 ];
 
 const priorityColors: Record<string, string> = { urgent: "bg-red-500/10 text-red-600", normal: "bg-primary/10 text-primary", low: "bg-foreground/10 text-foreground-muted" };

@@ -11,10 +11,9 @@ const stats = [
 ];
 
 const topRoomTypes = [
-  { type: "Executive King", bookings: 45, revenue: 8955, adr: 199, occupancy: 82 },
-  { type: "Standard Double", bookings: 68, revenue: 6460, adr: 95, occupancy: 78 },
-  { type: "Deluxe Suite", bookings: 28, revenue: 4452, adr: 159, occupancy: 65 },
-  { type: "Penthouse", bookings: 8, revenue: 3032, adr: 379, occupancy: 50 },
+  { type: "Komfort", bookings: 68, revenue: 6052, adr: 89, occupancy: 78 },
+  { type: "Komfort Plus", bookings: 45, revenue: 5805, adr: 129, occupancy: 72 },
+  { type: "Suite", bookings: 22, revenue: 4378, adr: 199, occupancy: 65 },
 ];
 
 const guestOrigins = [

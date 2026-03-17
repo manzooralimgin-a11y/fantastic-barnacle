@@ -261,15 +261,11 @@ app.include_router(
     tags=["HMS"],
     dependencies=[Depends(get_current_tenant_user)],
 )
-<<<<<<< Updated upstream
-=======
 app.include_router(stripe_router, prefix="/api/webhooks/stripe", tags=["Webhooks"])
 app.include_router(hms_public_router, prefix="/api/public/hotel", tags=["Public Hotel"])
 app.include_router(res_public_router, prefix="/api/public/restaurant", tags=["Public Restaurant"])
 app.include_router(ws_router, prefix="/ws")
->>>>>>> Stashed changes
 app.include_router(integrations_router)
-
 
 @app.get("/api/health")
 async def health_check(db: AsyncSession = Depends(get_db)):

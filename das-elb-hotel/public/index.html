@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DAS ELB Hotel & Restaurant</title>
+    <style>
+      :root {
+        --bg: #0c1718;
+        --panel: rgba(14, 34, 35, 0.92);
+        --line: rgba(255, 255, 255, 0.12);
+        --text: #f2f7f5;
+        --muted: #c1d6d1;
+        --accent: #d4b079;
+        --accent-dark: #9f7842;
+        --ok: #7ce0b1;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: "DM Sans", system-ui, sans-serif; color: var(--text); background: radial-gradient(circle at top, #1f5650, var(--bg) 58%); }
+      header, main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+      header { padding: 48px 0 28px; }
+      h1, h2 { margin: 0 0 12px; font-family: Georgia, serif; }
+      p { color: var(--muted); line-height: 1.65; }
+      .hero { display: grid; gap: 28px; grid-template-columns: 1.15fr 1fr; align-items: start; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 22px; box-shadow: 0 28px 90px rgba(0,0,0,0.35); }
+      .stack { display: grid; gap: 14px; }
+      label { display: grid; gap: 8px; font-size: 0.92rem; color: var(--muted); }
+      input, textarea, select, button { font: inherit; }
+      input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,0.05); color: var(--text); padding: 12px 14px; }
+      button { border: 0; border-radius: 999px; padding: 12px 18px; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #1f1507; font-weight: 700; cursor: pointer; }
+      .secondary { background: rgba(255,255,255,0.08); color: var(--text); }
+      .pill { display: inline-flex; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--muted); font-size: 0.9rem; }
+      .rooms { display: grid; gap: 12px; }
+      .room { border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 8px; }
+      .row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+      .price { color: var(--accent); font-weight: 700; }
+      .status { min-height: 24px; font-weight: 600; color: var(--ok); }
+      @media (max-width: 920px) { .hero { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="pill">Live API: <span id="api-base">https://gestronomy-api.onrender.com</span></span>
+      <h1>DAS ELB Hotel & Restaurant</h1>
+      <p>Book rooms for the hotel, reserve a restaurant table, and feed both the HMS and gastronomy dashboards from one live backend.</p>
+    </header>
+    <main class="hero">
+      <section class="card">
+        <h2>Hotel booking</h2>
+        <p>Rooms are loaded from the live API. Successful bookings should appear in the management/HMS side after backend redeploy.</p>
+        <div id="rooms" class="rooms"></div>
+        <div class="stack">
+          <label>Room type
+            <select id="room-type"></select>
+          </label>
+          <label>Guest name
+            <input id="hotel-name" placeholder="Jane Doe" />
+          </label>
+          <label>Email
+            <input id="hotel-email" type="email" placeholder="guest@example.com" />
+          </label>
+          <label>Phone
+            <input id="hotel-phone" placeholder="+49..." />
+          </label>
+          <div class="row">
+            <label style="flex:1">Check-in
+              <input id="hotel-checkin" type="date" />
+            </label>
+            <label style="flex:1">Check-out
+              <input id="hotel-checkout" type="date" />
+            </label>
+          </div>
+          <button id="book-room" type="button">Book room</button>
+          <div class="status" id="hotel-status"></div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Restaurant reservation</h2>
+        <p>Reservations are sent to the same live backend and should show up in gastronomy table management once the production API is updated.</p>
+        <div class="stack">
+          <label>Guest name
+            <input id="res-name" placeholder="Jane Doe" />
+          </label>
+          <label>Email
+            <input id="res-email" type="email" placeholder="guest@example.com" />
+          </label>
+          <label>Phone
+            <input id="res-phone" placeholder="+49..." />
+          </label>
+          <div class="row">
+            <label style="flex:1">Party size
+              <input id="party-size" type="number" min="1" value="2" />
+            </label>
+            <label style="flex:1">Time
+              <input id="res-time" type="time" value="19:00" />
+            </label>
+          </div>
+          <label>Date
+            <input id="res-date" type="date" />
+          </label>
+          <label>Special requests
+            <textarea id="res-notes" rows="4" placeholder="Window seat, allergies, anniversary"></textarea>
+          </label>
+          <button id="reserve-table" type="button">Reserve table</button>
+          <div class="status" id="reservation-status"></div>
+        </div>
+      </section>
+    </main>
+    <script>
+      const API_BASE = "https://gestronomy-api.onrender.com";
+      const roomSelect = document.getElementById("room-type");
+      const roomsRoot = document.getElementById("rooms");
+      const hotelStatus = document.getElementById("hotel-status");
+      const reservationStatus = document.getElementById("reservation-status");
+
+      async function loadRooms() {
+        const response = await fetch(`${API_BASE}/api/public/hotel/rooms`);
+        if (!response.ok) {
+          roomsRoot.innerHTML = '<p>Unable to load live room inventory.</p>';
+          return;
+        }
+        const rooms = await response.json();
+        roomsRoot.innerHTML = rooms.map((room) => `
+          <div class="room">
+            <div class="row">
+              <strong>${room.name}</strong>
+              <span class="price">EUR ${Number(room.base_price).toFixed(2)}</span>
+            </div>
+            <div class="muted">Max occupancy ${room.max_occupancy}</div>
+          </div>
+        `).join("");
+        roomSelect.innerHTML = rooms.map((room) => `<option value="${room.id}">${room.name}</option>`).join("");
+      }
+
+      async function bookRoom() {
+        hotelStatus.textContent = "";
+        const payload = {
+          property_id: 1,
+          room_type_id: Number(roomSelect.value),
+          guest_name: document.getElementById("hotel-name").value.trim(),
+          guest_email: document.getElementById("hotel-email").value.trim(),
+          guest_phone: document.getElementById("hotel-phone").value.trim(),
+          check_in: document.getElementById("hotel-checkin").value,
+          check_out: document.getElementById("hotel-checkout").value,
+          adults: 2,
+          children: 0
+        };
+        const response = await fetch(`${API_BASE}/api/public/hotel/book`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        hotelStatus.textContent = response.ok
+          ? `Booking ${data.booking_id || "created"} stored successfully.`
+          : (data.detail || "Booking failed.");
+      }
+
+      async function reserveTable() {
+        reservationStatus.textContent = "";
+        const payload = {
+          restaurant_id: 1,
+          guest_name: document.getElementById("res-name").value.trim(),
+          guest_email: document.getElementById("res-email").value.trim(),
+          guest_phone: document.getElementById("res-phone").value.trim(),
+          party_size: Number(document.getElementById("party-size").value || "2"),
+          reservation_date: document.getElementById("res-date").value,
+          start_time: document.getElementById("res-time").value,
+          special_requests: document.getElementById("res-notes").value.trim(),
+        };
+        const response = await fetch(`${API_BASE}/api/public/restaurant/reserve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        reservationStatus.textContent = response.ok
+          ? `Reservation #${data.id} created for ${data.guest_name}.`
+          : (data.detail || "Reservation failed.");
+      }
+
+      document.getElementById("book-room").addEventListener("click", () => bookRoom().catch((error) => {
+        console.error(error);
+        hotelStatus.textContent = "Unexpected booking error.";
+      }));
+      document.getElementById("reserve-table").addEventListener("click", () => reserveTable().catch((error) => {
+        console.error(error);
+        reservationStatus.textContent = "Unexpected reservation error.";
+      }));
+
+      loadRooms().catch((error) => {
+        console.error(error);
+        roomsRoot.innerHTML = "<p>Unable to load rooms from the live API.</p>";
+      });
+    </script>
+  </body>
+</html>

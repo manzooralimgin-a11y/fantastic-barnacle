@@ -1,0 +1,7 @@
+{
+  "name": "das-elb-hotel",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p out && cp -r public/* out/"
+  }
+}

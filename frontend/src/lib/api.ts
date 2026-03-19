@@ -13,11 +13,9 @@ function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return `${process.env.NEXT_PUBLIC_API_URL}/api`;
   }
-  // Standard Render fallback
-  if (typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
-    return "https://gestronomy-api.onrender.com/api";
-  }
-  return "http://localhost:8000/api";
+  // On Replit, the frontend is proxied — use relative /api path so requests
+  // route correctly through Next.js rewrites to the backend on port 8000.
+  return "/api";
 }
 
 const api = axios.create({

@@ -6,13 +6,21 @@ interface UIState {
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
   setSidebarMobileOpen: (v: boolean) => void;
+  initFromStorage: () => void;
 }
 
+// sidebarCollapsed always starts as false (SSR-safe).
+// The protected layouts call initFromStorage() inside a useEffect after
+// hydration so the server and client render the same initial state, preventing
+// the React 19 hydration mismatch that surfaces as a hard runtime error.
 export const useUIStore = create<UIState>((set) => ({
-  sidebarCollapsed: typeof window !== "undefined"
-    ? localStorage.getItem("sidebar-collapsed") === "true"
-    : false,
+  sidebarCollapsed: false,
   sidebarMobileOpen: false,
+
+  initFromStorage: () => {
+    const collapsed = localStorage.getItem("sidebar-collapsed") === "true";
+    set({ sidebarCollapsed: collapsed });
+  },
 
   toggleSidebar: () =>
     set((state) => {

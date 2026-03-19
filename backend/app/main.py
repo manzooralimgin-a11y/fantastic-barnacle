@@ -269,6 +269,12 @@ app.include_router(landing_router, prefix="/api", tags=["Landing Page"])
 app.include_router(ws_router, prefix="/ws")
 app.include_router(integrations_router)
 
+@app.get("/health")
+async def health_check_root():
+    """Lightweight liveness probe for Replit's health checker (no DB call)."""
+    return {"status": "ok"}
+
+
 @app.get("/api/health")
 async def health_check(db: AsyncSession = Depends(get_db)):
     """Verifies that the API and the database are both reachable."""

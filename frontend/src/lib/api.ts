@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useAuthStore } from "@/stores/auth-store";
 
 /**
  * Resolve API base URL with runtime override support.
@@ -33,24 +34,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Guard against multiple simultaneous 401 responses all triggering a redirect.
-// When the dashboard fires 8+ parallel API calls and all return 401, the
-// interceptor fires 8 times. Without this flag every call races to set
-// window.location.href, which can crash Next.js's navigation stack.
-let _redirectingToLogin = false;
-
+// On a 401 response, clear auth state via the Zustand store.
+// The protected layouts watch token; when it becomes null they call
+// router.replace("/login") — one clean client-side navigation, no hard reload.
+// Using window.location.href here caused a race between the hard reload and
+// the layout's router.replace, which could crash Next.js's navigation stack.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      if (typeof window !== "undefined") {
-        const currentPath = window.location.pathname;
-        if (!currentPath.includes("login") && !_redirectingToLogin) {
-          _redirectingToLogin = true;
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-          window.location.href = "/login";
-        }
+    if (error.response?.status === 401 && typeof window !== "undefined") {
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes("/login")) {
+        useAuthStore.getState().clear();
       }
     }
     return Promise.reject(error);

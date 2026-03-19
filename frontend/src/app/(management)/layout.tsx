@@ -18,17 +18,19 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
   const activeSection = useAuthStore((s) => s.activeSection);
   const setActiveSection = useAuthStore((s) => s.setActiveSection);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const initUIFromStorage = useUIStore((s) => s.initFromStorage);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // Step 1 — read persisted token from localStorage after hydration.
+  // Step 1 — read persisted state from localStorage after hydration.
   useEffect(() => {
     const storedToken = localStorage.getItem("access_token");
     const storedSection = localStorage.getItem("active_section") as "gestronomy" | "management" | null;
     if (storedToken) setToken(storedToken);
     if (storedSection) setActiveSection(storedSection);
+    initUIFromStorage();
     setHydrated(true);
-  }, [setToken, setActiveSection]);
+  }, [setToken, setActiveSection, initUIFromStorage]);
 
   // Step 2 — once hydrated, verify the token with the backend.
   useEffect(() => {

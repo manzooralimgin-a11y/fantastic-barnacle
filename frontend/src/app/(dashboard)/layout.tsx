@@ -21,7 +21,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // whether the user is authenticated — avoids the 401 storm on page load.
   const [hydrated, setHydrated] = useState(false);
 
-  // Step 1 — read persisted token from localStorage after hydration.
+  const initUIFromStorage = useUIStore((s) => s.initFromStorage);
+
+  // Step 1 — read persisted state from localStorage after hydration.
   // This MUST run before the auth-check effect below so token is set first.
   // We never read localStorage at Zustand store creation time because Next.js
   // SSR-renders client components too; reading there causes React 19 to throw
@@ -31,8 +33,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const storedSection = localStorage.getItem("active_section") as "gestronomy" | "management" | null;
     if (storedToken) setToken(storedToken);
     if (storedSection) setActiveSection(storedSection);
+    initUIFromStorage();
     setHydrated(true);
-  }, [setToken, setActiveSection]);
+  }, [setToken, setActiveSection, initUIFromStorage]);
 
   // Step 2 — once hydrated, verify the token with the backend.
   useEffect(() => {

@@ -68,6 +68,7 @@ function getTimeString() {
 /* ── Component ── */
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const role = user?.role;
   const alerts = useDashboardStore((s) => s.alerts);
   const setKPIs = useDashboardStore((s) => s.setKPIs);
@@ -90,15 +91,17 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Fetch dashboard data
+  // Fetch dashboard data — guard with token so we never fire unauthenticated
+  // requests that would generate 401s and trigger the redirect interceptor.
   useEffect(() => {
-    api.get("/dashboard/kpis").then(({ data }) => setKPIs(data)).catch((e) => console.error("Dashboard API error:", e));
-    api.get("/dashboard/alerts").then(({ data }) => setAlerts(data)).catch((e) => console.error("Dashboard API error:", e));
-    api.get("/dashboard/activity").then(({ data }) => setAgentActivity(data)).catch((e) => console.error("Dashboard API error:", e));
-    api.get("/dashboard/exceptions").then(({ data }) => setExceptions(data)).catch((e) => console.error("Dashboard API error:", e));
-    api.get("/dashboard/recommendations").then(({ data }) => setRecommendations(data)).catch((e) => console.error("Dashboard API error:", e));
-    api.get("/dashboard/audit-timeline").then(({ data }) => setAuditTimeline(data)).catch((e) => console.error("Dashboard API error:", e));
-  }, [setKPIs, setAlerts, setAgentActivity, setExceptions, setRecommendations, setAuditTimeline]);
+    if (!token) return;
+    api.get("/dashboard/kpis").then(({ data }) => setKPIs(data)).catch(() => {});
+    api.get("/dashboard/alerts").then(({ data }) => setAlerts(data)).catch(() => {});
+    api.get("/dashboard/activity").then(({ data }) => setAgentActivity(data)).catch(() => {});
+    api.get("/dashboard/exceptions").then(({ data }) => setExceptions(data)).catch(() => {});
+    api.get("/dashboard/recommendations").then(({ data }) => setRecommendations(data)).catch(() => {});
+    api.get("/dashboard/audit-timeline").then(({ data }) => setAuditTimeline(data)).catch(() => {});
+  }, [token, setKPIs, setAlerts, setAgentActivity, setExceptions, setRecommendations, setAuditTimeline]);
 
   useEffect(() => {
     setTodayStrip((prev) => ({
@@ -108,6 +111,7 @@ export default function DashboardPage() {
   }, [alerts]);
 
   useEffect(() => {
+    if (!token) return;
     api.get("/reservations", { params: { reservation_date: formatToday() } })
       .then(({ data }) => setTodayStrip((p) => ({ ...p, reservationsToday: Array.isArray(data) ? data.length : 0 })))
       .catch(() => setTodayStrip((p) => ({ ...p, reservationsToday: null })));
@@ -121,7 +125,7 @@ export default function DashboardPage() {
         .then(({ data }) => setTodayStrip((p) => ({ ...p, lowStockItems: Array.isArray(data) ? data.length : 0 })))
         .catch(() => setTodayStrip((p) => ({ ...p, lowStockItems: null })));
     }
-  }, [role]);
+  }, [token, role]);
 
   const focusCards = useMemo<FocusCard[]>(() => {
     if (role === "admin") {

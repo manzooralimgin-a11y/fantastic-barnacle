@@ -3,20 +3,38 @@ import { useEffect } from "react";
 type MessageHandler = (data: any) => void;
 
 function getWsUrl(): string {
-  if (typeof window === "undefined") return "ws://localhost:8002/ws";
+  if (typeof window === "undefined") return "ws://localhost:8000/ws";
 
+  // Allow a manual override (e.g. for the Tauri desktop app)
   const override = process.env.NODE_ENV === "development"
     ? localStorage.getItem("gestronomy_api_url")
     : null;
-  const apiUrl = override || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
-  
-  try {
-    const url = new URL(apiUrl);
-    const protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${url.host}/ws`;
-  } catch {
-    return "ws://localhost:8002/ws";
+
+  if (override) {
+    try {
+      const url = new URL(override);
+      const protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      return `${protocol}//${url.host}/ws`;
+    } catch {
+      // fall through
+    }
   }
+
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    try {
+      const url = new URL(process.env.NEXT_PUBLIC_API_URL);
+      const protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      return `${protocol}//${url.host}/ws`;
+    } catch {
+      // fall through
+    }
+  }
+
+  // On Replit the frontend runs on port 5000 and the backend on port 8000.
+  // Derive the WebSocket URL from the current page's hostname but switch port.
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:8000/ws`;
 }
 
 class WebSocketClient {
@@ -42,9 +60,9 @@ class WebSocketClient {
     if (typeof window === "undefined") return;
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    const rid = this.restaurantId || 1; // Default to 1 if not set
+    const rid = this.restaurantId || 1;
     let connectUrl = `${this.url}/${rid}`;
-    
+
     const token = localStorage.getItem("access_token");
     if (token) {
       connectUrl = `${connectUrl}?token=${encodeURIComponent(token)}`;
@@ -55,7 +73,7 @@ class WebSocketClient {
     this.ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        const { type } = message; // Backend uses 'type'
+        const { type } = message;
         const typeHandlers = this.handlers.get(type);
         if (typeHandlers) {
           typeHandlers.forEach((handler) => handler(message));
@@ -66,13 +84,11 @@ class WebSocketClient {
     };
 
     this.ws.onclose = () => {
-      console.log("WS Closed, reconnecting...");
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       this.reconnectTimer = setTimeout(() => this.connect(), 3000);
     };
 
-    this.ws.onerror = (err) => {
-      console.error("WS Error:", err);
+    this.ws.onerror = () => {
       this.ws?.close();
     };
   }

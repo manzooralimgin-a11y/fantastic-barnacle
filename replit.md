@@ -58,6 +58,8 @@ Non-sensitive env vars are set as Replit environment variables:
 - Both servers bind to `0.0.0.0` for Replit's proxied preview
 - Port 5000 is used for the frontend (required for Replit webview)
 - WebSocket URL derives from `window.location.hostname` at runtime (port 8000)
+- **Startup pre-warm** (`frontend/start-dev.sh`): the "Start application" workflow runs this shell script instead of `npm run dev` directly. It starts Next.js in the background and immediately makes HTTP requests to `/login` and `/` so Turbopack compiles the most-visited pages before Replit's health check fires. Without pre-warming, a cold Turbopack compile (no `.next/dev/cache`) takes ~6 seconds and can cause Replit to mark the workflow as crashed. The disk cache persists across process restarts, so cold starts only occur the very first time or if `.next/` is deleted.
+- **Do NOT run `rm -rf .next`** — this wipes the Turbopack disk cache and causes the next startup to be a cold compile (~6s), potentially triggering Replit's health-check timeout.
 
 ## Auth / SSR Hydration Pattern
 The Zustand auth store (`src/stores/auth-store.ts`) initialises `token` as `null` — never reading `localStorage` at module load time. Next.js 16 (App Router) SSR-renders all `"use client"` components too; reading localStorage there would create a server/client mismatch that React 19 surfaces as a hard runtime error.

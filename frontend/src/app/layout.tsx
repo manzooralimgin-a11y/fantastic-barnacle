@@ -39,6 +39,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={cn(editorial.variable, body.variable, mono.variable)}
     >
       <body className="font-body antialiased">

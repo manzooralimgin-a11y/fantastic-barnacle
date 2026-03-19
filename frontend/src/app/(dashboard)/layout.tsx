@@ -11,24 +11,43 @@ import { Header } from "@/components/layout/header";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
+  const setToken = useAuthStore((s) => s.setToken);
   const token = useAuthStore((s) => s.token);
+  const setActiveSection = useAuthStore((s) => s.setActiveSection);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Tracks whether the client-side localStorage read has completed.
+  // Prevents children from rendering (and firing API calls) before we know
+  // whether the user is authenticated — avoids the 401 storm on page load.
+  const [hydrated, setHydrated] = useState(false);
 
+  // Step 1 — read persisted token from localStorage after hydration.
+  // This MUST run before the auth-check effect below so token is set first.
+  // We never read localStorage at Zustand store creation time because Next.js
+  // SSR-renders client components too; reading there causes React 19 to throw
+  // a hydration mismatch as a runtime error.
   useEffect(() => {
+    const storedToken = localStorage.getItem("access_token");
+    const storedSection = localStorage.getItem("active_section") as "gestronomy" | "management" | null;
+    if (storedToken) setToken(storedToken);
+    if (storedSection) setActiveSection(storedSection);
+    setHydrated(true);
+  }, [setToken, setActiveSection]);
+
+  // Step 2 — once hydrated, verify the token with the backend.
+  useEffect(() => {
+    if (!hydrated) return;
     if (!token) {
       router.replace("/login");
       return;
     }
-
     getMe()
-      .then((user) => {
-        setUser(user);
-      })
-      .catch(() => {
-        router.replace("/login");
-      });
-  }, [token, setUser, router]);
+      .then((user) => setUser(user))
+      .catch(() => router.replace("/login"));
+  }, [hydrated, token, setUser, router]);
+
+  // Don't render protected content before we know the auth state.
+  if (!hydrated || !token) return null;
 
   return (
     <div className="atmospheric-bg min-h-screen">

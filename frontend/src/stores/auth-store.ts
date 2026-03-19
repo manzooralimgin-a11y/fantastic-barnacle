@@ -11,13 +11,16 @@ interface AuthState {
   clear: () => void;
 }
 
+// Always initialize token/section as null/default — never read localStorage at
+// module load time. Next.js server-renders "use client" components too, so
+// reading localStorage during store creation causes a server/client mismatch
+// that React 19 surfaces as a hard hydration runtime error. The dashboard
+// layout initialises these values from localStorage inside a useEffect (after
+// hydration) to keep both renders consistent.
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token:
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null,
-  activeSection: (typeof window !== "undefined" ? (localStorage.getItem("active_section") as any) : null) || "gestronomy",
+  token: null,
+  activeSection: "gestronomy",
   setUser: (user) => set({ user }),
   setToken: (token) => set({ token }),
   setActiveSection: (section) => {

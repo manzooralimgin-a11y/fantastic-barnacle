@@ -57,3 +57,12 @@ Non-sensitive env vars are set as Replit environment variables:
 - Frontend uses relative `/api` URLs, proxied by Next.js to the backend
 - Both servers bind to `0.0.0.0` for Replit's proxied preview
 - Port 5000 is used for the frontend (required for Replit webview)
+- WebSocket URL derives from `window.location.hostname` at runtime (port 8000)
+
+## Auth / SSR Hydration Pattern
+The Zustand auth store (`src/stores/auth-store.ts`) initialises `token` as `null` — never reading `localStorage` at module load time. Next.js 16 (App Router) SSR-renders all `"use client"` components too; reading localStorage there would create a server/client mismatch that React 19 surfaces as a hard runtime error.
+
+Both protected layouts (`(dashboard)/layout.tsx` and `(management)/layout.tsx`) follow this two-step pattern after mount:
+1. `useEffect` reads `access_token` / `active_section` from localStorage and calls `setToken` / `setActiveSection` on the store.
+2. A second `useEffect` (gated by the `hydrated` flag) calls `getMe()` to verify the token with the backend; redirects to `/login` on failure.
+A `hydrated` state flag prevents the protected UI (and any child API calls) from rendering until auth is confirmed — eliminating the 401 storm that previously occurred on page load.

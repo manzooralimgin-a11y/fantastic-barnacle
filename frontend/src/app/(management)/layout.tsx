@@ -13,30 +13,44 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const setUser = useAuthStore((s) => s.setUser);
+  const setToken = useAuthStore((s) => s.setToken);
   const token = useAuthStore((s) => s.token);
   const activeSection = useAuthStore((s) => s.activeSection);
+  const setActiveSection = useAuthStore((s) => s.setActiveSection);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
+  // Step 1 — read persisted token from localStorage after hydration.
   useEffect(() => {
+    const storedToken = localStorage.getItem("access_token");
+    const storedSection = localStorage.getItem("active_section") as "gestronomy" | "management" | null;
+    if (storedToken) setToken(storedToken);
+    if (storedSection) setActiveSection(storedSection);
+    setHydrated(true);
+  }, [setToken, setActiveSection]);
+
+  // Step 2 — once hydrated, verify the token with the backend.
+  useEffect(() => {
+    if (!hydrated) return;
     if (!token) {
       router.replace("/login");
       return;
     }
-
     getMe()
       .then((user) => {
         setUser(user);
-        // Force redirect if in the wrong section group
         if (!pathname.startsWith("/hms") && activeSection === "management") {
-           router.replace("/hms/dashboard");
+          router.replace("/hms/dashboard");
         }
       })
       .catch((err) => {
         console.error("Auth check failed", err);
         router.replace("/login");
       });
-  }, [token, setUser, router, pathname, activeSection]);
+  }, [hydrated, token, setUser, router, pathname, activeSection]);
+
+  if (!hydrated || !token) return null;
 
   return (
     <div className="atmospheric-bg min-h-screen">
@@ -46,7 +60,6 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
         <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full bg-[rgba(26,47,36,0.12)] blur-[100px] animate-orb-drift" style={{ animationDelay: "-7s" }} />
         <div className="absolute top-[60%] left-[50%] w-[300px] h-[300px] rounded-full bg-[rgba(197,160,89,0.04)] blur-[100px] animate-orb-drift" style={{ animationDelay: "-14s" }} />
       </div>
-
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

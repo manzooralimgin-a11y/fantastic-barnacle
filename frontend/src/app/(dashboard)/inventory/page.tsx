@@ -37,7 +37,7 @@ interface InventoryItem {
   current_stock: number;
   par_level: number;
   unit: string;
-  unit_cost: number;
+  cost_per_unit: number;
   last_ordered: string | null;
 }
 
@@ -59,7 +59,7 @@ interface PurchaseOrder {
   id: number;
   vendor_id: number;
   status: string;
-  total_amount: number;
+  total: number;
   items_json: Record<string, unknown>[];
   expected_delivery_date: string | null;
   actual_delivery_date: string | null;
@@ -151,9 +151,9 @@ export default function InventoryPage() {
   const [catalogItems, setCatalogItems] = useState<SupplierCatalogItem[]>([]);
 
   /* ── forms ── */
-  const [newItem, setNewItem] = useState({ name: "", category: "", par_level: "", unit: "kg", unit_cost: "" });
+  const [newItem, setNewItem] = useState({ name: "", category: "", par_level: "", unit: "kg", cost_per_unit: "" });
   const [newVendor, setNewVendor] = useState({ name: "", contact_email: "", contact_phone: "", payment_terms: "", lead_time_days: "", minimum_order_value: "" });
-  const [newOrder, setNewOrder] = useState({ vendor_id: 0, total_amount: "", notes: "", expected_delivery_date: "" });
+  const [newOrder, setNewOrder] = useState({ vendor_id: 0, total: "", notes: "", expected_delivery_date: "" });
   const [newCatalog, setNewCatalog] = useState({ vendor_id: 0, inventory_item_id: 0, supplier_name: "", unit_price: "", unit: "kg", min_order_qty: "1" });
   const [newRule, setNewRule] = useState({ inventory_item_id: 0, vendor_id: 0, trigger_type: "below_par", reorder_point: "", reorder_quantity: "", is_active: true });
   const [receiveNotes, setReceiveNotes] = useState("");
@@ -227,9 +227,9 @@ export default function InventoryPage() {
       await api.post("/inventory/items", {
         ...newItem,
         par_level: parseFloat(newItem.par_level || "0"),
-        unit_cost: parseFloat(newItem.unit_cost || "0"),
+        cost_per_unit: parseFloat(newItem.cost_per_unit || "0"),
       });
-      setNewItem({ name: "", category: "", par_level: "", unit: "kg", unit_cost: "" });
+      setNewItem({ name: "", category: "", par_level: "", unit: "kg", cost_per_unit: "" });
       setShowAddItem(false);
       fetchData();
     } catch {}
@@ -253,15 +253,16 @@ export default function InventoryPage() {
   };
 
   const handleAddOrder = async () => {
-    if (!newOrder.vendor_id || !newOrder.total_amount) return;
+    if (!newOrder.vendor_id || !newOrder.total) return;
     try {
       await api.post("/inventory/orders", {
         vendor_id: newOrder.vendor_id,
-        total_amount: parseFloat(newOrder.total_amount),
+        total: parseFloat(newOrder.total),
+        order_date: new Date().toISOString().slice(0, 10),
         notes: newOrder.notes || null,
         expected_delivery_date: newOrder.expected_delivery_date || null,
       });
-      setNewOrder({ vendor_id: 0, total_amount: "", notes: "", expected_delivery_date: "" });
+      setNewOrder({ vendor_id: 0, total: "", notes: "", expected_delivery_date: "" });
       setShowAddOrder(false);
       fetchData();
     } catch {}
@@ -269,7 +270,7 @@ export default function InventoryPage() {
 
   const handleReceiveOrder = async (orderId: number) => {
     try {
-      await api.post(`/inventory/orders/${orderId}/receive`, { notes: receiveNotes || null });
+      await api.post(`/inventory/orders/${orderId}/receive`, { received_items_json: {}, notes: receiveNotes || null });
       setShowReceive(null);
       setReceiveNotes("");
       fetchData();
@@ -511,7 +512,7 @@ export default function InventoryPage() {
                         {item.par_level} {item.unit}
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-muted-foreground">
-                        &euro;{(item.unit_cost || 0).toFixed(2)}
+                        &euro;{(item.cost_per_unit || 0).toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.cls}`}>
@@ -563,7 +564,7 @@ export default function InventoryPage() {
                   <td className="px-4 py-3 text-sm font-medium text-foreground">#{order.id}</td>
                   <td className="px-4 py-3 text-sm text-foreground">{getVendorName(order.vendor_id)}</td>
                   <td className="px-4 py-3 text-sm text-right font-semibold text-foreground">
-                    &euro;{order.total_amount.toFixed(2)}
+                    &euro;{order.total.toFixed(2)}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -834,7 +835,7 @@ export default function InventoryPage() {
               { label: "Category", key: "category", type: "text", placeholder: "e.g. Oils & Fats" },
               { label: "PAR Level", key: "par_level", type: "number", placeholder: "Min stock level" },
               { label: "Unit", key: "unit", type: "text", placeholder: "kg, L, pcs" },
-              { label: "Unit Cost (\u20AC)", key: "unit_cost", type: "number", placeholder: "0.00" },
+              { label: "Unit Cost (\u20AC)", key: "cost_per_unit", type: "number", placeholder: "0.00" },
             ].map((f) => (
               <div key={f.key}>
                 <label className="text-xs text-muted-foreground mb-1 block">{f.label}</label>
@@ -907,7 +908,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Total Amount (&euro;)</label>
-              <input type="number" step="0.01" placeholder="0.00" value={newOrder.total_amount} onChange={(e) => setNewOrder({ ...newOrder, total_amount: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
+              <input type="number" step="0.01" placeholder="0.00" value={newOrder.total} onChange={(e) => setNewOrder({ ...newOrder, total: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Expected Delivery</label>

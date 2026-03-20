@@ -130,6 +130,36 @@ Global exception handlers registered in `backend/app/main.py`:
 - `RequestValidationError` → `{"error": "Validation error", "detail": [...], "status": 422}`
 - Unhandled `Exception` → `{"error": "An unexpected error occurred...", "status": 500}` + full traceback logged at `ERROR` level via `app.errors` logger
 
+## Frontend ↔ Backend Schema Synchronization (Completed)
+All frontend modules have been audited and synchronized with backend schemas. Known fixes applied:
+
+### Vouchers Page (`/vouchers/page.tsx`)
+- `handleAddVoucher`: Now sends `{amount_total, customer_name, customer_email, expiry_date, notes}` — backend ignores `code`, `voucher_type`, `value`, etc.
+- `handleToggleVoucher`: Now sends `{status: "active"|"cancelled"}` — backend `VoucherUpdate` has no `is_active` field
+- `VoucherType` interface updated to match `VoucherRead` response; `is_active` derived from `status === "active"`
+- Form redesigned: collects Amount, Customer Name/Email, Expiry Date, Notes (not discount coupon fields)
+
+### Inventory Page (`/inventory/page.tsx`)
+- `POST /inventory/items`: `unit_cost` → `cost_per_unit` (backend `InventoryItemCreate` uses `cost_per_unit`)
+- `POST /inventory/orders`: `total_amount` → `total` + added `order_date: today` (required field, causes 422 without it)
+- `POST /inventory/orders/{id}/receive`: added `received_items_json: {}` (required by `GoodsReceiptCreate`)
+- `PurchaseOrder` interface: `total_amount` → `total`
+
+### Billing Page (`/billing/page.tsx`)
+- `POST /billing/cash-shifts/open`: removed `opened_by` (FK to employees table — always 500 if no employees exist)
+- `POST /billing/cash-shifts/{id}/close`: removed `closed_by` (same FK issue)
+
+### Backend Fixes (DB + Models + Schemas)
+- `reservations.payment_status`: Column exists in DB (NOT NULL, no default) but not in SQLAlchemy model. Fixed: added `server_default="unpaid"` to DB and model. Prevents 500 on every reservation creation.
+- `cash_shifts.opened_by`: Was NOT NULL FK to `employees` (no employees seeded). Fixed: made nullable in DB (`ALTER COLUMN ... DROP NOT NULL`), updated `CashShift` model to `nullable=True`, updated `CashShiftOpen`/`CashShiftClose`/`CashShiftRead` Pydantic schemas to `int | None = None`.
+
+### Verified Working (no changes needed)
+- **Reservations**: All payloads match backend schemas exactly
+- **Orders**: All payloads match backend schemas exactly  
+- **Menu**: All payloads match backend schemas exactly
+- **Kitchen Display (KDS)**: All endpoints are action-only POST (no body required)
+- **Billing payments, bills, refunds, send-receipt**: All payloads match schemas
+
 ## Button Variants
 The `default` button variant (`frontend/src/components/ui/button.tsx`) uses solid gold (`bg-accent-DEFAULT`) with dark forest text (`text-[#1A2F24]`) for WCAG AA contrast on both light and dark backgrounds. Use `glow` variant for subtle glass-style buttons on dark dashboard pages.
 

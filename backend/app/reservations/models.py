@@ -64,6 +64,7 @@ class Reservation(Base):
     special_requests: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source: Mapped[str] = mapped_column(String(20), default="phone", nullable=False)
+    payment_status: Mapped[str] = mapped_column(String(20), default="unpaid", server_default="unpaid", nullable=False)
 
 
 class WaitlistEntry(Base):

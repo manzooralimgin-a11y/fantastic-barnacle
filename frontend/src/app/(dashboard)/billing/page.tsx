@@ -420,7 +420,6 @@ export default function BillingPage() {
   const handleOpenShift = async () => {
     try {
       await api.post("/billing/cash-shifts/open", {
-        opened_by: 1,
         opening_amount: parseFloat(shiftAmount) || 0,
       });
       setShowOpenShift(false);
@@ -433,7 +432,6 @@ export default function BillingPage() {
     if (!currentShift) return;
     try {
       await api.post(`/billing/cash-shifts/${currentShift.id}/close`, {
-        closed_by: 1,
         closing_amount: parseFloat(shiftAmount) || 0,
       });
       setShowCloseShift(false);

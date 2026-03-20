@@ -168,7 +168,7 @@ class CashShiftRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    opened_by: int
+    opened_by: int | None = None
     closed_by: int | None = None
     opening_amount: float
     closing_amount: float | None = None
@@ -183,13 +183,13 @@ class CashShiftRead(BaseModel):
 
 
 class CashShiftOpen(BaseModel):
-    opened_by: int
+    opened_by: int | None = None
     opening_amount: float
     notes: str | None = None
 
 
 class CashShiftClose(BaseModel):
-    closed_by: int
+    closed_by: int | None = None
     closing_amount: float
     notes: str | None = None
 

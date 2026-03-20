@@ -59,9 +59,10 @@ Non-sensitive env vars are set as Replit environment variables:
 - Port 5000 is used for the frontend (required for Replit webview)
 - WebSocket URL derives from `window.location.hostname` at runtime (port 8000)
 - **Production-mode workflow** (`frontend/start-dev.sh`): the "Start application" workflow runs `next build` → `next start`. This eliminates the Turbopack cold-compile race that caused repeated "crashed" banners. `next start` binds port 5000 in ~500 ms and serves every page as pre-compiled static HTML (< 30 ms per request). `next build` only re-runs when the git HEAD commit changes (tracked via `.next/.build-commit`); each build takes ~17 seconds.
-- **Placeholder server during build**: while `next build` is running, a minimal Node.js HTTP server holds port 5000 open and returns HTTP 200 so Replit's health-check never times out. It is killed and replaced by `next start` as soon as the build finishes.
+- **Placeholder server during build**: a tiny Node.js HTTP server binds port 5000 within milliseconds of the script starting (before and throughout `next build`) and returns HTTP 200 for every request. It is `kill -9`'d the moment the build finishes, then `exec npm start` binds port 5000 within ~200ms. The health-check never sees an unresponsive port.
+- **SIGKILL is intentional in the startup script**: the old `next start` (production) process is killed with `SIGKILL` immediately. This is safe because `next start` only READS the pre-built `.next/` output — there is no incremental Turbopack cache being written that could be corrupted. The fast kill minimises the time port 5000 is dark before the placeholder takes over.
+- **Do NOT use `pkill -9 next-server` if running `next dev`** — in dev mode, SIGKILL interrupts Turbopack's incremental cache flush and corrupts `.next/dev/cache`, causing a 6-second cold re-init.
 - **No hot-reload in the webview** — the workflow serves the production bundle. To develop with live reloading, stop the workflow and run `cd frontend && npm run dev` in a shell instead.
-- **Do NOT use `pkill -9 next-server`** — SIGKILL interrupts Turbopack's cache flush and corrupts `.next/dev/cache`, causing a 6-second cold re-init on the next dev-server start.
 
 ## Auth / SSR Hydration Pattern
 The Zustand auth store (`src/stores/auth-store.ts`) initialises `token` as `null` — never reading `localStorage` at module load time. Next.js 16 (App Router) SSR-renders all `"use client"` components too; reading localStorage there would create a server/client mismatch that React 19 surfaces as a hard runtime error.

@@ -58,7 +58,8 @@ Non-sensitive env vars are set as Replit environment variables:
 - Both servers bind to `0.0.0.0` for Replit's proxied preview
 - Port 5000 is used for the frontend (required for Replit webview)
 - WebSocket URL derives from `window.location.hostname` at runtime (port 8000)
-- **Production-mode workflow** (`frontend/start-dev.sh`): the "Start application" workflow runs `next build` then `next start` instead of `next dev`. This eliminates the Turbopack cold-compile race that caused repeated "artifact crashed" banners. `next start` binds port 5000 in ~500 ms and serves every page as pre-compiled static HTML (< 30 ms per request), so Replit's health-check always gets an immediate HTTP 200. `next build` only re-runs when the git HEAD commit changes (tracked via `.next/.build-commit`); each build takes ~17 seconds.
+- **Production-mode workflow** (`frontend/start-dev.sh`): the "Start application" workflow runs `next build` → `next start`. This eliminates the Turbopack cold-compile race that caused repeated "crashed" banners. `next start` binds port 5000 in ~500 ms and serves every page as pre-compiled static HTML (< 30 ms per request). `next build` only re-runs when the git HEAD commit changes (tracked via `.next/.build-commit`); each build takes ~17 seconds.
+- **Placeholder server during build**: while `next build` is running, a minimal Node.js HTTP server holds port 5000 open and returns HTTP 200 so Replit's health-check never times out. It is killed and replaced by `next start` as soon as the build finishes.
 - **No hot-reload in the webview** — the workflow serves the production bundle. To develop with live reloading, stop the workflow and run `cd frontend && npm run dev` in a shell instead.
 - **Do NOT use `pkill -9 next-server`** — SIGKILL interrupts Turbopack's cache flush and corrupts `.next/dev/cache`, causing a 6-second cold re-init on the next dev-server start.
 

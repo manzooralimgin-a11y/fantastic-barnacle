@@ -37,18 +37,30 @@ class Settings(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def build_database_urls(cls, values: dict) -> dict:
-        """Handle Render's DATABASE_URL format.
+        """Handle Replit/Render DATABASE_URL format.
 
-        Render provides DATABASE_URL as postgres:// or postgresql://
-        We need postgresql+asyncpg:// for async and postgresql:// for sync.
+        Replit provides postgresql:// URLs, sometimes with ?sslmode=... which
+        asyncpg does not accept as a query parameter — strip it and handle via
+        connect_args in the engine instead.
         """
+        import urllib.parse
+
         raw_url = os.environ.get("DATABASE_URL", "")
         if raw_url:
             if raw_url.startswith("postgres://"):
                 raw_url = raw_url.replace("postgres://", "postgresql://", 1)
-            async_url = raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+            # Parse and strip sslmode so asyncpg doesn't choke on it.
+            parsed = urllib.parse.urlparse(raw_url)
+            qs = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+            qs.pop("sslmode", None)
+            cleaned = parsed._replace(query=urllib.parse.urlencode(qs, doseq=True))
+            clean_url = urllib.parse.urlunparse(cleaned)
+
+            async_url = clean_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             values["database_url"] = async_url
-            sync_url = raw_url
+
+            sync_url = clean_url
             if "postgresql+asyncpg://" in sync_url:
                 sync_url = sync_url.replace("postgresql+asyncpg://", "postgresql://", 1)
             values["database_url_sync"] = sync_url

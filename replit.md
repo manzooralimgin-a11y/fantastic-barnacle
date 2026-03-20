@@ -64,6 +64,16 @@ Non-sensitive env vars are set as Replit environment variables:
 - **Do NOT use `pkill -9 next-server` if running `next dev`** — in dev mode, SIGKILL interrupts Turbopack's incremental cache flush and corrupts `.next/dev/cache`, causing a 6-second cold re-init.
 - **No hot-reload in the webview** — the workflow serves the production bundle. To develop with live reloading, stop the workflow and run `cd frontend && npm run dev` in a shell instead.
 
+## Design System
+**Luxury Forest — 2026 Editorial**: `--color-brand-green: #1A2F24`, `--color-brand-cream: #FDFBF7`, `--color-brand-gold: #C5A059`.
+
+All CSS custom properties are declared in `frontend/src/app/globals.css` (`:root` and `.dark`). This includes the complete glass system (`--glass-bg`, `--glass-blur`, `--glass-border`, etc.), gold tokens (`--gold`, `--gold-hover`, `--gold-dim`, etc.), status palette (`--status-success`, `--status-danger`, etc.), motion tokens (`--motion-fast/base/slow`, `--ease-editorial`), and atmospheric gradient stops (`--atmo-green/gold/emerald`). These variables are consumed by Tailwind via `tailwind.config.ts` theme extensions; missing variables cause silent property failures (transparent backgrounds, no blur, invisible text).
+
+**Operational pages** (orders, reservations, inventory, menu) use emerald/amber/blue for status colour-coding — this is intentional UX (green=available, amber=reserved, red=unavailable) and should not be changed to brand gold.
+
+## Backend — Database URL Handling
+Replit's PostgreSQL provides a `DATABASE_URL` with `?sslmode=disable` appended. asyncpg does not accept `sslmode` as a URL query parameter (only psycopg2 does). The `build_database_urls` validator in `backend/app/config.py` strips `sslmode` (and any other unsupported parameters) using `urllib.parse` before constructing the asyncpg URL.
+
 ## Auth / SSR Hydration Pattern
 The Zustand auth store (`src/stores/auth-store.ts`) initialises `token` as `null` — never reading `localStorage` at module load time. Next.js 16 (App Router) SSR-renders all `"use client"` components too; reading localStorage there would create a server/client mismatch that React 19 surfaces as a hard runtime error.
 

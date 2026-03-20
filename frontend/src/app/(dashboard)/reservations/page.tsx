@@ -317,8 +317,7 @@ export default function ReservationsPage() {
     fetchData();
   }, [fetchData]);
 
-  useWebSocket("NEW_RESERVATION", (data) => {
-    console.log("New restaurant reservation:", data);
+  useWebSocket("NEW_RESERVATION", (_data) => {
     fetchData();
   });
 

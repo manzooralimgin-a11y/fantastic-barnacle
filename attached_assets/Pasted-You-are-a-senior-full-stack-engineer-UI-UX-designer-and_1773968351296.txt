@@ -1,0 +1,123 @@
+You are a senior full-stack engineer, UI/UX designer, and production-readiness reviewer.
+
+You have the full project repo. Your job is to analyze the entire codebase, preserve the existing brand colors and identity, modernize the UI across all apps, and make the project production-ready without breaking the working flows.
+
+IMPORTANT CONTEXT
+- This is a monorepo with multiple apps and a shared backend.
+- The project already has working business flows and backend connectivity.
+- Do NOT change the brand colors or visual identity.
+- Do NOT replace working screens with simple forms.
+- Do NOT break existing routes, APIs, booking flows, reservation flows, order flows, or realtime behavior.
+- The goal is a cleaner, more modern, more polished version of the same product.
+
+PRIMARY GOALS
+1. Analyze the whole repository end-to-end.
+2. Modernize the UI while keeping the original color palette and brand style.
+3. Improve consistency across all apps.
+4. Make the project production-ready.
+5. Preserve all working functionality.
+
+WHAT YOU MUST DO
+
+PHASE 1: FULL CODEBASE AUDIT
+- Inspect every app, page, component, layout, style file, config file, API integration, and environment setup.
+- Identify:
+  - repeated UI patterns
+  - inconsistent spacing, typography, buttons, cards, forms, tables, and navigation
+  - outdated or messy components
+  - hardcoded colors that should be moved to theme variables
+  - broken imports or unsafe code
+  - production issues such as missing loading states, error handling, and accessibility problems
+- Summarize the architecture of the repository before making changes.
+
+PHASE 2: PRESERVE BRAND COLORS
+- Keep the original palette exactly or as close as possible.
+- Extract the current colors into reusable variables/theme tokens if they are scattered.
+- Use the same primary, accent, background, text, and status colors already present in the project.
+- Do not introduce a new branding style.
+- Use modern UI techniques, but keep the same identity.
+
+PHASE 3: MODERN UI UPGRADE
+Modernize the UI in a tasteful, enterprise-grade way:
+- Improve layout structure and alignment
+- Standardize spacing, padding, and margin rhythm
+- Make headers, cards, buttons, inputs, dropdowns, tables, and modals visually consistent
+- Improve responsiveness for mobile, tablet, and desktop
+- Add clear loading states, empty states, and error states
+- Improve visual hierarchy with better typography and content grouping
+- Make the dashboard/admin views cleaner and easier to scan
+- Keep the product recognizable
+
+PHASE 4: APP-BY-APP IMPROVEMENT
+Analyze and improve each app independently, but keep them visually consistent:
+- Hotel landing page
+- Restaurant app
+- Gastronomy / HMS frontend
+- Management dashboard
+
+For each app:
+- preserve the same business logic
+- preserve the same routes and API calls
+- modernize the layout and components
+- improve usability
+- make the interface feel premium and production-ready
+
+PHASE 5: PRODUCTION READINESS
+Ensure the codebase is production-ready:
+- remove dead code and unused components
+- ensure environment variables are documented and validated
+- confirm API base URLs are correctly configured
+- fix any build issues
+- fix lint issues where safe
+- improve error handling and fallback UI
+- add or improve accessibility labels, keyboard support, and contrast checks
+- optimize performance where obvious
+- make sure builds and tests pass
+
+PHASE 6: DATA FLOW / FUNCTIONALITY SAFETY
+You must not break:
+- hotel booking flow
+- restaurant reservation flow
+- restaurant order flow
+- management visibility
+- kitchen/table updates
+- realtime updates if present
+
+If you need to touch existing logic, keep the changes minimal and do not alter backend contracts unless absolutely necessary.
+
+PHASE 7: TECHNICAL CLEANUP
+- Normalize component structure
+- Create reusable UI primitives where helpful
+- Move repeated styles into shared components or theme tokens
+- Organize styles so they are easier to maintain
+- Ensure all pages feel like one product family
+
+PHASE 8: VALIDATION
+After changes:
+- run relevant builds
+- run tests
+- run lint
+- verify that the apps still work
+- check that the UI is improved but the functional behavior remains intact
+- confirm no regressions in booking, reservation, order, and management flows
+
+DELIVERABLES
+Provide:
+1. A short audit of what the repo looked like before changes
+2. A summary of what UI/UX improvements you made
+3. A summary of production-hardening changes
+4. A list of files changed
+5. Any remaining risks or follow-up items
+6. Confirmation that all builds/tests passed, or a precise explanation of what failed and why
+
+RULES
+- Keep the original colors.
+- Do not redesign the product into a different brand.
+- Do not simplify working screens into forms.
+- Do not break the existing business logic.
+- Prefer small, safe, reversible changes.
+- If something is already good, leave it alone.
+- Focus on polish, consistency, and production quality.
+
+START NOW
+First inspect the full codebase and give me a concise audit of what you found before editing anything. Then implement the UI modernization and production-readiness improvements carefully.

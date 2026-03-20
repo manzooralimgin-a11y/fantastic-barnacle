@@ -56,6 +56,59 @@
 
     /* Shadows */
     --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+
+    /* ── Glass System (light mode) ── */
+    --glass-blur: 14px;
+    --glass-bg: rgba(255, 255, 255, 0.62);
+    --glass-border: rgba(26, 47, 36, 0.08);
+    --glass-shadow: 0 2px 16px rgba(26, 47, 36, 0.06), 0 1px 4px rgba(26, 47, 36, 0.04);
+    --glass-shadow-hover: 0 8px 28px rgba(26, 47, 36, 0.1), 0 2px 8px rgba(26, 47, 36, 0.06);
+    --glass-border-hover: rgba(26, 47, 36, 0.16);
+    --glass-highlight: rgba(255, 255, 255, 0.75);
+    --glass-elevated-bg: rgba(255, 255, 255, 0.93);
+    --glass-elevated-border: rgba(26, 47, 36, 0.12);
+    --glass-elevated-shadow: 0 16px 48px rgba(26, 47, 36, 0.12), 0 4px 16px rgba(26, 47, 36, 0.08);
+
+    /* ── Gold tokens ── */
+    --gold: #C5A059;
+    --gold-hover: #D4B56D;
+    --gold-dim: rgba(197, 160, 89, 0.55);
+    --gold-bg: rgba(197, 160, 89, 0.08);
+    --gold-border: rgba(197, 160, 89, 0.2);
+    --gold-border-hover: rgba(197, 160, 89, 0.35);
+
+    /* ── Forest tokens ── */
+    --forest: #1A2F24;
+    --forest-hover: #243D2F;
+
+    /* ── Emerald (operational) ── */
+    --emerald: #52B788;
+
+    /* ── Status palette ── */
+    --status-success: #52B788;
+    --status-success-soft: rgba(82, 183, 136, 0.1);
+    --status-warning: #E8C547;
+    --status-warning-soft: rgba(232, 197, 71, 0.1);
+    --status-danger: #E63946;
+    --status-danger-soft: rgba(230, 57, 70, 0.1);
+    --status-info: #6AADCF;
+    --status-info-soft: rgba(106, 173, 207, 0.1);
+
+    /* ── Atmospheric gradient stops ── */
+    --atmo-green: rgba(45, 106, 79, 0.05);
+    --atmo-gold: rgba(197, 160, 89, 0.04);
+    --atmo-emerald: rgba(82, 183, 136, 0.03);
+
+    /* ── Motion tokens ── */
+    --motion-fast: 120ms;
+    --motion-base: 250ms;
+    --motion-slow: 400ms;
+    --motion-slower: 600ms;
+    --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ── Destructive ── */
+    --destructive: #E63946;
   }
 
   .dark {
@@ -75,9 +128,31 @@
     --popover-foreground: var(--foreground);
     --border: rgba(253, 251, 247, 0.1);
     --input: rgba(253, 251, 247, 0.05);
+    --muted: rgba(253, 251, 247, 0.06);
+    --muted-foreground: rgba(253, 251, 247, 0.5);
 
     /* Shadows removed in dark */
     --shadow-soft: none;
+
+    /* ── Glass System (dark mode) ── */
+    --glass-bg: rgba(26, 47, 36, 0.45);
+    --glass-border: rgba(253, 251, 247, 0.07);
+    --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), 0 1px 6px rgba(0, 0, 0, 0.15);
+    --glass-shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.2);
+    --glass-border-hover: rgba(253, 251, 247, 0.14);
+    --glass-highlight: rgba(253, 251, 247, 0.04);
+    --glass-elevated-bg: rgba(26, 47, 36, 0.75);
+    --glass-elevated-border: rgba(253, 251, 247, 0.1);
+    --glass-elevated-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 6px 20px rgba(0, 0, 0, 0.3);
+
+    /* ── Gold (slightly muted in dark) ── */
+    --gold-dim: rgba(197, 160, 89, 0.45);
+    --gold-bg: rgba(197, 160, 89, 0.1);
+
+    /* ── Atmospheric (stronger in dark) ── */
+    --atmo-green: rgba(45, 106, 79, 0.12);
+    --atmo-gold: rgba(197, 160, 89, 0.08);
+    --atmo-emerald: rgba(82, 183, 136, 0.06);
   }
 
 

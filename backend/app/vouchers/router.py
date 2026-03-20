@@ -1,10 +1,18 @@
+import random
+import string
+from datetime import datetime, timezone
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.database import get_db
 from app.dependencies import get_current_tenant_user
 from app.vouchers import service, schemas
+from app.vouchers.models import Voucher
 
 router = APIRouter()
 
@@ -147,6 +155,75 @@ async def add_stamp_to_card(
         response["reward_voucher_code"] = result["reward_voucher"].code
         response["reward_voucher_amount"] = float(result["reward_voucher"].amount_total)
     return response
+
+
+# ────────────────────── GIFT CARDS ──────────────────────
+
+def _gc_to_dict(v: Voucher) -> dict:
+    return {
+        "id": v.id,
+        "code": v.code,
+        "initial_balance": float(v.amount_total),
+        "current_balance": float(v.amount_remaining),
+        "purchaser_name": v.purchaser_name,
+        "recipient_name": v.customer_name,
+        "recipient_email": v.customer_email,
+        "message": v.notes,
+        "is_active": v.status == "active",
+        "expires_at": v.expiry_date.isoformat() if v.expiry_date else None,
+        "created_at": v.created_at.isoformat() if v.created_at else None,
+    }
+
+
+class GiftCardCreate(BaseModel):
+    initial_balance: float
+    purchaser_name: Optional[str] = None
+    recipient_name: Optional[str] = None
+    recipient_email: Optional[str] = None
+    message: Optional[str] = None
+
+
+@router.get("/gift-cards")
+async def list_gift_cards(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user),
+):
+    result = await db.execute(
+        select(Voucher)
+        .where(
+            Voucher.restaurant_id == current_user.restaurant_id,
+            Voucher.is_gift_card.is_(True),
+        )
+        .order_by(Voucher.id.desc())
+        .limit(200)
+    )
+    rows = result.scalars().all()
+    return [_gc_to_dict(r) for r in rows]
+
+
+@router.post("/gift-cards", status_code=201)
+async def create_gift_card(
+    payload: GiftCardCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user),
+):
+    code = "GC-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    gc = Voucher(
+        restaurant_id=current_user.restaurant_id,
+        code=code,
+        amount_total=payload.initial_balance,
+        amount_remaining=payload.initial_balance,
+        customer_name=payload.recipient_name,
+        customer_email=payload.recipient_email,
+        status="active",
+        notes=payload.message,
+        is_gift_card=True,
+        purchaser_name=payload.purchaser_name,
+    )
+    db.add(gc)
+    await db.commit()
+    await db.refresh(gc)
+    return _gc_to_dict(gc)
 
 
 @router.post("/{voucher_id}/resend-email")

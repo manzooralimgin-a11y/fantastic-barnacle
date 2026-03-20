@@ -12,7 +12,10 @@ from app.vouchers import email_service
 # ────────────────────── VOUCHERS ──────────────────────
 
 async def get_vouchers(db: AsyncSession, restaurant_id: int, active_only: bool = False) -> list[Voucher]:
-    q = select(Voucher).where(Voucher.restaurant_id == restaurant_id).order_by(Voucher.created_at.desc())
+    q = select(Voucher).where(
+        Voucher.restaurant_id == restaurant_id,
+        Voucher.is_gift_card.is_(False),
+    ).order_by(Voucher.created_at.desc())
     if active_only:
         q = q.where(Voucher.status == "active")
     result = await db.execute(q)

@@ -1,0 +1,188 @@
+You are a senior full-stack engineer, QA automation specialist, and production reliability engineer.
+
+Your task is to perform a COMPLETE FUNCTIONAL AUDIT and FIX of the entire system.
+
+This is NOT a normal fix task. This is a STRICT, SYSTEMATIC, EXHAUSTIVE verification.
+
+---
+
+# ⚠️ CRITICAL RULES (NON-NEGOTIABLE)
+
+1. You MUST inspect EVERY interactive element
+2. You MUST NOT skip any button, handler, or API
+3. You MUST produce a FUNCTION-BY-FUNCTION CHECKLIST
+4. You MUST verify FULL FLOW (UI → API → DB → UI)
+5. You MUST NOT stop until EVERYTHING is verified
+6. You MUST NOT break existing working features
+7. You MUST NOT change UI design unless required for functionality
+
+---
+
+# 🎯 OBJECTIVE
+
+Make the system:
+
+* 100% FUNCTIONAL
+* 100% CONNECTED
+* 100% PRODUCTION READY
+
+No dead buttons. No broken flows. No silent failures.
+
+---
+
+# 🔍 PHASE 1: FULL INTERACTION INVENTORY
+
+Scan the ENTIRE codebase and extract a complete list of:
+
+* All buttons
+* All clickable elements
+* All forms
+* All submit handlers
+* All onClick handlers
+* All navigation actions
+* All modal actions
+* All dropdown actions
+* All table row actions
+* All keyboard-triggered actions
+* All API calls
+* All backend routes
+
+---
+
+# 📋 PHASE 2: FUNCTION CHECKLIST (MANDATORY OUTPUT)
+
+Create a structured checklist like this:
+
+[PAGE NAME]
+
+1. Button: "Create Booking"
+
+   * UI Handler: handleCreateBooking()
+   * API Called: POST /api/public/hotel/book
+   * Payload: ✔ valid / ❌ invalid
+   * Backend Response: ✔ success / ❌ fail
+   * DB Updated: ✔ / ❌
+   * UI Updated: ✔ / ❌
+   * Status: ✔ WORKING / ❌ BROKEN
+   * Issue: (if broken)
+   * Fix Applied: (if fixed)
+
+2. Button: "Reserve Table"
+   ...
+
+You MUST include EVERY interaction.
+
+---
+
+# 🔗 PHASE 3: TRACE EVERY FLOW
+
+For EACH checklist item:
+
+Trace FULL path:
+
+UI → handler → API → backend → database → UI update
+
+Verify:
+
+* handler exists
+* handler is connected
+* API endpoint exists
+* payload is correct
+* backend logic works
+* DB writes correctly
+* response is valid
+* UI updates correctly
+
+---
+
+# 🐛 PHASE 4: FIX ALL BROKEN ITEMS
+
+For each ❌ BROKEN:
+
+* Identify ROOT CAUSE
+* Fix the issue properly:
+
+  * missing handler
+  * wrong API endpoint
+  * incorrect payload
+  * broken state update
+  * missing await / async issue
+  * wrong response parsing
+  * backend bug
+  * DB issue
+
+DO NOT apply superficial fixes.
+
+---
+
+# ⚙️ PHASE 5: BACKEND VERIFICATION
+
+Verify ALL backend functions:
+
+* booking creation
+* reservation creation
+* order creation
+* kitchen updates
+* management data
+* inventory/menu/billing
+* realtime events (if applicable)
+
+Ensure:
+
+* correct routes
+* correct schemas
+* correct DB writes
+* correct error handling
+* correct status codes
+
+---
+
+# 🧪 PHASE 6: PRODUCTION VALIDATION
+
+After fixing:
+
+Run:
+
+* build
+* tests
+* lint
+
+Then simulate:
+
+* booking flow
+* reservation flow
+* order flow
+
+Verify ALL succeed.
+
+---
+
+# 📊 PHASE 7: FINAL REPORT (MANDATORY)
+
+You MUST output:
+
+1. FULL FUNCTION CHECKLIST (every interaction)
+2. List of ALL broken items found
+3. Root cause for each issue
+4. Exact fixes applied
+5. Files modified
+6. Final system status:
+
+   * ✔ Fully functional
+   * ⚠ Partially functional (with reasons)
+
+---
+
+# 🚫 FAILURE CONDITION
+
+If ANY button, form, or action is not verified:
+
+YOU HAVE FAILED THE TASK.
+
+---
+
+# 🔥 GOAL
+
+Turn this system into a ZERO-BUG, FULLY FUNCTIONAL, PRODUCTION-GRADE platform.
+
+Start now.

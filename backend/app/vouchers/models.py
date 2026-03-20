@@ -21,6 +21,8 @@ class Voucher(Base):
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_gift_card: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    purchaser_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class VoucherRedemption(Base):

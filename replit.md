@@ -83,6 +83,30 @@ Default admin credentials: `admin@gestronomy.app` / `Admin1234!`
 
 The `b1c2d3e4f5a6_add_performance_indexes.py` migration uses `CREATE INDEX IF NOT EXISTS` (raw SQL via `op.get_bind()`) because earlier migrations already create some of these indexes — idempotent indexes prevent duplicate-index errors on fresh installs.
 
+Migration `z001a2b3c4d5` adds extended fields to `hms_reservations` (anrede, phone, room, room_type_label, adults, children, zahlungs_methode, zahlungs_status, special_requests, payment_status, booking_id) and gift card columns to `vouchers` (is_gift_card, purchaser_name).
+
+## HMS Hotel Module — Database Seed
+A hotel property ("DAS Elb Magdeburg") with 30 rooms across 5 floors and 3 room types (Komfort €89, Komfort Plus €129, Suite €199) must exist for HMS reservation creation to work. Seed it by running the async seed script in the backend shell if `GET /api/hms/overview` returns fallback static data.
+
+## HMS Endpoints
+All HMS routes are under `/api/hms/` (prefixed in main.py):
+- `GET /overview` — hotel property + room status summary
+- `GET /rooms` — list all rooms
+- `GET /front-desk/stats` — today's arrivals, departures, occupancy counts
+- `GET /front-desk/arrivals` — today's check-ins with `{ items: [...] }` shape
+- `GET /front-desk/departures` — today's check-outs with `{ items: [...] }` shape
+- `GET /reservations` — list all reservations (mapped to frontend Reservation type)
+- `POST /reservations` — create reservation (auto-generates booking_id and room if not provided)
+- `PUT /reservations/{id}` — full/partial update
+- `PATCH /reservations/{id}` — alias for PUT (used for cancel: `{status:"cancelled"}`)
+
+## Voucher Gift Cards
+Gift cards use the existing `vouchers` table with `is_gift_card=True`. Routes under `/api/vouchers/`:
+- `GET /gift-cards` — list only gift cards (filtered by `is_gift_card=True`)
+- `POST /gift-cards` — create gift card; auto-generates `GC-XXXXXXXXXX` code
+- `GET /vouchers` — regular vouchers only (filtered by `is_gift_card=False`)
+Field mapping: `amount_total→initial_balance`, `amount_remaining→current_balance`, `customer_name→recipient_name`, `customer_email→recipient_email`, `notes→message`, `purchaser_name→purchaser_name`.
+
 ## Shared Frontend Components
 Located at `frontend/src/components/shared/`:
 - `loading.tsx` — Loader2 spinner with size variants and optional className

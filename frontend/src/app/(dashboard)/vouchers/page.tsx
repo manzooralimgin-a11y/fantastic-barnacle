@@ -23,17 +23,16 @@ import {
 interface VoucherType {
   id: number;
   code: string;
-  voucher_type: string;
-  value: number;
-  min_order_value: number | null;
-  max_discount: number | null;
-  max_uses: number | null;
-  uses_count: number;
-  valid_from: string | null;
-  valid_until: string | null;
-  is_active: boolean;
-  description: string | null;
+  amount_total: number;
+  amount_remaining: number;
+  customer_name: string | null;
+  customer_email: string | null;
+  status: string;
+  expiry_date: string | null;
+  notes: string | null;
   created_at: string;
+  qr_code_base64: string | null;
+  is_active: boolean;
 }
 
 interface GiftCardType {
@@ -72,19 +71,6 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: "customer-cards", label: "Customer Cards", icon: CreditCard },
 ];
 
-const VOUCHER_TYPES = [
-  { value: "percentage_off", label: "Percentage Off" },
-  { value: "fixed_amount", label: "Fixed Amount" },
-  { value: "free_item", label: "Free Item" },
-  { value: "bogo", label: "Buy One Get One" },
-];
-
-const VOUCHER_TYPE_COLORS: Record<string, string> = {
-  percentage_off: "bg-blue-500/10 text-blue-400",
-  fixed_amount: "bg-emerald-500/10 text-emerald-400",
-  free_item: "bg-purple-500/10 text-purple-400",
-  bogo: "bg-amber-500/10 text-amber-400",
-};
 
 const TIER_COLORS: Record<string, string> = {
   bronze: "bg-emerald-500/10 text-emerald-400",
@@ -105,7 +91,7 @@ export default function VouchersPage() {
   const [showAddGiftCard, setShowAddGiftCard] = useState(false);
   const [showAddCustomerCard, setShowAddCustomerCard] = useState(false);
 
-  const [newVoucher, setNewVoucher] = useState({ code: "", voucher_type: "percentage_off", value: "", min_order_value: "", max_discount: "", max_uses: "", description: "" });
+  const [newVoucher, setNewVoucher] = useState({ amount_total: "", customer_name: "", customer_email: "", expiry_date: "", notes: "" });
   const [newGiftCard, setNewGiftCard] = useState({ initial_balance: "", purchaser_name: "", recipient_name: "", recipient_email: "", message: "" });
   const [newCustomerCard, setNewCustomerCard] = useState({ card_type: "points", stamps_target: "10", holder_name: "" });
   const [copied, setCopied] = useState<string | null>(null);
@@ -117,7 +103,7 @@ export default function VouchersPage() {
         api.get("/vouchers/gift-cards"),
         api.get("/vouchers/customer-cards"),
       ]);
-      setVouchers(vRes.data);
+      setVouchers((vRes.data as Omit<VoucherType, "is_active">[]).map((v: any) => ({ ...v, is_active: v.status === "active" })));
       setGiftCards(gcRes.data);
       setCustomerCards(ccRes.data);
     } catch {} finally { setLoading(false); }
@@ -133,18 +119,16 @@ export default function VouchersPage() {
 
   /* ── handlers ── */
   const handleAddVoucher = async () => {
-    if (!newVoucher.code || !newVoucher.value) return;
+    if (!newVoucher.amount_total) return;
     try {
       await api.post("/vouchers", {
-        code: newVoucher.code,
-        voucher_type: newVoucher.voucher_type,
-        value: parseFloat(newVoucher.value),
-        min_order_value: newVoucher.min_order_value ? parseFloat(newVoucher.min_order_value) : null,
-        max_discount: newVoucher.max_discount ? parseFloat(newVoucher.max_discount) : null,
-        max_uses: newVoucher.max_uses ? parseInt(newVoucher.max_uses) : null,
-        description: newVoucher.description || null,
+        amount_total: parseFloat(newVoucher.amount_total),
+        customer_name: newVoucher.customer_name || null,
+        customer_email: newVoucher.customer_email || null,
+        expiry_date: newVoucher.expiry_date ? new Date(newVoucher.expiry_date).toISOString() : null,
+        notes: newVoucher.notes || null,
       });
-      setNewVoucher({ code: "", voucher_type: "percentage_off", value: "", min_order_value: "", max_discount: "", max_uses: "", description: "" });
+      setNewVoucher({ amount_total: "", customer_name: "", customer_email: "", expiry_date: "", notes: "" });
       setShowAddVoucher(false);
       fetchData();
     } catch {}
@@ -155,7 +139,7 @@ export default function VouchersPage() {
   };
 
   const handleToggleVoucher = async (v: VoucherType) => {
-    try { await api.put(`/vouchers/${v.id}`, { is_active: !v.is_active }); fetchData(); } catch {}
+    try { await api.put(`/vouchers/${v.id}`, { status: v.is_active ? "cancelled" : "active" }); fetchData(); } catch {}
   };
 
   const handleAddGiftCard = async () => {
@@ -266,17 +250,17 @@ export default function VouchersPage() {
                       {v.code}
                       {copied === v.code ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
                     </button>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${VOUCHER_TYPE_COLORS[v.voucher_type] || "bg-muted text-muted-foreground"}`}>
-                      {VOUCHER_TYPES.find((t) => t.value === v.voucher_type)?.label || v.voucher_type}
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400">
+                      Stored Value
                     </span>
                     <span className="text-sm font-bold text-foreground">
-                      {v.voucher_type === "percentage_off" ? `${v.value}%` : `\u20AC${v.value}`}
+                      &euro;{v.amount_remaining.toFixed(2)} <span className="text-xs text-muted-foreground font-normal">/ &euro;{v.amount_total.toFixed(2)}</span>
                     </span>
-                    {v.description && <span className="text-xs text-muted-foreground truncate max-w-[200px] hidden lg:inline">{v.description}</span>}
+                    {v.notes && <span className="text-xs text-muted-foreground truncate max-w-[200px] hidden lg:inline">{v.notes}</span>}
+                    {v.customer_name && <span className="text-xs text-muted-foreground hidden lg:inline">{v.customer_name}</span>}
                   </div>
                   <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-                    <span className="text-xs text-muted-foreground">{v.uses_count}{v.max_uses ? `/${v.max_uses}` : ""} used</span>
-                    {v.valid_until && <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(v.valid_until).toLocaleDateString()}</span>}
+                    {v.expiry_date && <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(v.expiry_date).toLocaleDateString()}</span>}
                     <button onClick={() => handleToggleVoucher(v)} className="text-muted-foreground hover:text-foreground">
                       {v.is_active ? <ToggleRight className="h-5 w-5 text-emerald-400" /> : <ToggleLeft className="h-5 w-5" />}
                     </button>
@@ -378,39 +362,30 @@ export default function VouchersPage() {
       {showAddVoucher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-lg space-y-4">
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Ticket className="h-5 w-5 text-accent-DEFAULT" /> New Voucher</h2>
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Ticket className="h-5 w-5 text-accent-DEFAULT" /> New Value Voucher</h2>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Code</label>
-                <input type="text" placeholder="SUMMER20" value={newVoucher.code} onChange={(e) => setNewVoucher({ ...newVoucher, code: e.target.value.toUpperCase() })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50 font-mono" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Type</label>
-                <select value={newVoucher.voucher_type} onChange={(e) => setNewVoucher({ ...newVoucher, voucher_type: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50">
-                  {VOUCHER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">{newVoucher.voucher_type === "percentage_off" ? "Percentage" : "Value (\u20AC)"}</label>
-                <input type="number" step="0.01" placeholder="0" value={newVoucher.value} onChange={(e) => setNewVoucher({ ...newVoucher, value: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Max Uses</label>
-                <input type="number" placeholder="Unlimited" value={newVoucher.max_uses} onChange={(e) => setNewVoucher({ ...newVoucher, max_uses: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Min Order (\u20AC)</label>
-                <input type="number" step="0.01" placeholder="None" value={newVoucher.min_order_value} onChange={(e) => setNewVoucher({ ...newVoucher, min_order_value: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Max Discount (\u20AC)</label>
-                <input type="number" step="0.01" placeholder="None" value={newVoucher.max_discount} onChange={(e) => setNewVoucher({ ...newVoucher, max_discount: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
-              </div>
               <div className="col-span-2">
-                <label className="text-xs text-muted-foreground mb-1 block">Description</label>
-                <input type="text" placeholder="Summer promotion..." value={newVoucher.description} onChange={(e) => setNewVoucher({ ...newVoucher, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
+                <label className="text-xs text-muted-foreground mb-1 block">Amount (&euro;) <span className="text-red-400">*</span></label>
+                <input type="number" step="0.01" min="0.01" placeholder="50.00" value={newVoucher.amount_total} onChange={(e) => setNewVoucher({ ...newVoucher, amount_total: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Customer Name</label>
+                <input type="text" placeholder="Max Mustermann" value={newVoucher.customer_name} onChange={(e) => setNewVoucher({ ...newVoucher, customer_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Customer Email</label>
+                <input type="email" placeholder="max@example.de" value={newVoucher.customer_email} onChange={(e) => setNewVoucher({ ...newVoucher, customer_email: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Expiry Date</label>
+                <input type="date" value={newVoucher.expiry_date} onChange={(e) => setNewVoucher({ ...newVoucher, expiry_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
+                <input type="text" placeholder="Birthday gift..." value={newVoucher.notes} onChange={(e) => setNewVoucher({ ...newVoucher, notes: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent-DEFAULT/50" />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">A unique code is auto-generated. If a customer email is provided, they will receive the voucher by email.</p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowAddVoucher(false)} className="px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground">Cancel</button>
               <button onClick={handleAddVoucher} className="px-4 py-2 rounded-xl bg-accent-DEFAULT text-white text-sm font-medium">Create Voucher</button>

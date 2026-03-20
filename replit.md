@@ -74,6 +74,41 @@ All CSS custom properties are declared in `frontend/src/app/globals.css` (`:root
 ## Backend — Database URL Handling
 Replit's PostgreSQL provides a `DATABASE_URL` with `?sslmode=disable` appended. asyncpg does not accept `sslmode` as a URL query parameter (only psycopg2 does). The `build_database_urls` validator in `backend/app/config.py` strips `sslmode` (and any other unsupported parameters) using `urllib.parse` before constructing the asyncpg URL.
 
+## Database Setup & Seeding
+After running migrations (`cd backend && python -m alembic upgrade head`), seed the database with the default restaurant and admin user:
+```
+PYTHONPATH=/home/runner/workspace/backend python backend/scripts/seed.py
+```
+Default admin credentials: `admin@gestronomy.app` / `Admin1234!`
+
+The `b1c2d3e4f5a6_add_performance_indexes.py` migration uses `CREATE INDEX IF NOT EXISTS` (raw SQL via `op.get_bind()`) because earlier migrations already create some of these indexes — idempotent indexes prevent duplicate-index errors on fresh installs.
+
+## Shared Frontend Components
+Located at `frontend/src/components/shared/`:
+- `loading.tsx` — Loader2 spinner with size variants and optional className
+- `stat-card.tsx` — KPI card with icon, value, delta
+- `data-table.tsx` — Generic sortable/filterable table
+- `empty-state.tsx` — Empty/zero-state placeholder with icon and optional action
+- `page-header.tsx` — Consistent page title + subtitle + action slot
+- `api-error.tsx` — Dismissible error banner with retry callback
+
+## Error Handling Pattern (Frontend Pages)
+All operational pages (`orders`, `reservations`, `inventory`, `menu`, `billing`) follow this pattern:
+1. `const [fetchError, setFetchError] = useState<string | null>(null)`
+2. In `fetchData` catch: `setFetchError("descriptive message")`
+3. Loading state: `return <Loading size="lg" className="min-h-[60vh]" />`
+4. At top of return JSX: `{fetchError && <ApiError message={fetchError} onRetry={fetchData} />}`
+5. Never `/* swallow */` errors silently
+
+## Backend Error Handling
+Global exception handlers registered in `backend/app/main.py`:
+- `HTTPException` → `{"error": str, "status": int}` JSON
+- `RequestValidationError` → `{"error": "Validation error", "detail": [...], "status": 422}`
+- Unhandled `Exception` → `{"error": "An unexpected error occurred...", "status": 500}` + full traceback logged at `ERROR` level via `app.errors` logger
+
+## Button Variants
+The `default` button variant (`frontend/src/components/ui/button.tsx`) uses solid gold (`bg-accent-DEFAULT`) with dark forest text (`text-[#1A2F24]`) for WCAG AA contrast on both light and dark backgrounds. Use `glow` variant for subtle glass-style buttons on dark dashboard pages.
+
 ## Auth / SSR Hydration Pattern
 The Zustand auth store (`src/stores/auth-store.ts`) initialises `token` as `null` — never reading `localStorage` at module load time. Next.js 16 (App Router) SSR-renders all `"use client"` components too; reading localStorage there would create a server/client mismatch that React 19 surfaces as a hard runtime error.
 

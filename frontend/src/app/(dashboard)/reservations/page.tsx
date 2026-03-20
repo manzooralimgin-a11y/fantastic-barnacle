@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import api from "@/lib/api";
+import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 import {
   CalendarDays,
   Clock,
@@ -270,6 +272,7 @@ export default function ReservationsPage() {
   const [showAddReservation, setShowAddReservation] = useState(false);
   const [showAddWaitlist, setShowAddWaitlist] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("expected");
 
   /* ── form states ── */
@@ -293,6 +296,7 @@ export default function ReservationsPage() {
   });
 
   const fetchData = useCallback(async () => {
+    setFetchError(null);
     try {
       const [secRes, tblRes, resRes, wlRes, floorRes] = await Promise.all([
         api.get("/reservations/sections"),
@@ -307,7 +311,7 @@ export default function ReservationsPage() {
       setWaitlist(wlRes.data);
       setFloorSummary(floorRes.data);
     } catch {
-      /* swallow */
+      setFetchError("Failed to load reservations. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -437,15 +441,12 @@ export default function ReservationsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-DEFAULT" />
-      </div>
-    );
+    return <Loading size="lg" className="min-h-[60vh]" />;
   }
 
   return (
     <div className="space-y-4">
+      {fetchError && <ApiError message={fetchError} onRetry={fetchData} />}
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

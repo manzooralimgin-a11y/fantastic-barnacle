@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 import {
   Receipt,
   Plus,
@@ -163,6 +165,7 @@ export default function BillingPage() {
   const [menuItems, setMenuItems] = useState<MenuItemType[]>([]);
   const [menuCategories, setMenuCategories] = useState<MenuCategoryType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   /* POS state */
   const [selectedOrder, setSelectedOrder] = useState<TableOrder | null>(null);
@@ -196,6 +199,7 @@ export default function BillingPage() {
   const [shiftAmount, setShiftAmount] = useState("");
 
   const fetchData = useCallback(async () => {
+    setFetchError(null);
     try {
       const [ordersRes, summaryRes, tablesRes, menuRes, catRes] = await Promise.all([
         api.get("/billing/orders/live"),
@@ -210,7 +214,7 @@ export default function BillingPage() {
       setMenuItems(menuRes.data);
       setMenuCategories(catRes.data);
     } catch {
-      /* swallow */
+      setFetchError("Failed to load billing data. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -443,15 +447,12 @@ export default function BillingPage() {
     : menuItems;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-DEFAULT" />
-      </div>
-    );
+    return <Loading size="lg" className="min-h-[60vh]" />;
   }
 
   return (
     <div className="space-y-6">
+      {fetchError && <ApiError message={fetchError} onRetry={fetchData} />}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 import time
+import traceback
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,7 +11,8 @@ logging.basicConfig(
     stream=sys.stdout
 )
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse, Response
 
@@ -54,6 +56,43 @@ app.add_middleware(
 )
 
 app.add_middleware(RequestIdMiddleware)
+
+_error_logger = logging.getLogger("app.errors")
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail, "status": exc.status_code},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    messages = [f"{'.'.join(str(l) for l in e['loc'])}: {e['msg']}" for e in errors]
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation error", "detail": messages, "status": 422},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    _error_logger.error(
+        json.dumps({
+            "event": "unhandled_exception",
+            "path": request.url.path,
+            "method": request.method,
+            "error": str(exc),
+            "traceback": traceback.format_exc()[-2000:],
+        })
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"error": "An unexpected error occurred. Please try again later.", "status": 500},
+    )
 
 
 @app.middleware("http")

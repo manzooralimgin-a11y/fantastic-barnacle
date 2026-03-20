@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 import {
   Package,
   AlertTriangle,
@@ -124,6 +126,7 @@ function getStockStatus(current: number, par: number) {
 export default function InventoryPage() {
   const [tab, setTab] = useState<Tab>("items");
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   /* ── data ── */
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -156,6 +159,7 @@ export default function InventoryPage() {
   const [receiveNotes, setReceiveNotes] = useState("");
 
   const fetchData = useCallback(async () => {
+    setFetchError(null);
     try {
       const [itemRes, vendorRes, orderRes, lowRes, ruleRes] = await Promise.all([
         api.get("/inventory/items"),
@@ -170,7 +174,7 @@ export default function InventoryPage() {
       setLowStock(lowRes.data);
       setRules(ruleRes.data);
     } catch {
-      /* swallow */
+      setFetchError("Failed to load inventory data. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -346,15 +350,12 @@ export default function InventoryPage() {
   const pendingOrders = orders.filter((o) => o.status === "pending" || o.status === "ordered");
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-DEFAULT" />
-      </div>
-    );
+    return <Loading size="lg" className="min-h-[60vh]" />;
   }
 
   return (
     <div className="space-y-6">
+      {fetchError && <ApiError message={fetchError} onRetry={fetchData} />}
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

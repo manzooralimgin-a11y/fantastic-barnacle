@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 import {
   Search,
   Plus,
@@ -177,6 +179,7 @@ export default function WaiterStationPage() {
 
   // Loading / action states
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [sendingToKitchen, setSendingToKitchen] = useState(false);
   const [addingItem, setAddingItem] = useState<number | null>(null);
 
@@ -186,6 +189,7 @@ export default function WaiterStationPage() {
 
   /* ── Data fetching ── */
   const fetchTableData = useCallback(async () => {
+    setFetchError(null);
     try {
       const [secRes, tabRes, ordRes] = await Promise.all([
         api.get("/reservations/sections"),
@@ -196,7 +200,7 @@ export default function WaiterStationPage() {
       setTables(tabRes.data);
       setActiveOrders(ordRes.data);
     } catch {
-      /* silently handle */
+      setFetchError("Failed to load table data. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -535,11 +539,7 @@ export default function WaiterStationPage() {
   const allItemsReady = orderItems.length > 0 && orderItems.every(i => i.status === "ready" || i.status === "served");
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
-      </div>
-    );
+    return <Loading size="lg" className="min-h-[60vh]" />;
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -548,6 +548,7 @@ export default function WaiterStationPage() {
   if (phase === "tables") {
     return (
       <div className="space-y-5">
+        {fetchError && <ApiError message={fetchError} onRetry={fetchTableData} />}
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

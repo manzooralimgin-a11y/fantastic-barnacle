@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 import {
   UtensilsCrossed,
   Plus,
@@ -126,6 +128,7 @@ export default function MenuPage() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   /* ── upsell rules state ── */
   const [upsellRules, setUpsellRules] = useState<UpsellRule[]>([]);
@@ -154,6 +157,7 @@ export default function MenuPage() {
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
 
   const fetchData = useCallback(async () => {
+    setFetchError(null);
     try {
       const [catRes, itemRes, analyticsRes, rulesRes] = await Promise.all([
         api.get("/menu/categories"),
@@ -166,7 +170,7 @@ export default function MenuPage() {
       setAnalytics(analyticsRes.data);
       setUpsellRules(rulesRes.data);
     } catch {
-      /* swallow */
+      setFetchError("Failed to load menu data. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -294,15 +298,12 @@ export default function MenuPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-DEFAULT" />
-      </div>
-    );
+    return <Loading size="lg" className="min-h-[60vh]" />;
   }
 
   return (
     <div className="space-y-6">
+      {fetchError && <ApiError message={fetchError} onRetry={fetchData} />}
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

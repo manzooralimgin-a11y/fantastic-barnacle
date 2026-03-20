@@ -1,0 +1,125 @@
+Great work so far. The system is now stable and the design tokens are fixed.
+
+Now move to the NEXT LEVEL: UI refinement + production maturity.
+
+---
+
+# 🎯 OBJECTIVE
+
+Upgrade the system from:
+"working + styled"
+
+to:
+"premium, production-grade product"
+
+---
+
+# ⚠️ IMPORTANT RULES
+
+* Do NOT change brand colors
+* Do NOT break functionality
+* Do NOT redesign entire pages
+* Focus on refinement, consistency, and usability
+
+---
+
+# 🎨 PHASE 1: UI REFINEMENT (CRITICAL)
+
+Improve visual quality across all apps:
+
+1. Layout & spacing:
+
+   * Standardize spacing scale
+   * Fix inconsistent padding/margins
+   * Improve alignment
+
+2. Visual hierarchy:
+
+   * Improve typography (headings vs body)
+   * Better grouping of content
+   * Clear sections
+
+3. Component polish:
+
+   * Buttons → consistent size, hover, states
+   * Cards → consistent spacing + shadows
+   * Forms → better inputs, labels, validation UI
+   * Tables → improve readability and structure
+
+4. UX improvements:
+
+   * Add loading states where missing
+   * Add empty states
+   * Improve feedback (success/error states)
+
+---
+
+# 🧩 PHASE 2: DESIGN CONSISTENCY
+
+* Ensure ALL apps follow same design system:
+
+  * landing
+  * restaurant
+  * gastronomy
+  * management
+
+* Replace duplicate components with shared ones where safe
+
+---
+
+# ⚙️ PHASE 3: PRODUCTION HARDENING (ADVANCED)
+
+1. Logging:
+
+   * Structured logs (backend)
+   * meaningful error logs
+
+2. Error handling:
+
+   * Standard API error format
+   * Frontend error boundaries
+
+3. Performance:
+
+   * Optimize heavy queries
+   * Add basic caching (menu, rooms)
+   * Reduce unnecessary API calls
+
+4. Validation:
+
+   * Strong input validation everywhere
+
+---
+
+# 📊 PHASE 4: RELIABILITY
+
+* Add retry logic for critical API calls
+* Ensure UI does not break on API failure
+* Add fallback UI
+
+---
+
+# 🧪 PHASE 5: TESTING
+
+* Add integration tests:
+
+  * booking
+  * reservation
+  * order
+
+---
+
+# 📦 FINAL OUTPUT
+
+Provide:
+
+1. What UI improvements were made
+2. What production improvements were added
+3. Any remaining weaknesses
+4. Suggestions for scaling
+
+---
+
+# 🔥 GOAL
+
+Make this feel like a polished, premium SaaS product — not just a working system.

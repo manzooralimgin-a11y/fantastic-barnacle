@@ -1,0 +1,786 @@
+/* ═══════════════════════════════════════════════════════════════
+   Das ELB Hotel — Visual Overrides & Polishing
+   Applied after all framework CSS to fix, enhance, and ensure
+   full visual fidelity across desktop, tablet, and mobile.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 1. FONT VARIABLES ──────────────────────────────────────── */
+:root {
+  --font-playfair-display: 'Playfair Display';
+  --font-inter: 'Inter';
+}
+
+/* ─── 2. BASE IMPROVEMENTS ───────────────────────────────────── */
+html {
+  scroll-behavior: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-inter, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  overflow-x: hidden;
+}
+
+/* ─── 3. CUSTOM SCROLLBAR ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0f1e17; }
+::-webkit-scrollbar-thumb {
+  background: #247a6e;
+  border-radius: 4px;
+  border: 2px solid #0f1e17;
+}
+::-webkit-scrollbar-thumb:hover { background: #379e90; }
+* { scrollbar-width: thin; scrollbar-color: #247a6e #0f1e17; }
+
+/* ─── 4. TEXT SELECTION ──────────────────────────────────────── */
+::selection { background: rgba(197,160,89,.35); color: #fdfbf7; }
+::-moz-selection { background: rgba(197,160,89,.35); color: #fdfbf7; }
+
+/* ─── 5. ACCESSIBILITY – FOCUS STATES ───────────────────────── */
+:focus { outline: none; }
+:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #C5A059;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ─── 6. SECTION OVERFLOW GUARD ─────────────────────────────── */
+section {
+  overflow-x: clip;
+}
+
+/* ─── 7. HORIZONTAL SCROLL CONTAINERS ──────────────────────────
+   The compiled CSS sets overflow-x: hidden — fix to auto.        */
+.horizontal-scroll-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+.horizontal-scroll-container::-webkit-scrollbar { display: none; }
+.horizontal-scroll-container > * { scroll-snap-align: start; }
+
+[class*="overflow-x-auto"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* ─── 8. NESTED SCROLL: PREVENT LENIS CHAINING ──────────────────
+   Problem: Lenis.checkNestedScroll() lets native scroll handle the
+   inner element while it CAN scroll, but at boundary it reverts
+   control to Lenis — which then scrolls the page.
+
+   CSS part: enforce overscroll-behavior: contain so that once the
+   native scroll fallback is active, it won't propagate further.
+   JS part: data-lenis-prevent is added via the script in index.html
+   using MutationObserver (covers dynamically-rendered tabs/modals). */
+
+[data-lenis-prevent],
+[class*="overflow-y-auto"],
+[class*="overflow-y-scroll"],
+.custom-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ─── 9. CSS VARIABLE OVERRIDE — LIGHT SECTIONS ─────────────────
+   Root cause of inline-style contrast issues:
+   • --white-soft (#ffffffe0) is used in many style={{color:...}} props
+   • --accent-gold (#C5A059) has insufficient contrast on cream/gold bg
+   Redefining these per-section scopes the fix without touching global */
+
+.section-pattern-2,
+.section-pattern-3,
+.light-section {
+  /* Redefine CSS vars so var()-using inline styles resolve to dark */
+  --white-soft: #1A2F24;
+  --white-muted: rgba(26,47,36,.7);
+  --bg-deep: #1A2F24;
+  --bg-soft: #247a6e;
+  /* Darken gold for AA contrast on light backgrounds */
+  --accent-gold: #8a6e2e;
+  --accent-gold-soft: #7a612a;
+  /* Section-level inherited color */
+  color: #1A2F24;
+}
+
+/* Dark sub-containers within light sections restore their variables */
+.section-pattern-2 [class*="bg-forest-9"],
+.section-pattern-2 [class*="bg-forest-8"],
+.section-pattern-2 [class*="bg-forest-7"],
+.section-pattern-2 [class*="bg-base-9"],
+.section-pattern-2 [class*="bg-base-8"],
+.section-pattern-3 [class*="bg-forest-9"],
+.section-pattern-3 [class*="bg-base-9"],
+.light-section [class*="bg-forest-9"],
+.light-section [class*="bg-forest-8"],
+.light-section [class*="bg-base-9"] {
+  --white-soft: #ffffffe0;
+  --white-muted: rgba(255,255,255,.65);
+  --accent-gold: #C5A059;
+  --accent-gold-soft: #C5A059;
+  color: #FDFBF7;
+}
+
+/* ─── 10. TEXT CLASS OVERRIDES — LIGHT SECTIONS ──────────────────
+   Class-based white/light text → forced dark in light sections.
+   Covers Tailwind classes like text-white, text-forest-50/100/200.
+   The !important beats .text-white{color:var(--color-white)} (no !). */
+
+.section-pattern-2 [class*="text-white"],
+.section-pattern-3 [class*="text-white"],
+.light-section [class*="text-white"] {
+  color: #1A2F24 !important;
+}
+
+.section-pattern-2 [class*="text-forest-5"],
+.section-pattern-2 [class*="text-forest-100"],
+.section-pattern-2 [class*="text-forest-200"],
+.section-pattern-3 [class*="text-forest-5"],
+.section-pattern-3 [class*="text-forest-100"],
+.section-pattern-3 [class*="text-forest-200"],
+.light-section [class*="text-forest-5"],
+.light-section [class*="text-forest-100"],
+.light-section [class*="text-forest-200"] {
+  color: #1a5c5e !important;
+}
+
+/* Accent / gold text: darkened for AA contrast on light bg */
+.section-pattern-2 [class*="text-accent-gold"],
+.section-pattern-2 [class*="text-earth-"],
+.section-pattern-3 [class*="text-accent-gold"],
+.light-section [class*="text-accent-gold"],
+.light-section [class*="text-accent-gold-soft"] {
+  color: #8a6e2e !important;
+}
+
+/* RESTORATION: Dark sub-containers — text-white children stay white */
+.section-pattern-2 [class*="bg-forest-9"] [class*="text-white"],
+.section-pattern-2 [class*="bg-forest-8"] [class*="text-white"],
+.section-pattern-2 [class*="bg-forest-7"] [class*="text-white"],
+.section-pattern-2 [class*="bg-base-9"] [class*="text-white"],
+.section-pattern-2 [class*="bg-base-8"] [class*="text-white"],
+.section-pattern-3 [class*="bg-forest-9"] [class*="text-white"],
+.section-pattern-3 [class*="bg-base-9"] [class*="text-white"],
+.light-section [class*="bg-forest-9"] [class*="text-white"],
+.light-section [class*="bg-forest-8"] [class*="text-white"],
+.light-section [class*="bg-base-9"] [class*="text-white"] {
+  color: #FDFBF7 !important;
+}
+
+/* ─── 11. SECTION-PATTERN-1 (dark green) ─────────────────────────
+   Hero, restaurant outer, events dark: always light text.          */
+.section-pattern-1 {
+  color: #FDFBF7;
+}
+.section-pattern-1 h1,
+.section-pattern-1 h2,
+.section-pattern-1 h3,
+.section-pattern-1 p:not([class*="card-body"]):not([class*="card-subtitle"]),
+.section-pattern-1 li,
+.section-pattern-1 label {
+  color: #FDFBF7;
+  text-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+
+/* ─── 12. LIGHT-SECTION (restaurant panel #DEF4C6) ──────────────
+   Already covered by section vars above, but add element-level rules
+   for full coverage of headings, body, meta text.                  */
+.light-section h1,
+.light-section h2,
+.light-section h3,
+.light-section h4,
+.light-section h5,
+.light-section h6 {
+  color: #1A2F24 !important;
+  text-shadow: none !important;
+}
+.light-section p,
+.light-section li,
+.light-section label,
+.light-section dd,
+.light-section dt {
+  color: rgba(26,47,36,.85) !important;
+  text-shadow: none !important;
+}
+.light-section small,
+.light-section .text-xs:not([class*="text-forest-"]):not([class*="text-accent-"]):not([class*="text-[#"]) {
+  color: rgba(26,47,36,.65) !important;
+}
+/* Prevent dark shadow on dark text in light containers */
+.light-section h1,
+.light-section h2,
+.light-section h3,
+.light-section h4,
+.light-section span,
+.light-section p,
+.light-section li {
+  text-shadow: none !important;
+}
+
+/* Buttons with dark bgs inside light-section keep white text */
+.light-section [class*="bg-forest-6"],
+.light-section [class*="bg-forest-7"],
+.light-section [class*="bg-forest-8"],
+.light-section [class*="bg-forest-9"],
+.light-section [class*="bg-base-9"] {
+  color: #FDFBF7 !important;
+}
+
+/* ─── 13. SECTION-PATTERN-2 element-level rules ─────────────────
+   Belt-and-suspenders for h/p/label inside cream sections.         */
+.section-pattern-2 h1,
+.section-pattern-2 h2,
+.section-pattern-2 h3,
+.section-pattern-2 h4,
+.section-pattern-2 p:not([class*="card-body"]):not([class*="card-subtitle"]),
+.section-pattern-2 li,
+.section-pattern-2 label {
+  color: #1A2F24 !important;
+  text-shadow: none !important;
+}
+
+.section-pattern-2 h1 span,
+.section-pattern-2 h2 span,
+.section-pattern-2 h3 span {
+  text-shadow: none !important;
+}
+
+/* Restore dark-bg heading spans */
+.section-pattern-2 [class*="bg-forest-9"] h2,
+.section-pattern-2 [class*="bg-base-9"] h2,
+.section-pattern-2 [class*="bg-forest-9"] h3,
+.section-pattern-2 [class*="bg-base-9"] h3 {
+  color: #FDFBF7 !important;
+}
+
+/* ─── 14. GLOBAL BUTTON CONTRAST HARDENING ───────────────────── */
+[class*="bg-forest-6"] { color: #FDFBF7; }
+[class*="bg-forest-7"] { color: #FDFBF7; }
+[class*="bg-forest-8"] { color: #FDFBF7; }
+[class*="bg-forest-9"] { color: #FDFBF7; }
+[class*="bg-base-9"] { color: #FDFBF7; }
+[class*="border-forest-"][class*="text-white"] { color: #FDFBF7; }
+
+/* ─── 15. IMAGE / VIDEO BACKGROUND OVERLAYS ─────────────────────
+   Ensure gradient overlays are dark enough to make text legible.   */
+
+/* Room photo cards: overlay gradient */
+.card-glass-overlay { transition: background .35s ease; }
+[data-room-card]:hover .card-glass-overlay,
+[data-card]:hover .card-glass-overlay {
+  background: linear-gradient(
+    rgba(26,47,36,.45),
+    rgba(26,47,36,.40) 40%,
+    rgba(26,47,36,.62) 70%,
+    rgba(26,47,36,.85)
+  ) !important;
+}
+
+/* Text directly on image/video backgrounds should always be white */
+[class*="absolute"][class*="inset-"] [class*="text-forest-5"],
+[class*="absolute"][class*="inset-"] [class*="text-forest-100"],
+[class*="absolute"][class*="inset-"] [class*="text-forest-200"] {
+  color: rgba(255,255,255,.9) !important;
+}
+
+/* ─── 16. HERO SECTION POLISH ────────────────────────────────── */
+#hero .font-serif {
+  text-rendering: geometricPrecision;
+}
+#hero p { letter-spacing: .01em; }
+
+/* ─── 17. NAVIGATION POLISH ──────────────────────────────────── */
+nav a { text-decoration: none; }
+nav a.group { padding: 4px 0; }
+
+/* ─── 18. FORM INPUTS ────────────────────────────────────────── */
+input, textarea, select {
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(197,160,89,.25);
+}
+input::placeholder, textarea::placeholder { opacity: .55; }
+
+/* Inputs inside light sections: force dark text + border */
+.section-pattern-2 input:not([class*="!bg-"]):not([class*="bg-white/"]),
+.section-pattern-2 select:not([class*="!bg-"]):not([class*="bg-white/"]){
+  color: #1A2F24;
+  border-color: rgba(26,47,36,.3);
+}
+/* Inputs inside dark sub-panels stay light */
+.section-pattern-2 [class*="bg-forest-9"] input,
+.section-pattern-2 [class*="bg-base-9"] input,
+.section-pattern-2 [class*="bg-forest-9"] select,
+.section-pattern-2 [class*="bg-base-9"] select {
+  color: #FDFBF7;
+}
+
+/* ─── 19. BUTTON POLISH ──────────────────────────────────────── */
+button a, [role="button"] a {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+}
+
+/* ─── 20. IMAGE QUALITY ──────────────────────────────────────── */
+img { image-rendering: auto; }
+
+/* ─── 21. LOADING SCREEN ─────────────────────────────────────── */
+.fixed.inset-0.z-\[10000\] .font-serif {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* ─── 22. FAQ / ACCORDION ─────────────────────────────────────── */
+#faq button, #faq [role="button"] { color: inherit; }
+
+/* ─── 23. RESPONSIVE TYPOGRAPHY ─────────────────────────────── */
+@media (max-width: 375px) {
+  .hero-title {
+    font-size: clamp(2.25rem, 12vw, 3.5rem) !important;
+    letter-spacing: -.04em;
+  }
+}
+@media (max-width: 1024px) {
+  [data-about-image-wrapper] { clip-path: inset(0 0 0 0) !important; }
+}
+
+/* ─── 24. RESTAURANT / GALLERY ───────────────────────────────── */
+.aspect-\[4\/3\] img, .aspect-\[3\/4\] img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ─── 25. GOLD ACCENT CONSISTENCY ───────────────────────────── */
+[stroke="var(--accent-gold)"] { stroke: #C5A059; }
+
+/* ─── 26. CONTACT / MAP AREA ─────────────────────────────────── */
+#kontakt iframe {
+  border-radius: 16px;
+  filter: saturate(.7) brightness(.85) sepia(.2);
+}
+
+/* ─── 27. MODAL / OVERLAY Z-ORDER ───────────────────────────── */
+[class*="z-\[9999\]"] { isolation: isolate; }
+
+/* ─── 28. PRINT STYLES ───────────────────────────────────────── */
+@media print {
+  .fixed, nav, [class*="z-[80]"], [class*="z-[55]"] { display: none !important; }
+  body { background: white; color: black; }
+}
+
+/* Remove DAS ELB text from header nav */
+header span.font-serif,
+nav span.font-serif,
+[data-interactive] span[class*="font-serif"] {
+  display: none !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SESSION 4 — PREMIUM REDESIGN & QA PASS
+   Goal: luxury hotel polish, motion, hierarchy, readability
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── A. GLOBAL TYPOGRAPHY REFINEMENT ───────────────────────────
+   Tighten the scale so every heading feels intentional.          */
+h1, h2, h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+}
+h2 {
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+h3 {
+  font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+p {
+  line-height: 1.7;
+  letter-spacing: 0.005em;
+}
+
+/* ─── B. SCROLL-REVEAL ENTRANCE ANIMATIONS ──────────────────────
+   Sections and cards animate in as they enter the viewport.      */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.section-pattern-1,
+.section-pattern-2,
+.section-pattern-3 {
+  animation: fadeIn 0.6s ease both;
+}
+
+/* ─── C. HERO SECTION ────────────────────────────────────────── */
+/* Stronger gradient so headline text pops on all photos/videos   */
+#hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg,
+      rgba(15,30,23,.35)  0%,
+      rgba(15,30,23,.10) 35%,
+      rgba(15,30,23,.18) 55%,
+      rgba(15,30,23,.65) 80%,
+      rgba(15,30,23,.88) 100%
+    );
+  pointer-events: none;
+  z-index: 1;
+}
+/* Hero title — stronger presence */
+.hero-title {
+  font-size: clamp(2.8rem, 7.5vw, 6.5rem) !important;
+  font-weight: 900 !important;
+  line-height: 0.95 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow:
+    0 2px 8px rgba(0,0,0,.55),
+    0 6px 32px rgba(0,0,0,.30) !important;
+}
+/* Subtitle / tagline below hero heading */
+#hero p {
+  text-shadow: 0 1px 6px rgba(0,0,0,.5);
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  letter-spacing: 0.04em;
+}
+
+/* ─── D. NAVIGATION UPGRADES ─────────────────────────────────── */
+/* Pill link hover state */
+.nav-pill li a,
+.nav-pill-scrolled li a {
+  transition: color .2s ease, background .2s ease, padding .2s ease;
+  border-radius: 999px;
+  padding: 5px 12px !important;
+}
+.nav-pill li a:hover,
+.nav-pill-scrolled li a:hover {
+  background: rgba(197,160,89,.15);
+  color: #C5A059 !important;
+}
+/* Active / current nav item */
+.nav-pill li a[aria-current="page"],
+.nav-pill-scrolled li a[aria-current="page"] {
+  background: rgba(197,160,89,.20);
+  color: #C5A059 !important;
+}
+/* Nav CTA button (Reservieren / Book) */
+nav [class*="bg-accent-gold"],
+nav [class*="btn-primary"],
+nav button[class*="rounded-full"] {
+  box-shadow: 0 2px 12px rgba(197,160,89,.35) !important;
+  transition: box-shadow .25s ease, transform .18s ease !important;
+}
+nav [class*="bg-accent-gold"]:hover,
+nav button[class*="rounded-full"]:hover {
+  box-shadow: 0 4px 20px rgba(197,160,89,.55) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ─── E. ROOM CARDS — PREMIUM HOVER ─────────────────────────── */
+/* Lift + subtle shadow on card hover */
+[data-room-card],
+[data-card] {
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1),
+              box-shadow .3s ease !important;
+  border-radius: 16px;
+  overflow: hidden;
+  will-change: transform;
+}
+[data-room-card]:hover,
+[data-card]:hover {
+  transform: translateY(-6px) scale(1.005) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,.35), 0 8px 20px rgba(0,0,0,.20) !important;
+}
+/* Image zoom on card hover */
+[data-room-card]:hover img,
+[data-card]:hover img {
+  transform: scale(1.04) !important;
+  transition: transform .55s cubic-bezier(.25,.46,.45,.94) !important;
+}
+[data-room-card] img,
+[data-card] img {
+  transition: transform .55s cubic-bezier(.25,.46,.45,.94) !important;
+}
+/* Card overlay: reveal more info on hover */
+.card-glass-overlay {
+  transition: background .4s ease, -webkit-backdrop-filter .4s ease !important;
+}
+/* Card text hierarchy improvement */
+.card-title {
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem) !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: 0.25rem;
+}
+.card-price {
+  font-size: clamp(1.25rem, 3vw, 1.6rem) !important;
+}
+.card-subtitle {
+  font-size: 0.78rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+/* ─── F. BUTTONS & CTA ───────────────────────────────────────── */
+/* All buttons: remove jank, add smooth transitions */
+button, [role="button"], a[class*="btn"] {
+  transition: transform .18s ease, box-shadow .22s ease,
+              background .2s ease, border-color .2s ease,
+              opacity .18s ease !important;
+  -webkit-tap-highlight-color: transparent;
+}
+button:hover:not(:disabled) { transform: translateY(-1px); }
+button:active:not(:disabled) { transform: translateY(0) scale(.98); }
+
+/* Gold / primary CTA buttons */
+[class*="bg-accent-gold"]:not(nav *),
+[class*="bg-\[#C5A059\]"],
+[class*="bg-\[#c5a059\]"] {
+  box-shadow: 0 3px 14px rgba(197,160,89,.30) !important;
+}
+[class*="bg-accent-gold"]:hover:not(nav *),
+[class*="bg-\[#C5A059\]"]:hover {
+  box-shadow: 0 6px 22px rgba(197,160,89,.50) !important;
+}
+/* btn-shimmer: animated gold sheen */
+.btn-shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255,255,255,.18) 50%,
+    transparent 60%
+  );
+  transition: left .45s ease;
+  pointer-events: none;
+}
+.btn-shimmer:hover::before { left: 100%; }
+
+/* Ghost / outline buttons on dark backgrounds: make border visible */
+[class*="border-white/"][class*="text-white"]:not([class*="bg-forest"]) {
+  border-color: rgba(255,255,255,.55) !important;
+}
+[class*="border-white/"][class*="text-white"]:hover:not([class*="bg-forest"]) {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.80) !important;
+}
+[class*="border-accent-gold"]:not([class*="bg-accent-gold"]) {
+  border-color: rgba(197,160,89,.65) !important;
+}
+[class*="border-accent-gold"]:hover:not([class*="bg-accent-gold"]) {
+  background: rgba(197,160,89,.08) !important;
+  border-color: #C5A059 !important;
+}
+
+/* ─── G. SECTION SPACING & DIVIDERS ─────────────────────────── */
+/* Thin gold accent line under section headings */
+.section-pattern-1 h2::after,
+.section-pattern-2 h2::after,
+.section-pattern-3 h2::after {
+  display: none; /* handled by existing design, don't double */
+}
+/* Consistent vertical rhythm */
+.section-pattern-1,
+.section-pattern-2,
+.section-pattern-3 {
+  padding-top: clamp(4rem, 8vw, 7rem) !important;
+  padding-bottom: clamp(4rem, 8vw, 7rem) !important;
+}
+
+/* ─── H. IMAGE & VIDEO POLISH ────────────────────────────────── */
+img {
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
+}
+/* Lazy-loaded images: smooth fade in */
+img[loading="lazy"] {
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+img[loading="lazy"].loaded,
+img[loading="lazy"][src] {
+  opacity: 1;
+}
+/* Video poster fade */
+video { background: #0f1e17; }
+
+/* ─── I. EVENTS SECTION ─────────────────────────────────────── */
+/* Event cards: improve hover glow */
+[class*="event-card"],
+[class*="event_card"] {
+  transition: transform .28s ease, box-shadow .28s ease !important;
+}
+[class*="event-card"]:hover,
+[class*="event_card"]:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,.28) !important;
+}
+/* Event date badges — ensure legible */
+[class*="rounded-full"][class*="bg-accent-gold"] {
+  font-weight: 700 !important;
+  letter-spacing: .03em;
+}
+
+/* ─── J. RESTAURANT / MENU SECTION ──────────────────────────── */
+/* Menu item hover */
+[class*="menu-item"]:hover,
+[class*="dish-card"]:hover {
+  background: rgba(197,160,89,.06) !important;
+}
+/* Horizontal rule / separator between menu items */
+[class*="border-b"][class*="border-white/"] {
+  border-color: rgba(255,255,255,.10) !important;
+}
+.section-pattern-2 [class*="border-b"][class*="border-white/"] {
+  border-color: rgba(26,47,36,.12) !important;
+}
+
+/* ─── K. ABOUT / STORY SECTION ───────────────────────────────── */
+/* Clip-path image reveal already done; improve text block */
+[data-about-image-wrapper] img {
+  transition: transform .6s cubic-bezier(.25,.46,.45,.94);
+}
+[data-about-image-wrapper]:hover img {
+  transform: scale(1.03);
+}
+
+/* ─── L. FORM & CONTACT SECTION ─────────────────────────────── */
+input, textarea, select {
+  border-radius: 10px !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: #C5A059 !important;
+  box-shadow: 0 0 0 3px rgba(197,160,89,.18) !important;
+}
+label {
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+/* ─── M. GALLERY SECTION ─────────────────────────────────────── */
+/* Smooth scale on gallery image hover */
+[class*="gallery"] img,
+[class*="aspect-["] img {
+  transition: transform .5s cubic-bezier(.25,.46,.45,.94) !important;
+}
+[class*="gallery"] [class*="overflow-hidden"]:hover img,
+[class*="group"]:hover [class*="aspect-["] img {
+  transform: scale(1.06) !important;
+}
+
+/* ─── N. FOOTER ──────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid rgba(197,160,89,.18);
+}
+footer a {
+  transition: color .2s ease;
+  opacity: .75;
+}
+footer a:hover {
+  color: #C5A059 !important;
+  opacity: 1;
+}
+footer [class*="text-white"] {
+  color: rgba(253,251,247,.8) !important;
+}
+
+/* ─── O. LOADING SCREEN POLISH ───────────────────────────────── */
+/* Gold progress bar */
+.fixed.inset-0.z-\[10000\] [class*="bg-accent-gold"],
+.fixed.inset-0.z-\[10000\] [class*="bg-\[#C5A059\]"] {
+  box-shadow: 0 0 12px rgba(197,160,89,.5);
+}
+/* Loading counter text */
+.fixed.inset-0.z-\[10000\] [class*="tracking-\["] {
+  letter-spacing: 0.3em !important;
+}
+
+/* ─── P. SCROLLBAR ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { border-radius: 3px; border-width: 1px; }
+
+/* ─── Q. MOBILE REFINEMENTS (≤768px) ────────────────────────── */
+@media (max-width: 768px) {
+  /* Bigger tap targets */
+  button, [role="button"], a {
+    min-height: 44px;
+  }
+  nav [role="button"],
+  nav button,
+  nav a {
+    min-height: 36px;
+  }
+  /* Disable card lift on mobile (prefer tap, not hover) */
+  [data-room-card]:hover,
+  [data-card]:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  [data-room-card]:hover img,
+  [data-card]:hover img {
+    transform: none !important;
+  }
+  /* Better section padding on small screens */
+  .section-pattern-1,
+  .section-pattern-2,
+  .section-pattern-3 {
+    padding-top: clamp(3rem, 10vw, 5rem) !important;
+    padding-bottom: clamp(3rem, 10vw, 5rem) !important;
+  }
+  .hero-title {
+    font-size: clamp(2.4rem, 11vw, 3.5rem) !important;
+  }
+}
+
+/* ─── R. MICRO INTERACTION: IMAGE LAZY-LOAD REVEAL ──────────── */
+/* Trigger .loaded via injected script in index.html */
+
+/* ─── Gallery section custom background ──────────────────────── */
+#galerie.section-pattern-2,
+#galerie {
+  background-color: #C5A059 !important;
+}
+
+/* Rooms section gold background */
+#rooms-view.section-pattern-2,
+#rooms-view {
+  background-color: #C5A059 !important;
+}
+
+/* Restaurant inner panel gold */
+#restaurant-view .light-section,
+#restaurant-view [class*="bg-\[#DEF4C6\]"] {
+  background-color: #C5A059 !important;
+}

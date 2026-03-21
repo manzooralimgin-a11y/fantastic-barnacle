@@ -2,6 +2,7 @@
   "name": "das-elb-hotel",
   "private": true,
   "scripts": {
+    "dev": "node server.js",
     "build": "mkdir -p out && cp -r public/* out/"
   }
 }

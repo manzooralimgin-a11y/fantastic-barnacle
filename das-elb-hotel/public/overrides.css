@@ -813,10 +813,10 @@ footer [class*="text-white"] {
    ROOMS SECTION — PREMIUM REDESIGN
    ═══════════════════════════════════════════════════════════════ */
 
-/* Remove gold bg — video is now the background */
+/* Rooms section: use section default background */
 #rooms-view.section-pattern-2,
 #rooms-view {
-  background-color: transparent !important;
+  background-color: inherit;
   background-image: none !important;
 }
 
@@ -853,39 +853,39 @@ footer [class*="text-white"] {
   gap: 20px !important;
 }
 
-/* ── Individual cards: glass + gold premium ─────────────────── */
+/* ── Individual cards: gold-anchored premium glass ──────────── */
 #rooms-view [data-room-card] {
   background: linear-gradient(
     165deg,
-    rgba(6,14,9,0.65) 0%,
-    rgba(12,24,18,0.55) 50%,
-    rgba(6,14,9,0.7) 100%
+    rgba(197,160,89,0.18) 0%,
+    rgba(168,132,61,0.12) 50%,
+    rgba(197,160,89,0.2) 100%
   ) !important;
   backdrop-filter: blur(16px) saturate(1.3) !important;
   -webkit-backdrop-filter: blur(16px) saturate(1.3) !important;
-  border: 1px solid rgba(197,160,89,0.2) !important;
+  border: 1px solid rgba(197,160,89,0.35) !important;
   border-radius: 20px !important;
   box-shadow:
     0 4px 30px rgba(0,0,0,0.4),
-    0 1px 0 rgba(197,160,89,0.15) inset,
-    0 -1px 0 rgba(0,0,0,0.3) inset !important;
+    0 1px 0 rgba(197,160,89,0.25) inset,
+    0 -1px 0 rgba(0,0,0,0.2) inset !important;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
   min-height: 520px !important;
   overflow: hidden !important;
   position: relative !important;
 }
 
-/* Card hover: gold glow lift */
+/* Card hover: stronger gold glow lift */
 #rooms-view [data-room-card]:hover {
-  border-color: rgba(197,160,89,0.45) !important;
+  border-color: rgba(197,160,89,0.6) !important;
   box-shadow:
     0 25px 60px rgba(0,0,0,0.5),
-    0 8px 30px rgba(197,160,89,0.15),
-    0 1px 0 rgba(197,160,89,0.3) inset !important;
+    0 8px 30px rgba(197,160,89,0.25),
+    0 1px 0 rgba(197,160,89,0.4) inset !important;
   transform: translateY(-8px) scale(1.01) !important;
 }
 
-/* Card top gold accent bar */
+/* Card top gold accent bar — always visible, brighter on hover */
 #rooms-view [data-room-card]::before {
   content: '';
   position: absolute;
@@ -895,7 +895,7 @@ footer [class*="text-white"] {
   height: 2px;
   background: linear-gradient(90deg, transparent, #C5A059 30%, #d4b06a 50%, #C5A059 70%, transparent);
   z-index: 20;
-  opacity: 0;
+  opacity: 0.5;
   transition: opacity 0.4s ease;
 }
 #rooms-view [data-room-card]:hover::before {
@@ -912,15 +912,15 @@ footer [class*="text-white"] {
   transform: scale(1.06) !important;
 }
 
-/* ── Glass overlay: softer, more transparent ────────────────── */
+/* ── Glass overlay: gold-toned gradient ─────────────────────── */
 #rooms-view .card-glass-overlay,
 #rooms-view .card-glass-overlay-strong {
   background: linear-gradient(
     to top,
-    rgba(6,14,9,0.85) 0%,
-    rgba(6,14,9,0.5) 35%,
-    rgba(6,14,9,0.15) 60%,
-    rgba(6,14,9,0.05) 100%
+    rgba(197,160,89,0.72) 0%,
+    rgba(168,132,61,0.45) 30%,
+    rgba(197,160,89,0.15) 60%,
+    rgba(197,160,89,0.04) 100%
   ) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -1020,10 +1020,30 @@ footer [class*="text-white"] {
   color: rgba(197,160,89,0.7) !important;
 }
 
-/* Restaurant inner panel gold */
+/* Restaurant Empfehlung card — keep background gold (all variants) */
 #restaurant-view .light-section,
-#restaurant-view [class*="bg-\[#DEF4C6\]"] {
+#restaurant-view [class*="bg-\[#DEF4C6\]"],
+#restaurant-view [class*="bg-\[#C5A059\]"],
+#restaurant-view [class*="rounded-3xl"][class*="overflow-hidden"][class*="border"],
+#restaurant-view [class*="rounded-3xl"][class*="overflow-hidden"][class*="shadow"] {
   background-color: #C5A059 !important;
+}
+
+/* Ensure the text-content column (right half of grid) inherits gold */
+#restaurant-view [class*="rounded-3xl"][class*="overflow-hidden"] > div > [class*="grid"] > div:last-child,
+#restaurant-view [class*="rounded-3xl"][class*="overflow-hidden"] [class*="flex"][class*="flex-col"][class*="justify-center"] {
+  background-color: transparent !important;
+}
+
+/* Text colours on gold background */
+#restaurant-view [class*="rounded-3xl"][class*="overflow-hidden"] [class*="text-forest-9"],
+#restaurant-view [class*="rounded-3xl"][class*="overflow-hidden"] [class*="text-forest-95"] {
+  color: #1A2F24 !important;
+}
+
+/* Keep badge/button colours correct */
+#restaurant-view [class*="rounded-3xl"][class*="overflow-hidden"] [class*="text-white"] {
+  color: #fff !important;
 }
 
 /* ─── MOBILE SCROLL FIX ──────────────────────────────────────── */
@@ -1088,9 +1108,7 @@ footer [class*="text-white"] {
   align-items: center;
   justify-content: center;
   text-align: center;
-  background-image: url("/images/hotel/about.png");
-  background-size: cover;
-  background-position: center 40%;
+  background: #060f09;
   overflow: hidden;
 }
 
@@ -1297,9 +1315,9 @@ footer [class*="text-white"] {
   transform: scale(1.08);
 }
 
-.js-card-bg--empfang   { background-image: url("/images/hotel/about.png"); }
-.js-card-bg--restaurant { background-image: url("/images/dishes/bruschetta.png"); }
-.js-card-bg--kueche    { background-image: url("/images/dishes/duck-breast.png"); }
+.js-card-bg--empfang   { background: #0a1a10; }
+.js-card-bg--restaurant { background: #0a1a10; }
+.js-card-bg--kueche    { background: #0a1a10; }
 
 /* Full gradient overlay */
 .js-card::after {
@@ -1752,5 +1770,914 @@ footer [class*="text-white"] {
   .ow-content-col > div:last-child {
     flex-direction: column !important;
     align-items: flex-start !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PERFORMANCE OPTIMIZATIONS
+   content-visibility, will-change, aspect-ratio, CLS prevention
+═══════════════════════════════════════════════════════════════════════ */
+
+/* content-visibility: auto defers rendering of off-screen sections
+   until the browser needs them — saves paint + layout cost           */
+#restaurant-view,
+#tagungen,
+#events,
+#galerie,
+#stellenangebote,
+#kontakt,
+#faq {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 800px;   /* estimated height placeholder */
+}
+
+/* ── Tagungstechnik equipment grid: fix mobile overflow ─────────── */
+/* Chunk 243 patched: grid-cols-1 sm:grid-cols-2 md:grid-cols-3      */
+/* CSS belt-and-suspenders: force 1-col below 640px without :has()   */
+@media (max-width: 639px) {
+  /* Override any 2-col grid that contains earth-100/80 price rows    */
+  .grid.grid-cols-2,
+  [class~="grid-cols-2"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Each price row: label + price never collapse into each other      */
+  [class~="bg-earth-100\/80"],
+  [class*="bg-earth-100"] {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    gap: 8px !important;
+  }
+  [class*="bg-earth-100"] span:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+  }
+  [class*="bg-earth-100"] span:last-child {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    margin-left: auto !important;
+    padding-left: 6px !important;
+  }
+}
+
+/* will-change only on elements that actually animate with transform  */
+.js-card,
+.js-card-cta,
+a[href="#rooms-view"].btn-shimmer,
+a[href="/#rooms-view"].btn-shimmer {
+  will-change: transform;
+}
+
+/* Aspect-ratio placeholders prevent CLS while images load           */
+img[loading="lazy"] {
+  content-visibility: auto;
+}
+
+/* All images: prevent layout shift with explicit sizing hints        */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Fade-in for lazy images once loaded                               */
+img.loaded,
+img[loading]:not([loading="eager"]) {
+  animation: imgFadeIn 0.4s ease both;
+}
+@keyframes imgFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Video containers — reserve space to prevent CLS                   */
+video {
+  max-width: 100%;
+}
+
+
+/* Gallery images: fixed aspect ratio to avoid reflow                */
+[class*="galerie"] img,
+[class*="gallery"] img {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+/* Room card images: consistent aspect ratio                         */
+[data-room-card] img,
+.js-card img {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SCROLL REVEAL ANIMATIONS
+═══════════════════════════════════════════════════════════════════════ */
+
+[data-reveal="fade-up"] {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reveal="fade-up"].revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger job cards */
+#stellenangebote .js-card:nth-child(1) { transition-delay: 0.05s; }
+#stellenangebote .js-card:nth-child(2) { transition-delay: 0.15s; }
+#stellenangebote .js-card:nth-child(3) { transition-delay: 0.25s; }
+
+/* Owner section columns */
+.ow-main-grid > *:nth-child(1) { transition-delay: 0.08s; }
+.ow-main-grid > *:nth-child(2) { transition-delay: 0.2s; }
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   TOUCH TARGETS & BUTTON ACCESSIBILITY (WCAG 2.5.5 — min 44×44px)
+═══════════════════════════════════════════════════════════════════════ */
+
+button,
+[role="button"],
+a[class*="btn"],
+.js-card-cta,
+.bew-btn,
+.bew-submit-btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ensure tap area on mobile for all nav links */
+@media (max-width: 768px) {
+  nav a, nav button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY IMPROVEMENTS — line-height & letter-spacing
+═══════════════════════════════════════════════════════════════════════ */
+
+/* Body text rhythm */
+p, li, dd {
+  line-height: 1.72;
+  letter-spacing: 0.01em;
+}
+
+/* Heading hierarchy */
+h1 { line-height: 1.12; letter-spacing: -0.02em; }
+h2 { line-height: 1.2;  letter-spacing: -0.015em; }
+h3 { line-height: 1.3;  letter-spacing: -0.01em; }
+h4 { line-height: 1.4; }
+
+/* ════════════════════════════════════════════════════════════════════
+   TABLET RESPONSIVE FIXES (481px – 1024px)
+   For injected sections that only had mobile/desktop breakpoints
+═══════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 481px) and (max-width: 1024px) {
+  /* Jobs grid: 2 columns on tablet */
+  .jobs-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+
+  /* Owner section: side-by-side at 50/50 on tablet */
+  .ow-main-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 32px !important;
+    padding: 40px 32px 56px !important;
+  }
+
+  /* Owner image: smaller on tablet */
+  .ow-img-col {
+    max-height: 380px !important;
+  }
+
+  /* Contact section: column on tablet */
+  .js-contact-inner {
+    flex-direction: column !important;
+    gap: 24px !important;
+    padding: 32px !important;
+  }
+
+  /* Bewerbung modal: full-width on tablet */
+  .bew-modal-box {
+    max-width: 600px !important;
+    margin: 20px auto !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   WIDE / 4K SCREENS (1441px+)
+═══════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 1441px) {
+  /* Constrain max content width for readability on ultra-wide */
+  .jobs-grid {
+    max-width: 1400px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .ow-main-grid {
+    max-width: 1400px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* Scale up section padding for breathing room */
+  #stellenangebote,
+  #inhaber {
+    padding-left: max(48px, calc((100vw - 1400px) / 2)) !important;
+    padding-right: max(48px, calc((100vw - 1400px) / 2)) !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FOCUS STYLES — keyboard navigation visibility (WCAG 2.4.7)
+═══════════════════════════════════════════════════════════════════════ */
+
+:focus-visible {
+  outline: 2px solid #C5A059 !important;
+  outline-offset: 3px !important;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #C5A059 !important;
+  outline-offset: 3px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ABOUT SECTION — PREMIUM DARK REDESIGN
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Override the cream section-pattern-2 for the About section ── */
+.section-pattern-2 {
+  background: linear-gradient(160deg, #060f09 0%, #0a1a10 50%, #0d2014 100%) !important;
+  color: #FDFBF7 !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative golden top border */
+.section-pattern-2::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(197,160,89,0.6), transparent);
+  pointer-events: none;
+}
+
+/* Ambient gold glow top-left */
+.section-pattern-2::after {
+  content: '';
+  position: absolute;
+  top: -120px; left: -80px;
+  width: 420px; height: 420px;
+  background: radial-gradient(circle, rgba(197,160,89,0.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Restore all text to light in about section ── */
+.section-pattern-2 h1,
+.section-pattern-2 h2,
+.section-pattern-2 h3,
+.section-pattern-2 h4,
+.section-pattern-2 p:not([class*="card-body"]):not([class*="card-subtitle"]),
+.section-pattern-2 li,
+.section-pattern-2 label {
+  color: #FDFBF7 !important;
+  text-shadow: none !important;
+}
+
+.section-pattern-2 h2 span {
+  color: #C5A059 !important;
+}
+
+.section-pattern-2 [class*="text-white"] {
+  color: #FDFBF7 !important;
+}
+
+/* Gold accent text */
+.section-pattern-2 [class*="text-accent-gold"],
+.section-pattern-2 [class*="text-earth-"] {
+  color: #C5A059 !important;
+}
+
+/* Teal/green accent text */
+.section-pattern-2 [class*="text-forest-5"],
+.section-pattern-2 [class*="text-forest-100"],
+.section-pattern-2 [class*="text-forest-200"] {
+  color: rgba(197,160,89,0.7) !important;
+}
+
+/* ── "ÜBER UNS" label enhancement ── */
+.section-pattern-2 [class*="tracking-"] {
+  letter-spacing: 0.25em !important;
+}
+
+/* ── Stat items — premium gold glass cards ── */
+[data-stat-item] {
+  background: linear-gradient(135deg, rgba(197,160,89,0.08) 0%, rgba(197,160,89,0.04) 100%) !important;
+  border: 1px solid rgba(197,160,89,0.25) !important;
+  border-radius: 16px !important;
+  padding: 20px 24px !important;
+  backdrop-filter: blur(8px) !important;
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+  min-width: 90px;
+}
+
+[data-stat-item]:hover {
+  transform: translateY(-4px) !important;
+  border-color: rgba(197,160,89,0.55) !important;
+  box-shadow: 0 12px 40px rgba(197,160,89,0.12), 0 0 0 1px rgba(197,160,89,0.15) !important;
+}
+
+/* Stat icon gold */
+[data-stat-item] svg[data-lucide-replaced] {
+  filter: drop-shadow(0 2px 8px rgba(197,160,89,0.35));
+}
+
+/* Stat number */
+[data-stat-item] .counter-number,
+[data-stat-item] [class*="font-serif"] {
+  color: #C5A059 !important;
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  display: block;
+}
+
+/* Stat label */
+[data-stat-item] [class*="text-xs"] {
+  color: rgba(253,251,247,0.6) !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  margin-top: 4px !important;
+}
+
+/* ── About text container ── */
+[data-about-text] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Decorative vertical gold line left of text block */
+[data-about-text]::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(197,160,89,0.5) 30%, rgba(197,160,89,0.5) 70%, transparent);
+  border-radius: 2px;
+}
+
+/* ── About image — premium gold frame ── */
+[data-about-image-wrapper] {
+  border: 1px solid rgba(197,160,89,0.3) !important;
+  box-shadow:
+    0 0 0 4px rgba(197,160,89,0.06),
+    0 30px 80px rgba(0,0,0,0.5),
+    inset 0 0 60px rgba(0,0,0,0.15) !important;
+  border-radius: 20px !important;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-about-image-wrapper]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(197,160,89,0.06) 0%,
+    transparent 40%,
+    transparent 70%,
+    rgba(6,15,9,0.3) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Stat row gap */
+.section-pattern-2 [class*="flex"][class*="gap-"] {
+  gap: 1rem !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ABOUT SECTION — LAYOUT REFACTOR (two-column, premium alignment)
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Section: tighten vertical padding ── */
+.section-pattern-2 {
+  padding-top: 80px !important;
+  padding-bottom: 80px !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+/* ── 2. Inner container: cap at 1200px, centered ── */
+.section-pattern-2 > div:first-child {
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 100% !important;
+}
+
+/* ── 3. Grid: two equal columns, align tops, consistent gap ── */
+[data-about-text] + [data-about-image-wrapper],
+.section-pattern-2 [class*="grid"] {
+  align-items: start !important;
+}
+
+.section-pattern-2 [class*="grid-cols-1"][class*="gap-"] {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 56px !important;
+  align-items: start !important;
+}
+
+@media (max-width: 768px) {
+  .section-pattern-2 [class*="grid-cols-1"][class*="gap-"] {
+    grid-template-columns: 1fr !important;
+    gap: 40px !important;
+  }
+}
+
+/* ── 4. Left column: text content ── */
+[data-about-text] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+/* Label "ÜBER UNS" spacing */
+[data-about-text] > span:first-child {
+  margin-bottom: 10px !important;
+  display: block !important;
+}
+
+/* Heading spacing */
+[data-about-text] h2 {
+  margin-top: 0 !important;
+  margin-bottom: 18px !important;
+  line-height: 1.2 !important;
+}
+
+/* Paragraphs */
+[data-about-text] p {
+  max-width: 56ch !important;
+  line-height: 1.72 !important;
+  margin-bottom: 14px !important;
+}
+[data-about-text] p:last-of-type {
+  margin-bottom: 36px !important;
+}
+
+/* ── 5. Stat row: equal-width 3 cards in one row ── */
+[data-about-text] [class*="flex"] {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+  margin-top: 0 !important;
+}
+
+[data-stat-item] {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  padding: 18px 12px !important;
+}
+
+/* Stat number sizing */
+[data-stat-item] .counter-number,
+[data-stat-item] [class*="text-2xl"] {
+  font-size: 1.6rem !important;
+  line-height: 1 !important;
+  margin-bottom: 4px !important;
+}
+
+/* ── 6. Right column: image fills height of text block ── */
+[data-about-image-wrapper] {
+  height: 100% !important;
+  min-height: 420px !important;
+  width: 100% !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+[data-about-image-wrapper] img,
+[data-about-image-wrapper] video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  display: block !important;
+}
+
+/* ── 7. Mobile: stack gracefully ── */
+@media (max-width: 768px) {
+  [data-about-image-wrapper] {
+    min-height: 280px !important;
+    height: 280px !important;
+  }
+  [data-about-text] [class*="flex"] {
+    gap: 10px !important;
+  }
+  [data-stat-item] {
+    padding: 14px 8px !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ZIMMER (ROOMS) — LUXURY CARD REFACTOR
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Grid: wider gap, equal height rows ── */
+#rooms-view [class*="grid-cols"] {
+  gap: 36px !important;
+  align-items: stretch !important;
+}
+
+/* ── 2. Card: clean dark glass, left-aligned, flex-column ── */
+#rooms-view [data-room-card] {
+  background: rgba(8, 18, 12, 0.72) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
+  min-height: 480px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: box-shadow 0.35s ease, transform 0.35s ease, border-color 0.35s ease !important;
+}
+
+/* ── 3. Card hover: subtle lift, gold border reveal ── */
+#rooms-view [data-room-card]:hover {
+  border-color: rgba(197, 160, 89, 0.4) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(197,160,89,0.2) !important;
+  transform: translateY(-5px) scale(1.005) !important;
+}
+
+/* ── 4. Card overlay: clean dark gradient, not heavy gold ── */
+#rooms-view .card-glass-overlay,
+#rooms-view .card-glass-overlay-strong {
+  background: linear-gradient(
+    to top,
+    rgba(6, 14, 9, 0.92) 0%,
+    rgba(6, 14, 9, 0.55) 40%,
+    rgba(6, 14, 9, 0.15) 75%,
+    transparent 100%
+  ) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── 5. Inactive card content: left-align, flex-column, button at bottom ── */
+#rooms-view [data-room-card] [class*="flex-col"][class*="items-center"][class*="justify-center"] {
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+  padding: 24px !important;
+  text-align: left !important;
+}
+
+/* Position the dashed price-bar at bottom left, full width */
+#rooms-view [data-room-card] [class*="absolute"][class*="bottom-6"] {
+  left: 16px !important;
+  right: 16px !important;
+  bottom: 16px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(197,160,89,0.2) !important;
+  border-style: solid !important;
+  background: rgba(6,14,9,0.6) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  padding: 14px 16px !important;
+}
+
+/* ── 6. Inactive card title & subtitle: left-align ── */
+#rooms-view [data-room-card] .card-title {
+  background: none !important;
+  -webkit-text-fill-color: #fff !important;
+  color: #fff !important;
+  filter: none !important;
+  font-size: clamp(1.4rem, 2.5vw, 1.9rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  text-align: left !important;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5) !important;
+  margin-bottom: 4px !important;
+}
+
+/* ── 7. Active card: flex-column with button pushed to bottom ── */
+#rooms-view [data-room-card] [class*="flex-col"][class*="h-full"] {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  padding: 24px !important;
+  align-items: flex-start !important;
+}
+
+/* Push the action buttons row to the bottom */
+#rooms-view [data-room-card] [class*="flex-col"][class*="h-full"] > *:last-child {
+  margin-top: auto !important;
+}
+
+/* ── 8. Active card title ── */
+#rooms-view [data-room-card] h3 {
+  background: none !important;
+  -webkit-text-fill-color: #fff !important;
+  color: #fff !important;
+  filter: none !important;
+  font-size: clamp(1.5rem, 2.8vw, 2rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  text-align: left !important;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5) !important;
+  margin-bottom: 6px !important;
+}
+
+/* Gold accent on price currency & amount */
+#rooms-view [data-room-card] .card-price {
+  color: #C5A059 !important;
+  -webkit-text-fill-color: #C5A059 !important;
+  font-size: clamp(1.8rem, 3vw, 2.4rem) !important;
+  text-shadow: none !important;
+}
+
+/* Card subtitle / type label */
+#rooms-view [data-room-card] .card-subtitle {
+  color: rgba(197,160,89,0.75) !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.18em !important;
+  text-align: left !important;
+  font-weight: 400 !important;
+}
+
+/* Description text */
+#rooms-view [data-room-card] p {
+  color: rgba(255,255,255,0.65) !important;
+  text-shadow: none !important;
+  line-height: 1.6 !important;
+  text-align: left !important;
+}
+
+/* Amenity list */
+#rooms-view [data-room-card] ul {
+  text-align: left !important;
+}
+#rooms-view [data-room-card] ul li {
+  color: rgba(255,255,255,0.7) !important;
+  font-size: 0.85rem !important;
+}
+#rooms-view [data-room-card] ul li svg {
+  color: #C5A059 !important;
+  flex-shrink: 0;
+}
+
+/* Size badge */
+#rooms-view [data-room-card] span[class*="rounded-full"],
+#rooms-view [data-room-card] span[class*="rounded"][class*="bg"] {
+  background: rgba(197,160,89,0.12) !important;
+  border: 1px solid rgba(197,160,89,0.25) !important;
+  color: #C5A059 !important;
+  font-size: 0.75rem !important;
+}
+
+/* Book button */
+#rooms-view [data-room-card] button[class*="w-full"],
+#rooms-view [data-room-card] a[class*="w-full"] {
+  margin-top: 12px !important;
+  border-radius: 10px !important;
+}
+
+/* Remove heavy top accent bar */
+#rooms-view [data-room-card]::before {
+  display: none !important;
+}
+
+/* ── 9. Image: natural opacity, smooth zoom ── */
+#rooms-view [data-room-card] img {
+  opacity: 0.9 !important;
+  transition: transform 0.55s ease, opacity 0.4s ease !important;
+}
+#rooms-view [data-room-card]:hover img {
+  opacity: 1 !important;
+  transform: scale(1.04) !important;
+}
+
+/* ── 10. Section header: subtle, clean ── */
+#rooms-view .text-center h2 {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  -webkit-text-fill-color: initial !important;
+  background-clip: initial !important;
+  filter: none !important;
+  color: #fff !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ZIMMER — LIGHT FROSTED GLASS CONTENT PANEL + DARK GREEN TEXT
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Card base: transparent, image shows through ── */
+#rooms-view [data-room-card] {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.30) !important;
+}
+
+/* ── Remove dark gradient overlay ── */
+#rooms-view .card-glass-overlay,
+#rooms-view .card-glass-overlay-strong {
+  background: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Image: visible, slightly dimmed ── */
+#rooms-view [data-room-card] img {
+  opacity: 1 !important;
+  filter: brightness(0.88) !important;
+  transition: filter 0.4s ease, transform 0.55s ease !important;
+}
+#rooms-view [data-room-card]:hover img {
+  filter: brightness(0.95) !important;
+  transform: scale(1.04) !important;
+  opacity: 1 !important;
+}
+
+/* ── Frosted glass panel: wraps all inactive card text ── */
+#rooms-view [data-room-card] [class*="flex-col"][class*="items-center"][class*="justify-center"],
+#rooms-view [data-room-card] [class*="flex-col"][class*="items-center"][class*="p-8"] {
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-radius: 0 0 14px 14px !important;
+  padding: 22px 22px 80px !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+/* ── Price/book bar inside inactive card ── */
+#rooms-view [data-room-card] [class*="absolute"][class*="bottom-6"] {
+  background: rgba(255,255,255,0.75) !important;
+  border: 1px solid rgba(15,46,35,0.15) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-radius: 10px !important;
+  border-style: solid !important;
+}
+
+/* ── Active card content panel ── */
+#rooms-view [data-room-card] [class*="flex-col"][class*="h-full"] {
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-radius: 0 0 14px 14px !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: auto !important;
+  max-height: 68% !important;
+  overflow: hidden !important;
+  padding: 20px 22px 22px !important;
+  align-items: flex-start !important;
+}
+
+/* ── All text: dark green ── */
+#rooms-view [data-room-card] .card-title,
+#rooms-view [data-room-card] h3 {
+  color: #0F2E23 !important;
+  -webkit-text-fill-color: #0F2E23 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  filter: none !important;
+  text-shadow: none !important;
+  font-size: clamp(1.25rem, 2.2vw, 1.7rem) !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+  letter-spacing: 0.01em !important;
+  margin-bottom: 4px !important;
+}
+
+#rooms-view [data-room-card] p {
+  color: rgba(15, 46, 35, 0.72) !important;
+  text-shadow: none !important;
+  line-height: 1.6 !important;
+  text-align: left !important;
+}
+
+#rooms-view [data-room-card] ul li {
+  color: rgba(15, 46, 35, 0.8) !important;
+  font-size: 0.85rem !important;
+}
+#rooms-view [data-room-card] ul li svg {
+  color: #C5A059 !important;
+}
+
+/* ── Subtitle / type label ── */
+#rooms-view [data-room-card] .card-subtitle {
+  color: rgba(15, 46, 35, 0.55) !important;
+  letter-spacing: 0.18em !important;
+  font-size: 0.7rem !important;
+  text-align: left !important;
+}
+
+/* ── Price: keep gold ── */
+#rooms-view [data-room-card] .card-price {
+  color: #C5A059 !important;
+  -webkit-text-fill-color: #C5A059 !important;
+  text-shadow: none !important;
+}
+
+/* Size / "Apartment" badges */
+#rooms-view [data-room-card] span[class*="rounded-full"],
+#rooms-view [data-room-card] span[class*="rounded"][class*="bg"],
+#rooms-view [data-room-card] span[class*="text-xs"][class*="bg"] {
+  background: rgba(15,46,35,0.08) !important;
+  border: 1px solid rgba(15,46,35,0.18) !important;
+  color: #0F2E23 !important;
+  backdrop-filter: none !important;
+}
+
+/* Price label (m² · ab €...) */
+#rooms-view [data-room-card] span[class*="tracking-wide"],
+#rooms-view [data-room-card] span[class*="tracking-widest"] {
+  color: rgba(15,46,35,0.65) !important;
+}
+
+/* ── Book / CTA button: dark green bg, white text ── */
+#rooms-view [data-room-card] button[class*="w-full"],
+#rooms-view [data-room-card] a[class*="w-full"] {
+  background: #0F2E23 !important;
+  color: #fff !important;
+  border-color: #0F2E23 !important;
+  border-radius: 10px !important;
+  margin-top: 10px !important;
+}
+#rooms-view [data-room-card] button[class*="w-full"]:hover,
+#rooms-view [data-room-card] a[class*="w-full"]:hover {
+  background: #1a4332 !important;
+  border-color: #1a4332 !important;
+}
+#rooms-view [data-room-card] button[class*="w-full"] span,
+#rooms-view [data-room-card] button[class*="w-full"] svg,
+#rooms-view [data-room-card] a[class*="w-full"] span,
+#rooms-view [data-room-card] a[class*="w-full"] svg {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+
+/* ─── ROOM CARD PRICE BAR: replace dashed gold border → solid dark green ── */
+.border-dashed.border-earth-300\/25 {
+  border-style: solid !important;
+  border-color: rgba(15, 46, 35, 0.30) !important;
+}
+/* also override the color-mix() variant (modern browsers) */
+@supports (color: color-mix(in lab, red, red)) {
+  .border-dashed.border-earth-300\/25 {
+    border-style: solid !important;
+    border-color: rgba(15, 46, 35, 0.30) !important;
   }
 }

@@ -2,16 +2,22 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "backend",
-      "runtimeExecutable": "/opt/homebrew/bin/python3.12",
-      "runtimeArgs": ["/Users/ali/Desktop/gestronomy/backend/run_server.py"],
-      "port": 8001
+      "name": "Das Elb Hotel",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["das-elb-hotel/server.js"],
+      "port": 5000
     },
     {
-      "name": "frontend",
-      "runtimeExecutable": "/opt/homebrew/bin/node",
-      "runtimeArgs": ["/Users/ali/Desktop/gestronomy/frontend/node_modules/next/dist/bin/next", "dev", "/Users/ali/Desktop/gestronomy/frontend", "--port", "3000"],
-      "port": 3000
+      "name": "Gestronomy Frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
+      "port": 5000
+    },
+    {
+      "name": "Gestronomy Backend",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["backend/run_server.py"],
+      "port": 8002
     }
   ]
 }

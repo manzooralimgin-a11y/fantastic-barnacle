@@ -121,4 +121,1087 @@
     });
   })();
   </script>
+  <script>
+  /* ── ROOMS VIDEO INJECTION ── */
+  (function() {
+    var INJECTED = false;
+    function injectRoomsVideo() {
+      if (INJECTED) return;
+      var rooms = document.getElementById('rooms-view');
+      if (!rooms) return;
+      INJECTED = true;
+
+      /* Make rooms-view the video container */
+      rooms.style.position = 'relative';
+      rooms.style.overflow = 'hidden';
+
+      /* Video element as background of rooms-view */
+      var vid = document.createElement('video');
+      vid.src = '/video/das-elb-prob4.mp4';
+      vid.autoplay = true;
+      vid.muted = true;
+      vid.loop = true;
+      vid.playsInline = true;
+      vid.setAttribute('preload', 'auto');
+      vid.setAttribute('style', [
+        'position:absolute',
+        'inset:0',
+        'width:100%',
+        'height:100%',
+        'object-fit:cover',
+        'object-position:center',
+        'z-index:0'
+      ].join(';'));
+      /* Force play on mobile */
+      vid.addEventListener('canplay', function() { vid.play().catch(function(){}); });
+      rooms.insertBefore(vid, rooms.firstChild);
+
+      /* Dark gradient overlay */
+      var overlay = document.createElement('div');
+      overlay.setAttribute('style', [
+        'position:absolute',
+        'inset:0',
+        'z-index:1',
+        'background:linear-gradient(to bottom, rgba(6,14,9,0.35) 0%, rgba(6,14,9,0.15) 50%, rgba(6,14,9,0.55) 100%)'
+      ].join(';'));
+      rooms.insertBefore(overlay, vid.nextSibling);
+
+      /* Gold accent line top */
+      var lineTop = document.createElement('div');
+      lineTop.setAttribute('style', [
+        'position:absolute',
+        'top:0','left:0','right:0',
+        'height:3px',
+        'background:linear-gradient(90deg, transparent, #C5A059 30%, #a8843d 70%, transparent)',
+        'z-index:2'
+      ].join(';'));
+      rooms.insertBefore(lineTop, rooms.firstChild);
+
+      /* Gold accent line bottom */
+      var lineBot = document.createElement('div');
+      lineBot.setAttribute('style', [
+        'position:absolute',
+        'bottom:0','left:0','right:0',
+        'height:3px',
+        'background:linear-gradient(90deg, transparent, #C5A059 30%, #a8843d 70%, transparent)',
+        'z-index:2'
+      ].join(';'));
+      rooms.appendChild(lineBot);
+
+      /* Ensure existing rooms content sits above the video */
+      var children = rooms.children;
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        if (child !== vid && child !== overlay && child !== lineTop && child !== lineBot) {
+          if (!child.style.position || child.style.position === 'static') {
+            child.style.position = 'relative';
+          }
+          if (!child.style.zIndex) {
+            child.style.zIndex = '3';
+          }
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', injectRoomsVideo);
+    var _rvObs = new MutationObserver(function() { injectRoomsVideo(); });
+    document.addEventListener('DOMContentLoaded', function() {
+      _rvObs.observe(document.body, { childList: true, subtree: true });
+    });
+  })();
+  </script>
+  <script>
+  /* ── JOBS SECTION INJECTION ── */
+  (function() {
+    function buildJobsHTML() {
+      var s = document.createElement('section');
+      s.id = 'stellenangebote';
+      s.className = 'jobs-section';
+      s.innerHTML = [
+        /* ── Hero header ── */
+        '<div class="js-hero">',
+          '<div class="js-hero-overlay"></div>',
+          '<div class="js-hero-content">',
+            '<div class="js-eyebrow"><span class="js-eyebrow-line"></span><span>Karriere bei Das ELB</span><span class="js-eyebrow-line"></span></div>',
+            '<h2 class="js-hero-title">Werde Teil<br>unseres Teams</h2>',
+            '<p class="js-hero-sub">Wir suchen engagierte Pers\u00f6nlichkeiten, die mit Leidenschaft unsere G\u00e4ste begeistern.</p>',
+            '<div class="js-hero-stats">',
+              '<div class="js-stat"><span class="js-stat-num">3</span><span class="js-stat-label">Offene Stellen</span></div>',
+              '<div class="js-stat-divider"></div>',
+              '<div class="js-stat"><span class="js-stat-num">33</span><span class="js-stat-label">Apartments</span></div>',
+              '<div class="js-stat-divider"></div>',
+              '<div class="js-stat"><span class="js-stat-num">2015</span><span class="js-stat-label">Gegr\u00fcndet</span></div>',
+            '</div>',
+          '</div>',
+        '</div>',
+        /* ── Section label ── */
+        '<div class="js-label-row">',
+          '<div class="js-label-line"></div>',
+          '<span class="js-label-text">Aktuelle Stellenangebote</span>',
+          '<div class="js-label-line"></div>',
+        '</div>',
+        /* ── Job cards ── */
+        '<div class="js-cards-grid">',
+          /* Empfang */
+          '<div class="js-card" tabindex="0" data-job-title="Rezeption &amp; Empfang">',
+            '<div class="js-card-bg js-card-bg--empfang"></div>',
+            '<div class="js-card-shine"></div>',
+            '<div class="js-card-body">',
+              '<div class="js-card-dept">',
+                '<svg class="js-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>',
+                '<span>Empfang</span>',
+              '</div>',
+              '<h3 class="js-card-title">Rezeption &amp; Empfang</h3>',
+              '<p class="js-card-desc">Unterst\u00fctzen Sie uns bei den Arbeiten an der Rezeption und seien Sie das erste L\u00e4cheln unserer G\u00e4ste.</p>',
+              '<ul class="js-card-perks">',
+                '<li>Vollzeit oder Teilzeit</li>',
+                '<li>Modernes Arbeitsumfeld</li>',
+                '<li>Teamevents &amp; Benefits</li>',
+              '</ul>',
+              '<button type="button" class="js-card-cta" onclick="window.openBewModal&&window.openBewModal(this.closest(\'.js-card\').dataset.jobTitle)"><span>Jetzt bewerben</span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg></button>',
+            '</div>',
+          '</div>',
+          /* Restaurant */
+          '<div class="js-card" tabindex="0" data-job-title="Service &amp; Restaurant">',
+            '<div class="js-card-bg js-card-bg--restaurant"></div>',
+            '<div class="js-card-shine"></div>',
+            '<div class="js-card-body">',
+              '<div class="js-card-dept">',
+                '<svg class="js-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 20.488l-.015.01A48.11 48.11 0 0112 21c-1.064 0-2.122-.055-3.166-.162m6.166.162-.015-.011A48.164 48.164 0 0112 21m0-1.5v1.5m0 0a48.667 48.667 0 01-4.5-.338M12 19.5a48.667 48.667 0 004.5-.338M9 12.75h.008v.008H9v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0h.008v.008h-.008v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>',
+                '<span>Restaurant</span>',
+              '</div>',
+              '<h3 class="js-card-title">Service &amp; Restaurant</h3>',
+              '<p class="js-card-desc">Voll- oder Teilzeit – wir suchen servicebewusste Talente f\u00fcr unser internationales Restaurant-Team.</p>',
+              '<ul class="js-card-perks">',
+                '<li>Voll- oder Teilzeit</li>',
+                '<li>Internationale K\u00fcche</li>',
+                '<li>Karrierechancen</li>',
+              '</ul>',
+              '<button type="button" class="js-card-cta" onclick="window.openBewModal&&window.openBewModal(this.closest(\'.js-card\').dataset.jobTitle)"><span>Jetzt bewerben</span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg></button>',
+            '</div>',
+          '</div>',
+          /* Küche */
+          '<div class="js-card" tabindex="0" data-job-title="Koch &amp; K\u00fcche">',
+            '<div class="js-card-bg js-card-bg--kueche"></div>',
+            '<div class="js-card-shine"></div>',
+            '<div class="js-card-body">',
+              '<div class="js-card-dept">',
+                '<svg class="js-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z"/></svg>',
+                '<span>K\u00fcche</span>',
+              '</div>',
+              '<h3 class="js-card-title">Koch &amp; K\u00fcche</h3>',
+              '<p class="js-card-desc">Ob als Koch oder K\u00fcchenhelfer – bringen Sie Ihre Leidenschaft f\u00fcrs Kochen in unser kreatives K\u00fcchen-Team ein.</p>',
+              '<ul class="js-card-perks">',
+                '<li>Alle Erfahrungsstufen</li>',
+                '<li>Kreative Speisekarte</li>',
+                '<li>Faire Verg\u00fctung</li>',
+              '</ul>',
+              '<button type="button" class="js-card-cta" onclick="window.openBewModal&&window.openBewModal(this.closest(\'.js-card\').dataset.jobTitle)"><span>Jetzt bewerben</span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg></button>',
+            '</div>',
+          '</div>',
+        '</div>',
+        /* ── Why das ELB strip ── */
+        '<div class="js-why">',
+          '<div class="js-why-inner">',
+            '<div class="js-why-item"><div class="js-why-icon">&#127968;</div><div class="js-why-text"><strong>Traumhafte Lage</strong><span>Direkt an der Elbe im Stadtpark</span></div></div>',
+            '<div class="js-why-sep"></div>',
+            '<div class="js-why-item"><div class="js-why-icon">&#127775;</div><div class="js-why-text"><strong>Starkes Team</strong><span>Kollegiales Arbeitsklima</span></div></div>',
+            '<div class="js-why-sep"></div>',
+            '<div class="js-why-item"><div class="js-why-icon">&#128200;</div><div class="js-why-text"><strong>Wachstum</strong><span>Entwicklungsm\u00f6glichkeiten</span></div></div>',
+            '<div class="js-why-sep"></div>',
+            '<div class="js-why-item"><div class="js-why-icon">&#127860;</div><div class="js-why-text"><strong>Benefits</strong><span>Teamevents &amp; Vergn\u00fcgen</span></div></div>',
+          '</div>',
+        '</div>',
+        /* ── Contact panel ── */
+        '<div class="js-contact">',
+          '<div class="js-contact-inner">',
+            '<div class="js-contact-left">',
+              '<p class="js-contact-pre">Bewerbungen bitte als PDF per E-Mail an:</p>',
+              '<a href="mailto:jobs@das-elb.de" class="js-contact-email">jobs@das-elb.de</a>',
+            '</div>',
+            '<div class="js-contact-divider"></div>',
+            '<div class="js-contact-right">',
+              '<span class="js-contact-tag">Ihr Ansprechpartner</span>',
+              '<strong class="js-contact-name">Bhupinder Singh</strong>',
+            '</div>',
+          '</div>',
+        '</div>'
+      ].join('');
+      return s;
+    }
+
+    function injectJobs() {
+      if (document.getElementById('stellenangebote')) return;
+      var anchor = document.getElementById('galerie') || document.getElementById('kontakt');
+      if (!anchor) return;
+      anchor.parentNode.insertBefore(buildJobsHTML(), anchor.nextSibling);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(injectJobs, 600);
+    });
+    var _jobsObs = new MutationObserver(function() {
+      if (!document.getElementById('stellenangebote')) injectJobs();
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+      _jobsObs.observe(document.body, { childList: true, subtree: true });
+    });
+  })();
+  </script>
+  <script>
+  /* ── OWNER / INHABER SECTION ── */
+  (function() {
+    var GOLD = '#C5A059';
+    var DARK = '#060e09';
+    var GREEN_DEEP = '#0d2119';
+
+    function el(tag, styles, attrs) {
+      var e = document.createElement(tag);
+      if (styles) e.setAttribute('style', styles);
+      if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+    function txt(t) { return document.createTextNode(t); }
+
+    function buildOwnerSection() {
+      var s = document.createElement('section');
+      s.id = 'inhaber';
+      /* Section wrapper — full dark bg, overflow hidden */
+      s.setAttribute('style',
+        'position:relative;background:' + DARK + ';overflow:hidden;font-family:inherit;'
+      );
+
+      /* ── BACKGROUND HOTEL IMAGE (blurred, subtle) ── */
+      var bgImg = el('div', [
+        'position:absolute;inset:0;',
+        'background:url("/images/hotel/about.png") center/cover no-repeat;',
+        'opacity:0.07;filter:blur(4px);transform:scale(1.05);',
+        'pointer-events:none;z-index:0;'
+      ].join(''));
+      s.appendChild(bgImg);
+
+      /* dark tint layer */
+      var tint = el('div', 'position:absolute;inset:0;background:' + DARK + ';opacity:0.88;z-index:0;pointer-events:none;');
+      s.appendChild(tint);
+
+      /* ── TOP ORNAMENT ── */
+      var topOrn = el('div', 'position:relative;z-index:2;display:flex;align-items:center;gap:20px;padding:60px 10% 0;');
+      topOrn.className = 'ow-orn-top';
+      var ornLine1 = el('div', 'flex:1;height:1px;background:linear-gradient(90deg,transparent,'+GOLD+'44,transparent);');
+      var ornDiam = el('div', 'width:10px;height:10px;background:'+GOLD+';transform:rotate(45deg);flex-shrink:0;box-shadow:0 0 10px '+GOLD+'88;');
+      var ornLine2 = el('div', 'flex:1;height:1px;background:linear-gradient(90deg,transparent,'+GOLD+'44,transparent);');
+      topOrn.appendChild(ornLine1); topOrn.appendChild(ornDiam); topOrn.appendChild(ornLine2);
+      s.appendChild(topOrn);
+
+      /* ── MAIN GRID ── */
+      var grid = el('div', [
+        'position:relative;z-index:2;',
+        'display:grid;grid-template-columns:1fr 1fr;gap:0;',
+        'max-width:1300px;margin:0 auto;',
+        'padding:60px 10% 80px;align-items:center;'
+      ].join(''));
+      /* Responsive: stack on small screens */
+      grid.className = 'ow-main-grid';
+      s.appendChild(grid);
+
+      /* ══ LEFT: PORTRAIT ══ */
+      var portraitCol = el('div', 'display:flex;flex-direction:column;align-items:center;gap:0;padding-right:6%;');
+      portraitCol.className = 'ow-portrait-col';
+
+      /* Frame wrapper — gold-bordered */
+      var frame = el('div', [
+        'position:relative;',
+        'border-radius:24px;',
+        'background:linear-gradient(180deg,'+GREEN_DEEP+' 0%,'+DARK+' 100%);',
+        'padding:3px;', /* gold border via wrapper */
+        'box-shadow:0 0 0 1px '+GOLD+'55,0 30px 80px rgba(0,0,0,0.7),0 0 60px '+GOLD+'18;',
+        'overflow:visible;'
+      ].join(''));
+      frame.className = 'ow-portrait-frame';
+
+      /* Gold gradient border */
+      var borderLayer = el('div', [
+        'position:absolute;inset:0;border-radius:24px;',
+        'background:linear-gradient(145deg,'+GOLD+' 0%,transparent 40%,transparent 60%,'+GOLD+'66 100%);',
+        'z-index:0;pointer-events:none;'
+      ].join(''));
+      frame.appendChild(borderLayer);
+
+      /* inner photo bg */
+      var innerBg = el('div', [
+        'position:relative;z-index:1;border-radius:22px;overflow:hidden;',
+        'background:linear-gradient(180deg,#1a3826 0%,'+DARK+' 100%);',
+      ].join(''));
+
+      /* Corner accent */
+      var corner = el('div', [
+        'position:absolute;top:0;right:0;width:80px;height:80px;',
+        'background:linear-gradient(225deg,'+GOLD+'22 0%,transparent 60%);',
+        'border-radius:0 22px 0 0;z-index:2;pointer-events:none;'
+      ].join(''));
+      innerBg.appendChild(corner);
+
+      var img = el('img', [
+        'display:block;width:100%;height:auto;',
+        'position:relative;z-index:1;',
+        'object-fit:cover;object-position:center top;',
+        'filter:drop-shadow(0 16px 40px rgba(0,0,0,0.5));'
+      ].join(''), {
+        src: '/images/owner-nobg.png',
+        alt: 'Bhupinder Singh \u2013 Singh Laly',
+        loading: 'lazy'
+      });
+      innerBg.appendChild(img);
+      frame.appendChild(innerBg);
+      portraitCol.appendChild(frame);
+
+      /* Badge below portrait */
+      var badge = el('div', [
+        'margin-top:20px;padding:10px 28px;',
+        'background:linear-gradient(135deg,'+GOLD+'18 0%,'+GOLD+'08 100%);',
+        'border:1px solid '+GOLD+'55;border-radius:100px;text-align:center;',
+        'backdrop-filter:blur(8px);'
+      ].join(''));
+      var badgeTxt = el('span', [
+        'font-size:0.7rem;font-weight:700;',
+        'color:'+GOLD+';letter-spacing:0.2em;text-transform:uppercase;'
+      ].join(''));
+      badgeTxt.appendChild(txt('Inhaber & Gesch\u00e4ftsf\u00fchrer'));
+      badge.appendChild(badgeTxt);
+      portraitCol.appendChild(badge);
+
+      /* SVG flourish */
+      var sig = el('div', 'margin-top:18px;opacity:0.75;');
+      sig.innerHTML = '<svg width="160" height="40" viewBox="0 0 200 48" fill="none"><path d="M10 38 Q 50 8, 100 24 T 190 20" stroke="'+GOLD+'" stroke-width="1.5" stroke-linecap="round"/><path d="M30 42 Q 80 18, 130 30 T 195 26" stroke="'+GOLD+'" stroke-width="0.8" stroke-linecap="round" opacity="0.4"/></svg>';
+      portraitCol.appendChild(sig);
+
+      grid.appendChild(portraitCol);
+
+      /* ══ RIGHT: CONTENT ══ */
+      var content = el('div', 'display:flex;flex-direction:column;gap:22px;padding-left:6%;');
+      content.className = 'ow-content-col';
+
+      /* Eyebrow */
+      var eyebrow = el('div', 'display:flex;align-items:center;gap:10px;');
+      var dot1 = el('span', 'display:inline-block;width:5px;height:5px;border-radius:50%;background:'+GOLD+';flex-shrink:0;');
+      var eyeTxt = el('span', 'font-size:0.7rem;font-weight:700;color:'+GOLD+';letter-spacing:0.22em;text-transform:uppercase;');
+      eyeTxt.appendChild(txt('Das ELB Hotel & Restaurant'));
+      var dot2 = el('span', 'display:inline-block;width:5px;height:5px;border-radius:50%;background:'+GOLD+';flex-shrink:0;');
+      eyebrow.appendChild(dot1); eyebrow.appendChild(eyeTxt); eyebrow.appendChild(dot2);
+      content.appendChild(eyebrow);
+
+      /* Name */
+      var name = el('h2', [
+        'margin:0!important;',
+        'font-family:"Playfair Display",Georgia,serif!important;',
+        'font-size:clamp(2.5rem,4vw,4rem)!important;',
+        'font-weight:700!important;',
+        'color:#fff!important;',
+        'line-height:1.1!important;',
+        'letter-spacing:-0.01em;'
+      ].join(''));
+      name.appendChild(txt('Bhupinder Singh'));
+      content.appendChild(name);
+
+      /* Alias */
+      var alias = el('p', [
+        'margin:0!important;margin-top:-10px!important;',
+        'font-family:"Playfair Display",Georgia,serif!important;',
+        'font-style:italic!important;font-size:1.15rem!important;',
+        'color:'+GOLD+'cc!important;'
+      ].join(''));
+      alias.appendChild(txt('\u201eSingh Laly\u201c'));
+      content.appendChild(alias);
+
+      /* Gold bar */
+      var bar = el('div', 'width:60px;height:3px;background:linear-gradient(90deg,'+GOLD+','+GOLD+'44);border-radius:2px;');
+      content.appendChild(bar);
+
+      /* Quote */
+      var quote = el('blockquote', [
+        'margin:0!important;padding:20px 24px 20px 28px!important;',
+        'border-left:2px solid '+GOLD+'66!important;',
+        'background:'+GOLD+'0d;border-radius:0 14px 14px 0;',
+        'font-family:"Playfair Display",Georgia,serif!important;',
+        'font-style:italic!important;font-size:1.05rem!important;',
+        'color:rgba(255,255,255,0.78)!important;line-height:1.7!important;'
+      ].join(''));
+      var qOpen = el('span', 'font-size:2.2rem;color:'+GOLD+';line-height:0;vertical-align:-0.45em;margin-right:4px;font-style:normal;');
+      qOpen.appendChild(txt('\u201c'));
+      var qClose = el('span', 'font-size:2.2rem;color:'+GOLD+';line-height:0;vertical-align:-0.45em;margin-left:4px;font-style:normal;');
+      qClose.appendChild(txt('\u201d'));
+      quote.appendChild(qOpen);
+      quote.appendChild(txt('Gastfreundschaft ist keine Dienstleistung \u2013 sie ist eine Haltung, die man im Herzen tr\u00e4gt.'));
+      quote.appendChild(qClose);
+      content.appendChild(quote);
+
+      /* Bio */
+      var bio = el('p', [
+        'margin:0!important;font-size:0.97rem!important;',
+        'color:rgba(255,255,255,0.62)!important;line-height:1.85!important;'
+      ].join(''));
+      bio.innerHTML = 'Bhupinder Singh, liebevoll <strong style="color:rgba(255,255,255,0.9);font-weight:600;">Singh Laly</strong> genannt, ist Eigent\u00fcmer und Gesch\u00e4ftsf\u00fchrer des Das ELB Hotel &amp; Restaurant. Mit jahrzehntelanger Erfahrung in der europ\u00e4ischen Hotellerie hat er ein Haus der Eleganz, W\u00e4rme und au\u00dfergew\u00f6hnlichen Gastfreundschaft geschaffen.';
+      content.appendChild(bio);
+
+      /* Facts grid */
+      var facts = el('div', [
+        'display:grid;grid-template-columns:1fr;gap:14px;',
+        'padding:18px 0;',
+        'border-top:1px solid rgba(255,255,255,0.07);',
+        'border-bottom:1px solid rgba(255,255,255,0.07);'
+      ].join(''));
+      var factsData = [
+        ['\ud83c\udfd8\ufe0f', 'Das ELB Hotel & Restaurant', 'Seilerweg 19 \u2013 39114 Magdeburg'],
+        ['\u2b50', '33 moderne Apartments', 'Mit Elbblick im Stadtpark Rotehorn'],
+        ['\ud83c\udf7d\ufe0f', 'Internationale K\u00fcche', 'Restaurant, Tagungen & Veranstaltungen']
+      ];
+      factsData.forEach(function(fd) {
+        var fact = el('div', 'display:flex;align-items:flex-start;gap:14px;');
+        var icon = el('span', 'font-size:1.15rem;line-height:1.5;flex-shrink:0;');
+        icon.appendChild(txt(fd[0]));
+        var ftxt = el('div', 'display:flex;flex-direction:column;gap:3px;');
+        var fstrong = el('strong', 'font-size:0.88rem!important;font-weight:700!important;color:#fff!important;display:block;');
+        fstrong.appendChild(txt(fd[1]));
+        var fspan = el('span', 'font-size:0.79rem!important;color:rgba(255,255,255,0.42)!important;');
+        fspan.appendChild(txt(fd[2]));
+        ftxt.appendChild(fstrong); ftxt.appendChild(fspan);
+        fact.appendChild(icon); fact.appendChild(ftxt);
+        facts.appendChild(fact);
+      });
+      content.appendChild(facts);
+
+      /* CTA row */
+      var ctaRow = el('div', 'display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:6px;');
+      var ctaBtn = el('a', [
+        'display:inline-flex;align-items:center;gap:10px;',
+        'padding:14px 30px;',
+        'background:linear-gradient(135deg,'+GOLD+' 0%,#a8843d 100%);',
+        'border-radius:100px;',
+        'color:#060e09!important;font-size:0.85rem!important;font-weight:800!important;',
+        'letter-spacing:0.04em;text-decoration:none!important;',
+        'box-shadow:0 8px 28px '+GOLD+'55;',
+        'transition:transform 0.3s,box-shadow 0.3s;'
+      ].join(''), {href: 'mailto:info@das-elb.de'});
+      ctaBtn.innerHTML = 'Kontakt aufnehmen <svg width="16" height="16" viewBox="0 0 20 20" fill="#060e09"><path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd"/></svg>';
+      ctaBtn.onmouseover = function() { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 14px 36px '+GOLD+'77'; };
+      ctaBtn.onmouseout = function() { this.style.transform=''; this.style.boxShadow='0 8px 28px '+GOLD+'55'; };
+      ctaRow.appendChild(ctaBtn);
+
+      var ctaGhost = el('a', [
+        'font-size:0.85rem!important;color:rgba(255,255,255,0.5)!important;',
+        'text-decoration:none!important;border-bottom:1px solid rgba(255,255,255,0.2);',
+        'padding-bottom:2px;transition:color 0.3s,border-color 0.3s;'
+      ].join(''), {href: '/#kontakt'});
+      ctaGhost.appendChild(txt('\u00dcber uns erfahren'));
+      ctaGhost.onmouseover = function() { this.style.color=GOLD+'!important'; this.style.borderColor=GOLD+'88'; };
+      ctaGhost.onmouseout = function() { this.style.color='rgba(255,255,255,0.5)'; this.style.borderColor='rgba(255,255,255,0.2)'; };
+      ctaRow.appendChild(ctaGhost);
+      content.appendChild(ctaRow);
+
+      grid.appendChild(content);
+
+      /* ── BOTTOM ORNAMENT ── */
+      var botOrn = el('div', 'position:relative;z-index:2;display:flex;align-items:center;gap:20px;padding:0 10% 60px;');
+      botOrn.className = 'ow-orn-bot';
+      var bOl1 = el('div', 'flex:1;height:1px;background:linear-gradient(90deg,transparent,'+GOLD+'44,transparent);');
+      var bOd = el('div', 'width:10px;height:10px;background:'+GOLD+';transform:rotate(45deg);flex-shrink:0;box-shadow:0 0 10px '+GOLD+'88;');
+      var bOl2 = el('div', 'flex:1;height:1px;background:linear-gradient(90deg,transparent,'+GOLD+'44,transparent);');
+      botOrn.appendChild(bOl1); botOrn.appendChild(bOd); botOrn.appendChild(bOl2);
+      s.appendChild(botOrn);
+
+      return s;
+    }
+
+    /* ── Responsive layout: apply directly via JS to guarantee correct styles ── */
+    function applyOwnerResponsive() {
+      var section = document.getElementById('inhaber');
+      if (!section) return;
+      var grid     = section.querySelector('.ow-main-grid');
+      var pCol     = section.querySelector('.ow-portrait-col');
+      var pFrame   = section.querySelector('.ow-portrait-frame');
+      var cCol     = section.querySelector('.ow-content-col');
+      var ornTop   = section.querySelector('.ow-orn-top');
+      var ornBot   = section.querySelector('.ow-orn-bot');
+      if (!grid) return;
+
+      var mobile = window.innerWidth <= 900;
+      var small  = window.innerWidth <= 480;
+
+      if (mobile) {
+        grid.style.gridTemplateColumns = '1fr';
+        grid.style.padding = small ? '32px 16px 50px' : '40px 24px 60px';
+        grid.style.gap = '36px';
+        if (pCol)   { pCol.style.paddingRight = '0'; pCol.style.width = '100%'; pCol.style.alignItems = 'center'; }
+        if (pFrame) { pFrame.style.maxWidth = 'min(300px, 80vw)'; pFrame.style.width = '100%'; pFrame.style.margin = '0 auto'; }
+        if (cCol)   { cCol.style.paddingLeft = '0'; cCol.style.width = '100%'; }
+        if (ornTop) { ornTop.style.padding = '40px 24px 0'; }
+        if (ornBot) { ornBot.style.padding = '0 24px 40px'; }
+        /* Constrain portrait image height so it doesn't dominate on mobile */
+        var img = section.querySelector('.ow-portrait-frame img');
+        if (img) { img.style.maxHeight = '380px'; img.style.objectFit = 'cover'; }
+        /* Name font size */
+        var h2 = section.querySelector('.ow-content-col h2');
+        if (h2) h2.style.fontSize = small ? 'clamp(1.8rem,10vw,2.2rem)' : 'clamp(2rem,8vw,2.8rem)';
+        /* CTA row: wrap */
+        var ctaRow = cCol ? cCol.querySelector('div:last-child') : null;
+        if (ctaRow) { ctaRow.style.flexWrap = 'wrap'; if (small) ctaRow.style.flexDirection = 'column'; }
+      } else {
+        /* Reset to desktop */
+        grid.style.gridTemplateColumns = '1fr 1fr';
+        grid.style.padding = '60px 10% 80px';
+        grid.style.gap = '0';
+        if (pCol)   { pCol.style.paddingRight = '6%'; pCol.style.width = ''; pCol.style.alignItems = 'center'; }
+        if (pFrame) { pFrame.style.maxWidth = ''; pFrame.style.width = ''; pFrame.style.margin = ''; }
+        if (cCol)   { cCol.style.paddingLeft = '6%'; cCol.style.width = ''; }
+        if (ornTop) { ornTop.style.padding = '60px 10% 0'; }
+        if (ornBot) { ornBot.style.padding = '0 10% 60px'; }
+        var img2 = section.querySelector('.ow-portrait-frame img');
+        if (img2) { img2.style.maxHeight = ''; img2.style.objectFit = 'cover'; }
+        var h2d = section.querySelector('.ow-content-col h2');
+        if (h2d) h2d.style.fontSize = '';
+      }
+    }
+
+    function injectOwner() {
+      if (document.getElementById('inhaber')) return;
+      var anchor = document.getElementById('stellenangebote') || document.getElementById('galerie');
+      if (!anchor) return;
+      anchor.parentNode.insertBefore(buildOwnerSection(), anchor.nextSibling);
+      setTimeout(applyOwnerResponsive, 50);
+    }
+
+    window.addEventListener('resize', applyOwnerResponsive);
+
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(injectOwner, 900);
+    });
+    var _ownerObs = new MutationObserver(function() {
+      if (!document.getElementById('inhaber')) injectOwner();
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+      _ownerObs.observe(document.body, { childList: true, subtree: true });
+    });
+  })();
+  </script>
+
+  <!-- ── BEWERBUNG MODAL ─────────────────────────────────────────────────── -->
+  <style>
+  /* Modal overlay */
+  #bew-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(6, 14, 9, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  #bew-overlay.bew-open { display: flex; }
+
+  /* Modal card */
+  #bew-modal {
+    position: relative;
+    background: #0d1f15;
+    border: 1px solid #C5A05944;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px #C5A05922;
+    overflow: hidden;
+    animation: bewSlideIn 0.35s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes bewSlideIn {
+    from { opacity: 0; transform: translateY(32px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Header */
+  #bew-header {
+    padding: 32px 36px 24px;
+    background: linear-gradient(135deg, #0f2a1a 0%, #0d1f15 100%);
+    border-bottom: 1px solid #C5A05930;
+    position: relative;
+  }
+  #bew-eyebrow {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #C5A059;
+    margin-bottom: 6px;
+  }
+  #bew-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+    line-height: 1.2;
+  }
+  #bew-subtitle {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.42);
+    margin-top: 6px;
+  }
+  #bew-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid #C5A05944;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+  #bew-close:hover { background: #C5A05922; color: #C5A059; border-color: #C5A059; }
+
+  /* Form body */
+  #bew-form {
+    padding: 28px 36px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* Field groups */
+  .bew-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .bew-field { display: flex; flex-direction: column; gap: 6px; }
+  .bew-field label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+  }
+  .bew-field label .bew-req { color: #C5A059; margin-left: 2px; }
+
+  .bew-field input,
+  .bew-field textarea {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #fff;
+    font-size: 0.92rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .bew-field input:focus,
+  .bew-field textarea:focus {
+    border-color: #C5A059;
+    box-shadow: 0 0 0 3px #C5A05922;
+  }
+  .bew-field input::placeholder,
+  .bew-field textarea::placeholder { color: rgba(255,255,255,0.2); }
+  .bew-field textarea { resize: vertical; min-height: 80px; }
+
+  /* File upload */
+  #bew-file-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    border: 1.5px dashed rgba(197,160,89,0.4);
+    border-radius: 12px;
+    background: rgba(197,160,89,0.04);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+  }
+  #bew-file-label:hover { border-color: #C5A059; background: rgba(197,160,89,0.08); }
+  #bew-file-label.bew-has-file { border-color: #C5A059; background: rgba(197,160,89,0.1); }
+  #bew-file-label .bew-upload-icon { font-size: 1.8rem; }
+  #bew-file-label .bew-upload-main {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+  }
+  #bew-file-label .bew-upload-sub {
+    font-size: 0.74rem;
+    color: rgba(255,255,255,0.3);
+  }
+  #bew-file-label .bew-file-name {
+    font-size: 0.82rem;
+    color: #C5A059;
+    font-weight: 600;
+    word-break: break-all;
+  }
+  #bew-file-input { display: none; }
+
+  /* Submit button */
+  #bew-submit {
+    width: 100%;
+    padding: 15px 24px;
+    background: linear-gradient(135deg, #C5A059 0%, #a8843d 100%);
+    border: none;
+    border-radius: 100px;
+    color: #060e09;
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 8px 28px rgba(197,160,89,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  #bew-submit:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(197,160,89,0.55); }
+  #bew-submit:active { transform: scale(0.98); }
+  #bew-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* Status messages */
+  #bew-status {
+    display: none;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    text-align: center;
+  }
+  #bew-status.bew-success {
+    display: block;
+    background: rgba(36,122,110,0.2);
+    border: 1px solid rgba(36,122,110,0.5);
+    color: #6fcfbf;
+  }
+  #bew-status.bew-error {
+    display: block;
+    background: rgba(180,40,40,0.15);
+    border: 1px solid rgba(200,60,60,0.4);
+    color: #f08080;
+  }
+
+  /* Success screen */
+  #bew-success-screen {
+    display: none;
+    padding: 48px 36px;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  #bew-success-screen.bew-show { display: flex; }
+  #bew-success-icon { font-size: 3rem; }
+  #bew-success-screen h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.5rem;
+    color: #fff;
+    margin: 0;
+  }
+  #bew-success-screen p {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.5);
+    margin: 0;
+    line-height: 1.6;
+  }
+  #bew-done-btn {
+    margin-top: 8px;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #C5A059, #a8843d);
+    border: none;
+    border-radius: 100px;
+    color: #060e09;
+    font-size: 0.88rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(197,160,89,0.35);
+    transition: transform 0.2s;
+  }
+  #bew-done-btn:hover { transform: translateY(-1px); }
+
+  /* Gold divider */
+  .bew-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #C5A05933, transparent);
+    margin: 0 -36px;
+  }
+
+  @media (max-width: 600px) {
+    #bew-header, #bew-form { padding-left: 22px; padding-right: 22px; }
+    .bew-row { grid-template-columns: 1fr; }
+    .bew-divider { margin: 0 -22px; }
+    #bew-success-screen { padding: 36px 22px; }
+  }
+  </style>
+
+  <!-- Modal DOM -->
+  <div id="bew-overlay" role="dialog" aria-modal="true" aria-labelledby="bew-title">
+    <div id="bew-modal">
+      <div id="bew-header">
+        <div id="bew-eyebrow">Das ELB Hotel &amp; Restaurant · Bewerbung</div>
+        <h2 id="bew-title">Jetzt bewerben</h2>
+        <p id="bew-subtitle">Ihre Daten werden sicher übermittelt und vertraulich behandelt.</p>
+        <button id="bew-close" aria-label="Schließen" title="Schließen">&#10005;</button>
+      </div>
+
+      <!-- Form -->
+      <form id="bew-form" novalidate autocomplete="on">
+        <input type="hidden" name="job" id="bew-job-field" value="">
+
+        <div class="bew-row">
+          <div class="bew-field">
+            <label for="bew-name">Name <span class="bew-req">*</span></label>
+            <input type="text" id="bew-name" name="name" placeholder="Vor- und Nachname" required autocomplete="name">
+          </div>
+          <div class="bew-field">
+            <label for="bew-phone">Telefon</label>
+            <input type="tel" id="bew-phone" name="phone" placeholder="+49 391 …" autocomplete="tel">
+          </div>
+        </div>
+
+        <div class="bew-field">
+          <label for="bew-email">E-Mail <span class="bew-req">*</span></label>
+          <input type="email" id="bew-email" name="email" placeholder="ihre@email.de" required autocomplete="email">
+        </div>
+
+        <div class="bew-field">
+          <label for="bew-address">Adresse</label>
+          <input type="text" id="bew-address" name="address" placeholder="Straße, PLZ, Stadt" autocomplete="street-address">
+        </div>
+
+        <div class="bew-field">
+          <label for="bew-message">Kurzes Anschreiben</label>
+          <textarea id="bew-message" name="message" placeholder="Warum möchten Sie bei Das ELB arbeiten? (optional)"></textarea>
+        </div>
+
+        <div class="bew-divider"></div>
+
+        <div class="bew-field">
+          <label>Lebenslauf / Dokument</label>
+          <label id="bew-file-label" for="bew-file-input">
+            <span class="bew-upload-icon">📎</span>
+            <span class="bew-upload-main">Datei auswählen oder hier ablegen</span>
+            <span class="bew-upload-sub">PDF, DOC, DOCX, JPG, PNG · max. 10 MB</span>
+          </label>
+          <input type="file" id="bew-file-input" name="cv" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+        </div>
+
+        <div id="bew-status"></div>
+
+        <button type="submit" id="bew-submit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Bewerbung absenden
+        </button>
+      </form>
+
+      <!-- Success state -->
+      <div id="bew-success-screen">
+        <div id="bew-success-icon">✅</div>
+        <h3>Vielen Dank!</h3>
+        <p>Ihre Bewerbung ist bei uns eingegangen.<br>Wir melden uns schnellstmöglich bei Ihnen.</p>
+        <button id="bew-done-btn">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    var overlay  = document.getElementById('bew-overlay');
+    var modal    = document.getElementById('bew-modal');
+    var form     = document.getElementById('bew-form');
+    var closeBtn = document.getElementById('bew-close');
+    var fileInput= document.getElementById('bew-file-input');
+    var fileLabel= document.getElementById('bew-file-label');
+    var jobField = document.getElementById('bew-job-field');
+    var titleEl  = document.getElementById('bew-title');
+    var status   = document.getElementById('bew-status');
+    var submitBtn= document.getElementById('bew-submit');
+    var successSc= document.getElementById('bew-success-screen');
+    var doneBtn  = document.getElementById('bew-done-btn');
+
+    function openModal(jobTitle) {
+      jobField.value = jobTitle || '';
+      titleEl.textContent = jobTitle ? 'Bewerben: ' + jobTitle : 'Jetzt bewerben';
+      form.style.display = 'flex';
+      successSc.classList.remove('bew-show');
+      status.className = '';
+      status.textContent = '';
+      form.reset();
+      fileLabel.classList.remove('bew-has-file');
+      fileLabel.querySelector('.bew-upload-main').textContent = 'Datei auswählen oder hier ablegen';
+      overlay.classList.add('bew-open');
+      document.body.style.overflow = 'hidden';
+      setTimeout(function() {
+        var first = form.querySelector('input:not([type=hidden])');
+        if (first) first.focus();
+      }, 100);
+    }
+
+    function closeModal() {
+      overlay.classList.remove('bew-open');
+      document.body.style.overflow = '';
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    doneBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeModal();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    /* File input label update */
+    fileInput.addEventListener('change', function() {
+      var f = fileInput.files[0];
+      if (f) {
+        fileLabel.classList.add('bew-has-file');
+        var nameEl = fileLabel.querySelector('.bew-upload-main');
+        nameEl.textContent = f.name;
+        var subEl = fileLabel.querySelector('.bew-upload-sub');
+        subEl.textContent = (f.size / 1024 / 1024).toFixed(1) + ' MB';
+      } else {
+        fileLabel.classList.remove('bew-has-file');
+        fileLabel.querySelector('.bew-upload-main').textContent = 'Datei auswählen oder hier ablegen';
+        fileLabel.querySelector('.bew-upload-sub').textContent = 'PDF, DOC, DOCX, JPG, PNG · max. 10 MB';
+      }
+    });
+
+    /* Drag-and-drop on file label */
+    fileLabel.addEventListener('dragover', function(e) { e.preventDefault(); fileLabel.style.borderColor = '#C5A059'; });
+    fileLabel.addEventListener('dragleave', function() { fileLabel.style.borderColor = ''; });
+    fileLabel.addEventListener('drop', function(e) {
+      e.preventDefault();
+      fileLabel.style.borderColor = '';
+      var dt = e.dataTransfer;
+      if (dt && dt.files && dt.files[0]) {
+        fileInput.files = dt.files;
+        fileInput.dispatchEvent(new Event('change'));
+      }
+    });
+
+    /* Form submit */
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      status.className = '';
+      status.textContent = '';
+
+      var name  = form.querySelector('[name=name]').value.trim();
+      var email = form.querySelector('[name=email]').value.trim();
+      if (!name || !email) {
+        status.className = 'bew-error';
+        status.textContent = 'Bitte füllen Sie Name und E-Mail aus.';
+        return;
+      }
+
+      var fd = new FormData(form);
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Wird gesendet …';
+
+      fetch('/api/bewerben', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            form.style.display = 'none';
+            successSc.classList.add('bew-show');
+          } else {
+            status.className = 'bew-error';
+            status.textContent = data.message || 'Fehler beim Senden. Bitte erneut versuchen.';
+          }
+        })
+        .catch(function() {
+          status.className = 'bew-error';
+          status.textContent = 'Verbindungsfehler. Bitte prüfen Sie Ihre Internetverbindung.';
+        })
+        .finally(function() {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Bewerbung absenden';
+        });
+    });
+
+    /* Expose globally so card buttons can call it directly via onclick */
+    window.openBewModal = openModal;
+  })();
+  </script>
+  <script>
+  /* ── ABOUT SECTION VIDEO & STYLE INJECTION ── */
+  (function() {
+    var INJECTED = false;
+    function injectAboutVideo() {
+      if (INJECTED) return;
+      var sections = document.querySelectorAll('section');
+      for (var i = 0; i < sections.length; i++) {
+        var s = sections[i];
+        if (s.textContent.includes('Ein Ort, an dem die')) {
+          var wrapper = s.querySelector('[data-about-image-wrapper]') || 
+                        s.querySelector('.grid > div:last-child');
+          if (wrapper) {
+            INJECTED = true;
+
+            /* Apply Gold Background Style */
+            s.style.backgroundColor = '#C5A059';
+            s.style.position = 'relative';
+            s.style.overflow = 'hidden';
+
+            /* Add Decorative Blur Circles (matching landing page style) */
+            var circle1 = document.createElement('div');
+            circle1.setAttribute('style', 'position:absolute; top:0; left:25%; width:400px; height:400px; border-radius:50%; background:rgba(27,81,45,0.05); filter:blur(100px); pointer-events:none; z-index:0;');
+            var circle2 = document.createElement('div');
+            circle2.setAttribute('style', 'position:absolute; bottom:0; right:25%; width:300px; height:300px; border-radius:50%; background:rgba(197,160,89,0.08); filter:blur(80px); pointer-events:none; z-index:0;');
+            s.insertBefore(circle2, s.firstChild);
+            s.insertBefore(circle1, s.firstChild);
+
+            /* Clear and replace wrapper content with background video */
+            wrapper.innerHTML = '';
+            wrapper.style.display = 'block';
+            wrapper.style.clipPath = 'none'; // Ensure it's visible if manually injected
+            wrapper.style.zIndex = '1';
+            
+            var videoCont = document.createElement('div');
+            videoCont.setAttribute('style', 'position:relative; width:100%; height:100%; min-height:500px; border-radius:1rem; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);');
+            
+            var vid = document.createElement('video');
+            vid.src = '/videos/about.mp4';
+            vid.loop = true;
+            vid.autoplay = true;
+            vid.muted = true;
+            vid.playsInline = true;
+            vid.setAttribute('style', 'width:100%; height:100%; object-fit:cover;');
+            
+            videoCont.appendChild(vid);
+            wrapper.appendChild(videoCont);
+
+            /* Ensure text contrast (overriding any light text classes if present) */
+            var textElements = s.querySelectorAll('h2, p, span, div:not([data-about-image-wrapper])');
+            textElements.forEach(function(el) {
+              if (el.dataset.statItem === undefined) { // Skip stat items as they have specific gold/green colors
+                // Only override if it looks like it was meant to be light
+                if (window.getComputedStyle(el).color === 'rgb(255, 255, 255)' || el.className.includes('text-white')) {
+                   el.style.color = '#1A2F24';
+                   el.style.textShadow = 'none';
+                }
+              }
+            });
+
+            console.log('About section gold style and video injected successfully');
+            break;
+          }
+        }
+      }
+    }
+    document.addEventListener('DOMContentLoaded', injectAboutVideo);
+    var _abObs = new MutationObserver(function() { injectAboutVideo(); });
+    document.addEventListener('DOMContentLoaded', function() {
+      _abObs.observe(document.body, { childList: true, subtree: true });
+    });
+  })();
+  </script>
 </body></html>

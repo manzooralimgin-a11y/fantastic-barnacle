@@ -1,7 +1,5 @@
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Optional
-import random
-import string
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -10,7 +8,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_tenant_user
-from app.hms.models import HotelProperty, Room, HotelReservation
+from app.hms.models import HotelProperty, Room, HotelReservation, RoomType
+from app.hms.room_inventory import (
+    all_inventory_room_numbers,
+    expected_room_count,
+    normalize_room_category,
+    normalize_room_number,
+    room_category_display_label,
+    room_category_for_room,
+)
+from app.reservations.cache import (
+    flush_pending_availability_invalidations,
+    schedule_hotel_availability_invalidation,
+)
+from app.reservations.unified_service import hotel_reservation_to_dict
 
 router = APIRouter()
 
@@ -18,34 +29,7 @@ router = APIRouter()
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _res_to_dict(r: HotelReservation) -> dict:
-    check_in = r.check_in.isoformat() if isinstance(r.check_in, date) else str(r.check_in)
-    check_out = r.check_out.isoformat() if isinstance(r.check_out, date) else str(r.check_out)
-    try:
-        nights = max(1, (r.check_out - r.check_in).days)
-    except Exception:
-        nights = 1
-    # Normalise status: DB uses checked_in / checked_out but frontend expects checked-in / checked-out
-    status = (r.status or "confirmed").replace("_", "-")
-    return {
-        "id": f"R-{r.id}",
-        "anrede": r.anrede or "",
-        "guest_name": r.guest_name,
-        "email": r.guest_email or "",
-        "phone": r.phone or "",
-        "room_type": r.room_type_label or "Komfort",
-        "check_in": check_in,
-        "check_out": check_out,
-        "nights": nights,
-        "adults": r.adults or 1,
-        "children": r.children or 0,
-        "status": status,
-        "special_requests": r.special_requests or "",
-        "room": r.room or "",
-        "zahlungs_methode": r.zahlungs_methode or "",
-        "zahlungs_status": r.zahlungs_status or "offen",
-        "total_amount": float(r.total_amount) if r.total_amount else 0.0,
-        "notes": r.notes or "",
-    }
+    return hotel_reservation_to_dict(r)
 
 
 def _arrival_dict(r: HotelReservation) -> dict:
@@ -56,6 +40,21 @@ def _arrival_dict(r: HotelReservation) -> dict:
 def _departure_dict(r: HotelReservation) -> dict:
     base = _res_to_dict(r)
     return {**base, "check_out_time": "11:00"}
+
+
+async def _room_type_for_category(
+    db: AsyncSession,
+    *,
+    property_id: int,
+    category_key: str,
+) -> RoomType | None:
+    room_types = (
+        await db.execute(select(RoomType).where(RoomType.property_id == property_id))
+    ).scalars().all()
+    for room_type in room_types:
+        if normalize_room_category(room_type.name) == category_key:
+            return room_type
+    return None
 
 
 # ── Overview & Rooms ──────────────────────────────────────────────────────────
@@ -73,10 +72,10 @@ async def get_hms_overview(
         return {
             "hotel_name": "DAS Elb Magdeburg",
             "city": "Magdeburg",
-            "total_rooms": 30,
-            "occupied": 18,
-            "available": 10,
-            "cleaning": 2,
+            "total_rooms": expected_room_count(),
+            "occupied": 0,
+            "available": expected_room_count(),
+            "cleaning": 0,
         }
 
     status_counts = await db.execute(
@@ -89,11 +88,9 @@ async def get_hms_overview(
     return {
         "hotel_name": prop.name,
         "city": prop.city,
-        "total_rooms": await db.scalar(
-            select(func.count(Room.id)).where(Room.property_id == prop.id)
-        ),
+        "total_rooms": expected_room_count(),
         "occupied": counts.get("occupied", 0),
-        "available": counts.get("available", 0),
+        "available": max(expected_room_count() - counts.get("occupied", 0) - counts.get("cleaning", 0), 0),
         "cleaning": counts.get("cleaning", 0),
     }
 
@@ -103,10 +100,32 @@ async def get_hms_rooms(
     db: AsyncSession = Depends(get_db),
     user: Any = Depends(get_current_tenant_user),
 ):
-    query = select(Room).limit(50)
+    property_record = (await db.execute(select(HotelProperty).limit(1))).scalar_one_or_none()
+    query = select(Room)
+    if property_record is not None:
+        query = query.where(Room.property_id == property_record.id)
+    query = query.limit(50)
     result = await db.execute(query)
     rooms = result.scalars().all()
-    return {"items": rooms}
+    inventory_order = {
+        normalize_room_number(room_number): index
+        for index, room_number in enumerate(all_inventory_room_numbers())
+    }
+    items = []
+    for room in rooms:
+        category_key = room_category_for_room(room.room_number)
+        if category_key is None:
+            continue
+        items.append(
+            {
+                "id": str(room.id),
+                "number": normalize_room_number(room.room_number),
+                "room_type_name": room_category_display_label(category_key),
+                "status": room.status,
+            }
+        )
+    items.sort(key=lambda item: inventory_order.get(item["number"], len(inventory_order)))
+    return {"items": items}
 
 
 # ── Front-Desk ────────────────────────────────────────────────────────────────
@@ -139,11 +158,9 @@ async def get_front_desk_stats(
     ) or 0
 
     prop = (await db.execute(select(HotelProperty).limit(1))).scalar_one_or_none()
-    total_rooms = 30
+    total_rooms = expected_room_count()
     if prop:
-        total_rooms = await db.scalar(
-            select(func.count(Room.id)).where(Room.property_id == prop.id)
-        ) or 30
+        total_rooms = expected_room_count()
 
     return {
         "today_arrivals": today_arrivals,
@@ -190,25 +207,6 @@ async def get_front_desk_departures(
     return {"items": [_departure_dict(r) for r in rows]}
 
 
-# ── Reservations ──────────────────────────────────────────────────────────────
-
-class ReservationCreate(BaseModel):
-    guest_name: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    anrede: Optional[str] = None
-    room_type: Optional[str] = "Komfort"
-    check_in: str
-    check_out: str
-    adults: Optional[int] = 1
-    children: Optional[int] = 0
-    special_requests: Optional[str] = None
-    zahlungs_methode: Optional[str] = None
-    zahlungs_status: Optional[str] = "offen"
-    nights: Optional[int] = None
-    room: Optional[str] = None
-
-
 class ReservationUpdate(BaseModel):
     guest_name: Optional[str] = None
     email: Optional[str] = None
@@ -226,9 +224,6 @@ class ReservationUpdate(BaseModel):
     room: Optional[str] = None
 
 
-ROOM_RATES: dict[str, float] = {"Komfort": 89.0, "Komfort Plus": 129.0, "Suite": 199.0}
-
-
 @router.get("/reservations")
 async def list_reservations(
     db: AsyncSession = Depends(get_db),
@@ -239,57 +234,6 @@ async def list_reservations(
     )
     rows = result.scalars().all()
     return [_res_to_dict(r) for r in rows]
-
-
-@router.post("/reservations", status_code=201)
-async def create_reservation(
-    payload: ReservationCreate,
-    db: AsyncSession = Depends(get_db),
-    user: Any = Depends(get_current_tenant_user),
-):
-    prop = (await db.execute(select(HotelProperty).limit(1))).scalar_one_or_none()
-    if not prop:
-        raise HTTPException(status_code=400, detail="No hotel property configured")
-
-    try:
-        ci = date.fromisoformat(payload.check_in)
-        co = date.fromisoformat(payload.check_out)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid date format")
-
-    nights = max(1, (co - ci).days)
-    rate = ROOM_RATES.get(payload.room_type or "Komfort", 89.0)
-    total = rate * nights
-
-    room_number = payload.room or str(random.randint(100, 599))
-
-    booking_id = "BK-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    payment_status = "paid" if (payload.zahlungs_status or "offen") == "bezahlt" else "pending"
-
-    res = HotelReservation(
-        property_id=prop.id,
-        guest_name=payload.guest_name,
-        guest_email=payload.email,
-        check_in=ci,
-        check_out=co,
-        status="confirmed",
-        total_amount=total,
-        payment_status=payment_status,
-        booking_id=booking_id,
-        anrede=payload.anrede,
-        phone=payload.phone,
-        room=room_number,
-        room_type_label=payload.room_type or "Komfort",
-        adults=payload.adults or 1,
-        children=payload.children or 0,
-        zahlungs_methode=payload.zahlungs_methode,
-        zahlungs_status=payload.zahlungs_status or "offen",
-        special_requests=payload.special_requests,
-    )
-    db.add(res)
-    await db.commit()
-    await db.refresh(res)
-    return _res_to_dict(res)
 
 
 @router.put("/reservations/{reservation_id}")
@@ -309,6 +253,8 @@ async def update_reservation(
     res = result.scalar_one_or_none()
     if not res:
         raise HTTPException(status_code=404, detail="Reservation not found")
+    previous_check_in = res.check_in
+    previous_check_out = res.check_out
 
     if payload.guest_name is not None:
         res.guest_name = payload.guest_name
@@ -316,12 +262,51 @@ async def update_reservation(
         res.guest_email = payload.email
     if payload.phone is not None:
         res.phone = payload.phone
+        res.guest_phone = payload.phone
     if payload.anrede is not None:
         res.anrede = payload.anrede
     if payload.room_type is not None:
-        res.room_type_label = payload.room_type
+        category_key = normalize_room_category(payload.room_type)
+        if category_key is None:
+            raise HTTPException(status_code=400, detail="Room type not found")
+        matched_room_type = await _room_type_for_category(
+            db,
+            property_id=res.property_id,
+            category_key=category_key,
+        )
+        if matched_room_type is None:
+            raise HTTPException(status_code=404, detail="Room type not found")
+        if res.room:
+            room_category = room_category_for_room(res.room)
+            if room_category is not None and room_category != category_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Room does not belong to the selected room type",
+                )
+        res.room_type_label = room_category_display_label(category_key)
+        res.room_type_id = matched_room_type.id
     if payload.room is not None:
-        res.room = payload.room
+        normalized_room = normalize_room_number(payload.room)
+        room_category = room_category_for_room(normalized_room)
+        if room_category is None:
+            raise HTTPException(status_code=404, detail="Room not found")
+        matched_room_type = await _room_type_for_category(
+            db,
+            property_id=res.property_id,
+            category_key=room_category,
+        )
+        if matched_room_type is None:
+            raise HTTPException(status_code=404, detail="Room type not found")
+        if payload.room_type is not None:
+            requested_category = normalize_room_category(payload.room_type)
+            if requested_category != room_category:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Room does not belong to the selected room type",
+                )
+        res.room = normalized_room
+        res.room_type_label = room_category_display_label(room_category)
+        res.room_type_id = matched_room_type.id
     if payload.adults is not None:
         res.adults = payload.adults
     if payload.children is not None:
@@ -345,7 +330,24 @@ async def update_reservation(
         except ValueError:
             pass
 
+    schedule_hotel_availability_invalidation(
+        db,
+        property_id=res.property_id,
+        check_in=previous_check_in,
+        check_out=previous_check_out,
+        reason="reservation_updated",
+        request_source="hms_admin",
+    )
+    schedule_hotel_availability_invalidation(
+        db,
+        property_id=res.property_id,
+        check_in=res.check_in,
+        check_out=res.check_out,
+        reason="reservation_updated",
+        request_source="hms_admin",
+    )
     await db.commit()
+    await flush_pending_availability_invalidations(db)
     await db.refresh(res)
     return _res_to_dict(res)
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ── QR Table Code ──
@@ -48,16 +48,20 @@ class PublicMenuCategory(BaseModel):
 
 # ── Order Submission ──
 class QROrderItem(BaseModel):
-    menu_item_id: int
-    quantity: int = 1
-    notes: str | None = None
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    menu_item_id: int = Field(gt=0)
+    quantity: int = Field(default=1, ge=1, le=50)
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class QROrderSubmit(BaseModel):
-    table_code: str
-    guest_name: str = "QR Guest"
-    items: list[QROrderItem]
-    notes: str | None = None
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    table_code: str = Field(min_length=3, max_length=128)
+    guest_name: str = Field(default="QR Guest", min_length=1, max_length=255)
+    items: list[QROrderItem] = Field(min_length=1, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
 
 
 class QROrderResponse(BaseModel):

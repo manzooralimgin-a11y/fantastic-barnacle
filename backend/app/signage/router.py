@@ -7,6 +7,7 @@ from app.dependencies import get_current_tenant_user
 from app.signage import service, schemas
 
 router = APIRouter()
+public_router = APIRouter()
 
 
 # ── Screens ──
@@ -143,7 +144,7 @@ async def delete_playlist(
 
 # ── Public Display (no auth) ──
 
-@router.get("/display/{screen_code}")
+@public_router.get("/display/{screen_code}")
 async def get_display(screen_code: str, db: AsyncSession = Depends(get_db)):
     """Public endpoint for screen displays."""
     data = await service.get_display_data(db, screen_code)

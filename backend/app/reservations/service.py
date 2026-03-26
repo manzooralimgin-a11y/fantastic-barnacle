@@ -8,13 +8,13 @@ from app.reservations.models import FloorSection, Reservation, Table, TableSessi
 from app.reservations.schemas import (
     FloorSectionCreate,
     FloorSectionUpdate,
-    ReservationCreate,
     ReservationUpdate,
     TableCreate,
     TableSessionCreate,
     TableUpdate,
     WaitlistEntryCreate,
 )
+from app.reservations.cache import schedule_restaurant_availability_invalidation
 from app.shared.audit import log_human_action
 
 
@@ -186,80 +186,28 @@ async def get_reservation_by_id(db: AsyncSession, restaurant_id: int, reservatio
     return res
 
 
-async def create_reservation(db: AsyncSession, restaurant_id: int, payload: ReservationCreate) -> Reservation:
-    # Auto-assign table if not specified
-    if payload.table_id is None:
-        available = await db.execute(
-            select(Table).where(
-                Table.restaurant_id == restaurant_id,
-                Table.capacity >= payload.party_size,
-                Table.is_active == True,
-                Table.status == "available",
-            ).order_by(Table.capacity)
-        )
-        candidate_tables = list(available.scalars().all())
-
-        # Check each candidate table for time conflicts on the requested date/time
-        assigned_table = None
-        req_start = datetime.combine(payload.reservation_date, payload.start_time)
-        req_duration = payload.duration_min or 90
-        req_end = req_start + timedelta(minutes=req_duration)
-
-        for table in candidate_tables:
-            # Find existing reservations for this table on the same date
-            conflicts = await db.execute(
-                select(Reservation).where(
-                    Reservation.restaurant_id == restaurant_id,
-                    Reservation.table_id == table.id,
-                    Reservation.reservation_date == payload.reservation_date,
-                    Reservation.status.in_(["confirmed", "seated"]),
-                )
-            )
-            has_conflict = False
-            for existing in conflicts.scalars().all():
-                existing_start = datetime.combine(payload.reservation_date, existing.start_time)
-                existing_end = existing_start + timedelta(minutes=existing.duration_min)
-                # Check for time overlap
-                if not (req_end <= existing_start or req_start >= existing_end):
-                    has_conflict = True
-                    break
-            if not has_conflict:
-                assigned_table = table
-                break
-
-        if assigned_table:
-            payload_dict = payload.model_dump()
-            payload_dict["table_id"] = assigned_table.id
-            res = Reservation(**payload_dict, restaurant_id=restaurant_id)
-        else:
-            res = Reservation(**payload.model_dump(), restaurant_id=restaurant_id)
-    else:
-        if payload.table_id is not None:
-            await get_table_by_id(db, restaurant_id, payload.table_id)
-        res = Reservation(**payload.model_dump(), restaurant_id=restaurant_id)
-
-    db.add(res)
-    await db.flush()
-    await log_human_action(
-        db,
-        action="reservation_created",
-        detail=f"Created reservation for {res.guest_name}",
-        entity_type="reservations",
-        entity_id=res.id,
-        source_module="reservations",
-        restaurant_id=restaurant_id,
-    )
-    await db.refresh(res)
-    return res
-
-
 async def update_reservation(
     db: AsyncSession, restaurant_id: int, reservation_id: int, payload: ReservationUpdate
 ) -> Reservation:
     res = await get_reservation_by_id(db, restaurant_id, reservation_id)
+    previous_date = res.reservation_date
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(res, k, v)
     await db.flush()
+    schedule_restaurant_availability_invalidation(
+        db,
+        restaurant_id=restaurant_id,
+        reservation_date=previous_date,
+        reason="reservation_updated",
+        request_source=res.source,
+    )
+    schedule_restaurant_availability_invalidation(
+        db,
+        restaurant_id=restaurant_id,
+        reservation_date=res.reservation_date,
+        reason="reservation_updated",
+        request_source=res.source,
+    )
     await log_human_action(
         db,
         action="reservation_updated",
@@ -289,6 +237,13 @@ async def seat_reservation(db: AsyncSession, restaurant_id: int, reservation_id:
         )
         db.add(session)
     await db.flush()
+    schedule_restaurant_availability_invalidation(
+        db,
+        restaurant_id=restaurant_id,
+        reservation_date=res.reservation_date,
+        reason="reservation_seated",
+        request_source=res.source,
+    )
     await log_human_action(
         db,
         action="reservation_seated",
@@ -321,6 +276,13 @@ async def complete_reservation(db: AsyncSession, restaurant_id: int, reservation
             session.ended_at = datetime.now(timezone.utc)
             session.status = "closed"
     await db.flush()
+    schedule_restaurant_availability_invalidation(
+        db,
+        restaurant_id=restaurant_id,
+        reservation_date=res.reservation_date,
+        reason="reservation_completed",
+        request_source=res.source,
+    )
     await log_human_action(
         db,
         action="reservation_completed",
@@ -338,6 +300,13 @@ async def cancel_reservation(db: AsyncSession, restaurant_id: int, reservation_i
     res = await get_reservation_by_id(db, restaurant_id, reservation_id)
     res.status = "cancelled"
     await db.flush()
+    schedule_restaurant_availability_invalidation(
+        db,
+        restaurant_id=restaurant_id,
+        reservation_date=res.reservation_date,
+        reason="reservation_cancelled",
+        request_source=res.source,
+    )
     await log_human_action(
         db,
         action="reservation_cancelled",

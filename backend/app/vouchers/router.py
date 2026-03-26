@@ -20,6 +20,7 @@ router = APIRouter()
 # ────────────────────── VOUCHERS ──────────────────────
 
 @router.get("", response_model=list[schemas.VoucherRead])
+@router.get("/", response_model=list[schemas.VoucherRead], include_in_schema=False)
 async def list_vouchers(
     active_only: bool = False,
     db: AsyncSession = Depends(get_db),
@@ -29,6 +30,7 @@ async def list_vouchers(
 
 
 @router.post("", response_model=schemas.VoucherRead)
+@router.post("/", response_model=schemas.VoucherRead, include_in_schema=False)
 async def create_voucher(
     data: schemas.VoucherCreate,
     background_tasks: BackgroundTasks,

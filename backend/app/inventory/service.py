@@ -28,6 +28,37 @@ from app.inventory.schemas import (
 from app.shared.audit import log_human_action
 
 
+async def _get_vendor_for_restaurant(
+    db: AsyncSession, restaurant_id: int, vendor_id: int | None
+) -> Vendor | None:
+    if vendor_id is None:
+        return None
+    result = await db.execute(
+        select(Vendor).where(Vendor.id == vendor_id, Vendor.restaurant_id == restaurant_id)
+    )
+    vendor = result.scalar_one_or_none()
+    if vendor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    return vendor
+
+
+async def _get_inventory_item_for_restaurant(
+    db: AsyncSession, restaurant_id: int, item_id: int | None
+) -> InventoryItem | None:
+    if item_id is None:
+        return None
+    result = await db.execute(
+        select(InventoryItem).where(
+            InventoryItem.id == item_id,
+            InventoryItem.restaurant_id == restaurant_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found")
+    return item
+
+
 async def get_inventory_items(
     db: AsyncSession, restaurant_id: int, category: str | None = None, limit: int = 100
 ) -> list[InventoryItem]:
@@ -46,6 +77,7 @@ async def get_inventory_items(
 async def create_inventory_item(
     db: AsyncSession, restaurant_id: int, payload: InventoryItemCreate
 ) -> InventoryItem:
+    await _get_vendor_for_restaurant(db, restaurant_id, payload.vendor_id)
     item = InventoryItem(**payload.model_dump(), restaurant_id=restaurant_id)
     db.add(item)
     await db.flush()
@@ -77,6 +109,8 @@ async def update_inventory_item(
             status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found"
         )
     update_data = payload.model_dump(exclude_unset=True)
+    if "vendor_id" in update_data and update_data["vendor_id"] is not None:
+        await _get_vendor_for_restaurant(db, restaurant_id, update_data["vendor_id"])
     for key, value in update_data.items():
         setattr(item, key, value)
     await db.flush()
@@ -111,12 +145,7 @@ async def get_purchase_orders(
 async def create_purchase_order(
     db: AsyncSession, restaurant_id: int, payload: PurchaseOrderCreate
 ) -> PurchaseOrder:
-    if payload.vendor_id is not None:
-        vendor_result = await db.execute(
-            select(Vendor).where(Vendor.id == payload.vendor_id, Vendor.restaurant_id == restaurant_id)
-        )
-        if vendor_result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    await _get_vendor_for_restaurant(db, restaurant_id, payload.vendor_id)
     order = PurchaseOrder(**payload.model_dump(), restaurant_id=restaurant_id)
     db.add(order)
     await db.flush()
@@ -307,11 +336,8 @@ async def get_vendor_catalog(
 async def add_catalog_item(
     db: AsyncSession, restaurant_id: int, vendor_id: int, payload: SupplierCatalogItemCreate
 ) -> SupplierCatalogItem:
-    vendor_result = await db.execute(
-        select(Vendor).where(Vendor.id == vendor_id, Vendor.restaurant_id == restaurant_id)
-    )
-    if vendor_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    await _get_vendor_for_restaurant(db, restaurant_id, vendor_id)
+    await _get_inventory_item_for_restaurant(db, restaurant_id, payload.inventory_item_id)
     item = SupplierCatalogItem(
         vendor_id=vendor_id, restaurant_id=restaurant_id, **payload.model_dump()
     )
@@ -394,19 +420,8 @@ async def get_auto_purchase_rules(
 async def create_auto_purchase_rule(
     db: AsyncSession, restaurant_id: int, payload: AutoPurchaseRuleCreate
 ) -> AutoPurchaseRule:
-    item_result = await db.execute(
-        select(InventoryItem).where(
-            InventoryItem.id == payload.inventory_item_id,
-            InventoryItem.restaurant_id == restaurant_id,
-        )
-    )
-    if item_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found")
-    vendor_result = await db.execute(
-        select(Vendor).where(Vendor.id == payload.vendor_id, Vendor.restaurant_id == restaurant_id)
-    )
-    if vendor_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    await _get_inventory_item_for_restaurant(db, restaurant_id, payload.inventory_item_id)
+    await _get_vendor_for_restaurant(db, restaurant_id, payload.vendor_id)
     rule = AutoPurchaseRule(**payload.model_dump(), restaurant_id=restaurant_id)
     db.add(rule)
     await db.flush()

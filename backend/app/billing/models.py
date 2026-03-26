@@ -129,8 +129,8 @@ class CashShift(Base):
     restaurant_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("restaurants.id", ondelete="SET NULL"), nullable=True
     )
-    opened_by: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True
+    opened_by: Mapped[int] = mapped_column(
+        Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=False
     )
     closed_by: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True

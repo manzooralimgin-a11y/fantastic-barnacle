@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",
-    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
     "test:e2e": "playwright test",
     "perf:budget": "lhci autorun --config=./lighthouserc.json",
     "tauri": "tauri"

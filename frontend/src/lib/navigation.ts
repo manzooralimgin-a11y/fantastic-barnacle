@@ -26,8 +26,8 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-
-export type AppRole = "admin" | "manager" | "staff";
+import { hasRoleAccess, type AppRole } from "@/lib/access-control";
+import { buildDomainPath, type AppDomain } from "@/lib/domain-config";
 
 export interface NavItem {
   label: string;
@@ -48,172 +48,209 @@ export interface QuickAction {
   minRole?: AppRole;
 }
 
-const roleRank: Record<AppRole, number> = {
-  staff: 1,
-  manager: 2,
-  admin: 3,
-};
+const gastronomy = (pathname: string) => buildDomainPath("gastronomy", pathname);
+const hotel = (pathname: string) => buildDomainPath("hotel", pathname);
 
-export function hasRoleAccess(role: string | undefined, minRole?: AppRole): boolean {
-  if (!minRole) {
-    return true;
-  }
-  const currentRole = ((role || "staff") as AppRole);
-  return roleRank[currentRole] >= roleRank[minRole];
-}
-
-export const gestronomyNavSections: NavSection[] = [
+export const gastronomyNavSections: NavSection[] = [
   {
     title: "Agents",
     items: [
-      { label: "Dashboard", href: "/", icon: LayoutDashboard },
-      { label: "Agents", href: "/agents", icon: Bot, minRole: "manager" },
-      { label: "Alerts", href: "/alerts", icon: Bell },
+      { label: "Dashboard", href: gastronomy("/"), icon: LayoutDashboard },
+      { label: "Agents", href: gastronomy("/agents"), icon: Bot, minRole: "manager" },
+      { label: "Alerts", href: gastronomy("/alerts"), icon: Bell },
     ],
   },
   {
     title: "Service",
     items: [
-      { label: "Reservations", href: "/reservations", icon: CalendarDays },
-      { label: "Waiter Station", href: "/orders", icon: ClipboardList },
-      { label: "Kitchen Board", href: "/kitchen-display", icon: Flame },
-      { label: "Billing & POS", href: "/billing", icon: Receipt },
-      { label: "Vouchers & Cards", href: "/vouchers", icon: Ticket, minRole: "manager" },
+      { label: "Reservations", href: gastronomy("/reservations"), icon: CalendarDays },
+      { label: "Waiter Station", href: gastronomy("/orders"), icon: ClipboardList },
+      { label: "Kitchen Board", href: gastronomy("/kitchen-display"), icon: Flame },
+      { label: "Billing & POS", href: gastronomy("/billing"), icon: Receipt },
+      { label: "Vouchers & Cards", href: gastronomy("/vouchers"), icon: Ticket, minRole: "manager" },
       { label: "QR Ordering", href: "/kds", icon: QrCode },
     ],
   },
   {
     title: "Kitchen",
     items: [
-      { label: "Kitchen", href: "/kitchen", icon: ChefHat },
-      { label: "Menu", href: "/menu", icon: UtensilsCrossed },
-      { label: "Menu Designer", href: "/menu-designer", icon: Palette, minRole: "manager" },
-      { label: "Digital Signage", href: "/signage", icon: Monitor, minRole: "manager" },
-      { label: "Safety", href: "/safety", icon: ShieldCheck, minRole: "manager" },
+      { label: "Kitchen", href: gastronomy("/kitchen"), icon: ChefHat },
+      { label: "Menu", href: gastronomy("/menu"), icon: UtensilsCrossed },
+      { label: "Menu Designer", href: gastronomy("/menu-designer"), icon: Palette, minRole: "manager" },
+      { label: "Digital Signage", href: gastronomy("/signage"), icon: Monitor, minRole: "manager" },
+      { label: "Safety", href: gastronomy("/safety"), icon: ShieldCheck, minRole: "manager" },
     ],
   },
   {
     title: "Inventory",
     items: [
-      { label: "Inventory", href: "/inventory", icon: Package, minRole: "manager" },
-      { label: "Forecasting", href: "/forecasting", icon: TrendingUp, minRole: "manager" },
-      { label: "Maintenance", href: "/maintenance", icon: Wrench, minRole: "manager" },
+      { label: "Inventory", href: gastronomy("/inventory"), icon: Package, minRole: "manager" },
+      { label: "Forecasting", href: gastronomy("/forecasting"), icon: TrendingUp, minRole: "manager" },
+      { label: "Maintenance", href: gastronomy("/maintenance"), icon: Wrench, minRole: "manager" },
     ],
   },
   {
     title: "Guests",
     items: [
-      { label: "Guests", href: "/guests", icon: Heart },
-      { label: "Marketing", href: "/marketing", icon: Megaphone, minRole: "manager" },
-      { label: "Workforce", href: "/workforce", icon: Users, minRole: "manager" },
+      { label: "Guests", href: gastronomy("/guests"), icon: Heart },
+      { label: "Marketing", href: gastronomy("/marketing"), icon: Megaphone, minRole: "manager" },
+      { label: "Workforce", href: gastronomy("/workforce"), icon: Users, minRole: "manager" },
     ],
   },
   {
     title: "Finance",
     items: [
-      { label: "Accounting", href: "/accounting", icon: Calculator, minRole: "admin" },
-      { label: "Vouchers", href: "/accounting/vouchers", icon: Ticket, minRole: "manager" },
-      { label: "Reports", href: "/reports", icon: FileText, minRole: "manager" },
-      { label: "Franchise", href: "/franchise", icon: Building2, minRole: "admin" },
-      { label: "Simulation", href: "/simulation", icon: FlaskConical, minRole: "admin" },
-      { label: "Settings", href: "/settings", icon: Settings, minRole: "manager" },
+      { label: "Accounting", href: gastronomy("/accounting"), icon: Calculator, minRole: "admin" },
+      { label: "Vouchers", href: gastronomy("/accounting/vouchers"), icon: Ticket, minRole: "manager" },
+      { label: "Reports", href: gastronomy("/reports"), icon: FileText, minRole: "manager" },
+      { label: "Franchise", href: gastronomy("/franchise"), icon: Building2, minRole: "admin" },
+      { label: "Simulation", href: gastronomy("/simulation"), icon: FlaskConical, minRole: "admin" },
+      { label: "Settings", href: gastronomy("/settings"), icon: Settings, minRole: "manager" },
     ],
   },
 ];
 
-export const managementNavSections: NavSection[] = [
+export const hotelNavSections: NavSection[] = [
   {
     title: "HMS Core",
     items: [
-      { label: "Dashboard", href: "/hms/dashboard", icon: LayoutDashboard },
-      { label: "Front Desk", href: "/hms/front-desk", icon: Monitor },
-      { label: "Reservations", href: "/hms/reservations", icon: CalendarDays },
+      { label: "Dashboard", href: hotel("/dashboard"), icon: LayoutDashboard },
+      { label: "Front Desk", href: hotel("/front-desk"), icon: Monitor },
+      { label: "Reservations", href: hotel("/reservations"), icon: CalendarDays },
     ],
   },
   {
     title: "Operations",
     items: [
-      { label: "Housekeeping", href: "/hms/housekeeping", icon: ClipboardList },
-      { label: "Maintenance", href: "/hms/maintenance", icon: Wrench },
-      { label: "Inventory", href: "/hms/inventory", icon: Package },
+      { label: "Housekeeping", href: hotel("/housekeeping"), icon: ClipboardList },
+      { label: "Maintenance", href: hotel("/maintenance"), icon: Wrench, minRole: "manager" },
+      { label: "Inventory", href: hotel("/inventory"), icon: Package, minRole: "manager" },
     ],
   },
   {
     title: "Guests",
     items: [
-      { label: "CRM", href: "/hms/crm", icon: Users },
-      { label: "Marketing", href: "/hms/marketing", icon: Megaphone },
-      { label: "Communications", href: "/hms/comms", icon: Bell },
+      { label: "CRM", href: hotel("/crm"), icon: Users, minRole: "manager" },
+      { label: "Marketing", href: hotel("/marketing"), icon: Megaphone, minRole: "manager" },
+      { label: "Email Inbox", href: hotel("/email-inbox"), icon: Bell, minRole: "manager" },
     ],
   },
   {
     title: "Revenue",
     items: [
-      { label: "Channels", href: "/hms/channels", icon: Building2 },
-      { label: "Rate Manager", href: "/hms/rates", icon: TrendingUp },
-      { label: "Analytics", href: "/hms/analytics", icon: Calculator },
+      { label: "Channels", href: hotel("/channels"), icon: Building2, minRole: "manager" },
+      { label: "Rate Manager", href: hotel("/rates"), icon: TrendingUp, minRole: "manager" },
+      { label: "Analytics", href: hotel("/analytics"), icon: Calculator, minRole: "manager" },
     ],
   },
   {
     title: "System",
     items: [
-      { label: "AI Agents", href: "/hms/agents", icon: Bot },
-      { label: "Finance", href: "/hms/finance", icon: Receipt },
-      { label: "Security", href: "/hms/security", icon: ShieldCheck },
-      { label: "Settings", href: "/hms/settings", icon: Settings },
+      { label: "AI Agents", href: hotel("/agents"), icon: Bot, minRole: "admin" },
+      { label: "Finance", href: hotel("/finance"), icon: Receipt, minRole: "admin" },
+      { label: "Security", href: hotel("/security"), icon: ShieldCheck, minRole: "admin" },
+      { label: "Settings", href: hotel("/settings"), icon: Settings, minRole: "manager" },
     ],
   },
 ];
 
-export const navSections = gestronomyNavSections; // Fallback for backward compatibility
+export function getNavSections(domain: AppDomain): NavSection[] {
+  return domain === "hotel" ? hotelNavSections : gastronomyNavSections;
+}
 
-export const quickActions: QuickAction[] = [
+export const navSections = gastronomyNavSections; // Fallback for backward compatibility
+
+const gastronomyQuickActions: QuickAction[] = [
   {
     label: "New Reservation",
-    href: "/reservations?action=new-reservation",
+    href: gastronomy("/reservations?action=new-reservation"),
     description: "Create or assign a table in seconds",
   },
   {
     label: "Add Waitlist Entry",
-    href: "/reservations?action=new-waitlist",
+    href: gastronomy("/reservations?action=new-waitlist"),
     description: "Add walk-ins instantly and manage estimated wait",
   },
   {
     label: "Create New Order",
-    href: "/orders",
+    href: gastronomy("/orders"),
     description: "Open waiter station to take orders",
   },
   {
     label: "Open Active Orders",
-    href: "/orders",
+    href: gastronomy("/orders"),
     description: "View and manage all active orders",
   },
   {
     label: "Low Stock Review",
-    href: "/inventory?tab=items&filter=low-stock",
+    href: gastronomy("/inventory?tab=items&filter=low-stock"),
     description: "Review low stock and create purchase orders",
     minRole: "manager",
   },
   {
     label: "Create Purchase Order",
-    href: "/inventory?tab=orders&action=new-order",
+    href: gastronomy("/inventory?tab=orders&action=new-order"),
     description: "Open purchase order flow pre-focused on ordering",
     minRole: "manager",
   },
   {
     label: "Guest Recovery",
-    href: "/guests",
+    href: gastronomy("/guests"),
     description: "Find VIP or at-risk guests and trigger offers",
   },
   {
     label: "Kitchen Queue",
-    href: "/kitchen-display",
+    href: gastronomy("/kitchen-display"),
     description: "Monitor kitchen order board and prep status",
   },
   {
     label: "Reports",
-    href: "/reports",
+    href: gastronomy("/reports"),
     description: "Review daily revenue, labor, and food cost trends",
     minRole: "manager",
   },
 ];
+
+const hotelQuickActions: QuickAction[] = [
+  {
+    label: "Open Front Desk",
+    href: hotel("/front-desk"),
+    description: "Check arrivals, departures, and live room state",
+  },
+  {
+    label: "New Hotel Reservation",
+    href: hotel("/reservations"),
+    description: "Create or update a guest booking",
+  },
+  {
+    label: "Housekeeping Board",
+    href: hotel("/housekeeping"),
+    description: "Review rooms in turnover and housekeeping status",
+  },
+  {
+    label: "Rate Manager",
+    href: hotel("/rates"),
+    description: "Adjust room pricing and availability controls",
+    minRole: "manager",
+  },
+  {
+    label: "Channel Review",
+    href: hotel("/channels"),
+    description: "Inspect OTA and channel connectivity",
+    minRole: "manager",
+  },
+  {
+    label: "Security Center",
+    href: hotel("/security"),
+    description: "Review access, audit, and security controls",
+    minRole: "admin",
+  },
+];
+
+export function getQuickActions(domain: AppDomain): QuickAction[] {
+  return domain === "hotel" ? hotelQuickActions : gastronomyQuickActions;
+}
+
+export const quickActions = gastronomyQuickActions;
+
+export { hasRoleAccess };

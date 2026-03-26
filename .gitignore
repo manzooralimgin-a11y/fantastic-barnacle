@@ -26,6 +26,7 @@ out/
 # IDE
 .vscode/
 .idea/
+.codex/
 *.swp
 *.swo
 *~
@@ -37,10 +38,12 @@ docker-compose.override.yml
 # Database
 *.sqlite3
 *.db
+dump.rdb
 
 # Logs
 *.log
 logs/
+.dev/
 
 # Coverage
 htmlcov/

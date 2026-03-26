@@ -37,6 +37,7 @@ from app.menu_designer.models import MenuTemplate, MenuDesign  # noqa: F401
 from app.signage.models import SignageScreen, SignageContent, SignagePlaylist  # noqa: F401
 from app.integrations.models import WebhookEvent, WebhookAudit  # noqa: F401
 from app.hms.models import HotelProperty, Room, RoomType, HotelReservation  # noqa: F401
+from app.email_inbox.models import EmailThread  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

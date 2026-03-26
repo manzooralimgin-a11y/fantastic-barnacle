@@ -1,4 +1,6 @@
-import api from "./api";
+import { useAuthStore } from "@/stores/auth-store";
+import { buildLoginPath } from "@/lib/domain-config";
+import { getJson, postJson } from "./api";
 
 export interface LoginCredentials {
   email: string;
@@ -28,27 +30,35 @@ export interface User {
   updated_at: string;
 }
 
+function persistTokens(tokens: TokenResponse) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  localStorage.setItem("access_token", tokens.access_token);
+  localStorage.setItem("refresh_token", tokens.refresh_token);
+}
+
 export async function login(credentials: LoginCredentials): Promise<TokenResponse> {
-  const { data } = await api.post<TokenResponse>("/auth/login", credentials, {
+  const data = await postJson<TokenResponse>("/auth/login", credentials, {
     headers: { "Content-Type": "application/json" }
   });
-  localStorage.setItem("access_token", data.access_token);
-  localStorage.setItem("refresh_token", data.refresh_token);
+  persistTokens(data);
   return data;
 }
 
 export async function register(userData: RegisterData): Promise<User> {
-  const { data } = await api.post<User>("/auth/register", userData);
-  return data;
+  return postJson<User>("/auth/register", userData);
 }
 
 export async function getMe(): Promise<User> {
-  const { data } = await api.get<User>("/auth/me");
-  return data;
+  return getJson<User>("/auth/me");
 }
 
 export function logout() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  window.location.href = "/login";
+  const activeDomain = useAuthStore.getState().activeDomain;
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = buildLoginPath(activeDomain);
+  }
 }

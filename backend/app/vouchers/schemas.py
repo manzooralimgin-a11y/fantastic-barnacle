@@ -54,7 +54,6 @@ class VoucherRedemptionRead(BaseModel):
     id: int
     voucher_id: int
     order_id: int | None
-    guest_id: int | None
     discount_applied: float = Field(ge=0)
     redeemed_at: datetime
 

@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Node Dev Server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 5000,
+      "autoPort": true
+    },
+    {
+      "name": "Docker Production (Nginx)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["run", "--rm", "-p", "3000:3000", "das-elb-hotel"],
+      "port": 3000
+    }
+  ]
+}

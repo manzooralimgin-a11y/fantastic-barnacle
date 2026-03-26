@@ -28,10 +28,16 @@ RESTAURANT = {
 }
 
 ADMIN = {
-    "email": "admin@gestronomy.app",
-    "password": "Admin1234!",
-    "full_name": "Gestronomy Admin",
+    "email": os.environ.get("LOCAL_ADMIN_EMAIL", "local-admin@gestronomy.app"),
+    "password": os.environ.get("LOCAL_ADMIN_PASSWORD", "LocalAdmin1234!"),
+    "full_name": os.environ.get("LOCAL_ADMIN_FULL_NAME", "Local Validation Admin"),
     "role": UserRole.admin,
+}
+FORCE_PASSWORD_RESET = os.environ.get("LOCAL_ADMIN_FORCE_PASSWORD_RESET", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
 }
 
 
@@ -61,7 +67,15 @@ async def seed() -> None:
             db.add(user)
             print(f"Created admin user: {user.email}")
         else:
-            print(f"Admin user already exists: {user.email}")
+            user.full_name = ADMIN["full_name"]
+            user.role = ADMIN["role"]
+            user.restaurant_id = restaurant.id
+            user.is_active = True
+            if FORCE_PASSWORD_RESET:
+                user.password_hash = hash_password(ADMIN["password"])
+                print(f"Reset admin user credentials: {user.email}")
+            else:
+                print(f"Admin user already exists, preserving password: {user.email}")
 
         await db.commit()
         print("Seed complete.")

@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Das ELB Mobile",
+    "slug": "das-elb-mobile",
+    "scheme": "daselb",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Das ELB Mobile to scan table QR codes for guest ordering.",
+          "barcodeScannerEnabled": true
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.daselb.mobile"
+    },
+    "android": {
+      "package": "com.daselb.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#07121a"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Restaurant, User, UserRole
@@ -15,7 +15,7 @@ from app.shared.audit import emit_sensitive_audit
 
 
 async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
-    result = await db.execute(select(User).where(User.email == payload.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == payload.email))
     if result.scalar_one_or_none() is not None:
         emit_sensitive_audit(
             action="auth_register",
@@ -71,7 +71,7 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
 
 
 async def authenticate_user(db: AsyncSession, payload: LoginRequest) -> TokenResponse:
-    result = await db.execute(select(User).where(User.email == payload.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == payload.email))
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(payload.password, user.password_hash):
@@ -145,7 +145,7 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
+            detail="Invalid or expired refresh token",
         )
 
     if not user.is_active:

@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -246,7 +246,10 @@ async def send_receipt_endpoint(
 
 
 @public_router.get("/receipt/{token}")
-async def public_receipt(token: str, db: AsyncSession = Depends(get_db)):
+async def public_receipt(
+    token: str = Path(min_length=8, max_length=255),
+    db: AsyncSession = Depends(get_db),
+):
     """Public receipt view (no auth required)."""
     return await get_receipt_by_token(db, token)
 

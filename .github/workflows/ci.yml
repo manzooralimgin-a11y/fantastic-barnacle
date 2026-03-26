@@ -1,0 +1,328 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-lint-unit:
+    name: Backend Lint + Unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+
+      - name: Lint backend
+        run: ruff check backend/app backend/scripts backend/tests
+
+      - name: Backend unit tests
+        env:
+          SECRET_KEY: ci-secret-key-ci-secret-key-ci-secret-key
+        run: |
+          python -m pytest -q \
+            backend/tests/test_auth/test_jwt_utils.py \
+            backend/tests/test_config.py
+
+      - name: Compile backend modules
+        run: python -m compileall backend/app backend/scripts
+
+  backend-integration:
+    name: Backend Integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: gestronomy_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/gestronomy_ci
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/0
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/0
+      SECRET_KEY: ci-secret-key-ci-secret-key-ci-secret-key
+      APP_ENV: test
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+
+      - name: Run integration tests
+        run: |
+          python -m pytest -q \
+            backend/tests/test_health_smoke.py \
+            backend/tests/test_auth/test_auth_api.py \
+            backend/tests/test_reservations/test_reservation_api.py \
+            backend/tests/test_inventory/test_inventory_api.py \
+            backend/tests/test_public_security_hardening.py \
+            backend/tests/test_qr_mobile_api.py \
+            backend/tests/test_tenant_isolation_api.py \
+            backend/tests/test_vouchers/test_voucher_api.py
+
+  migration-check:
+    name: Migration Check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: gestronomy_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/gestronomy_ci
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/0
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/0
+      SECRET_KEY: ci-secret-key-ci-secret-key-ci-secret-key
+      APP_ENV: test
+      DEBUG: "false"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+
+      - name: Apply Alembic migrations
+        working-directory: backend
+        run: |
+          alembic upgrade head
+          alembic current
+
+      - name: Post-migration smoke test
+        run: python -m pytest -q backend/tests/test_health_smoke.py
+
+  frontend-saas:
+    name: SaaS Lint + Test + Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install SaaS dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint SaaS
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Typecheck SaaS
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Test SaaS
+        working-directory: frontend
+        run: npm test
+
+      - name: Build SaaS
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:8000
+          NEXT_PUBLIC_SAAS_BASE_URL: https://saas.example.com
+        run: npm run build
+
+  landing-page:
+    name: Landing Page Build + Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: das-elb-hotel/package-lock.json
+
+      - name: Install landing dependencies
+        working-directory: das-elb-hotel
+        run: npm ci
+
+      - name: Lint landing site
+        working-directory: das-elb-hotel
+        run: npm run lint
+
+      - name: Build landing site
+        working-directory: das-elb-hotel
+        run: npm run build
+
+      - name: Test landing site
+        working-directory: das-elb-hotel
+        run: npm test
+
+  restaurant-guest-web:
+    name: Restaurant Guest Web Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build restaurant guest web app
+        working-directory: das-elb-rest
+        run: npm run check
+
+  mobile:
+    name: Mobile Test + Typecheck + Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install mobile dependencies
+        working-directory: das-elb-mobile
+        run: npm install
+
+      - name: Test mobile app
+        working-directory: das-elb-mobile
+        run: npm test
+
+      - name: Typecheck mobile app
+        working-directory: das-elb-mobile
+        run: npm run typecheck
+
+      - name: Build mobile web export
+        working-directory: das-elb-mobile
+        env:
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_PUBLIC_API_BASE_URL: https://api.example.com/api
+        run: npm run build:ci
+
+  docker-builds:
+    name: Docker Build Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build backend image
+        run: docker build -f backend/Dockerfile backend
+
+      - name: Build SaaS image
+        run: docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -f frontend/Dockerfile frontend
+
+      - name: Build landing image
+        run: docker build -f das-elb-hotel/Dockerfile das-elb-hotel
+
+      - name: Build restaurant guest image
+        run: docker build --build-arg VITE_API_URL=https://api.example.com -f das-elb-rest/Dockerfile das-elb-rest
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]" pip-audit
+          pip-audit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            das-elb-hotel/package-lock.json
+
+      - name: Audit SaaS production dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+
+      - name: Audit landing production dependencies
+        working-directory: das-elb-hotel
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+
+      - name: Audit mobile production dependencies
+        working-directory: das-elb-mobile
+        run: |
+          npm install
+          npm audit --omit=dev --audit-level=high

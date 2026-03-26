@@ -1,12 +1,12 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, X, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { normalizeDomain } from "@/lib/domain-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { useUIStore } from "@/stores/ui-store";
-import { hasRoleAccess, gestronomyNavSections, managementNavSections } from "@/lib/navigation";
+import { hasRoleAccess, gastronomyNavSections, hotelNavSections } from "@/lib/navigation";
 import { getDefaultDashboardRoute } from "@/lib/role-routing";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -21,10 +21,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const userRole = useAuthStore((s) => s.user?.role);
   const userName = useAuthStore((s) => s.user?.full_name);
   const activeSection = useAuthStore((s) => s.activeSection);
+  const setActiveSection = useAuthStore((s) => s.setActiveSection);
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
-  const sections = activeSection === "management" ? managementNavSections : gestronomyNavSections;
+  const sections = activeSection === "management" ? hotelNavSections : gastronomyNavSections;
 
   const initials = userName
     ?.split(" ")
@@ -95,10 +96,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           {/* SECTION SWITCHER IN SIDEBAR */}
           {!collapsed && (
             <div className="flex p-0.5 bg-white/5 rounded-md border border-white/10 mt-2">
-               <button 
+              <button 
                 onClick={() => {
-                   useAuthStore.getState().setActiveSection("gestronomy");
-                   router.push(getDefaultDashboardRoute(userRole, "gestronomy"));
+                   setActiveSection("gestronomy");
+                   router.push(getDefaultDashboardRoute(userRole, normalizeDomain("gestronomy")));
                 }}
                 className={cn(
                   "px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded transition-all",
@@ -109,8 +110,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               </button>
               <button 
                 onClick={() => {
-                   useAuthStore.getState().setActiveSection("management");
-                   router.push(getDefaultDashboardRoute(userRole, "management"));
+                   setActiveSection("management");
+                   router.push(getDefaultDashboardRoute(userRole, normalizeDomain("management")));
                 }}
                 className={cn(
                   "px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded transition-all",

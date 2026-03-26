@@ -86,6 +86,24 @@ services:
       - backend
     command: npm run start
 
+  das-elb-rest:
+    build:
+      context: ./das-elb-rest
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3002:3000"
+    environment:
+      VITE_API_URL: ${DAS_ELB_REST_API_URL:-http://localhost:8000}
+    depends_on:
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   pgdata:
   redisdata:

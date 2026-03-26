@@ -2,6 +2,9 @@
   "name": "das-elb-rest",
   "private": true,
   "scripts": {
-    "build": "mkdir -p dist && cp -r public/* dist/"
+    "check": "npm run build",
+    "build": "node ./scripts/build.mjs",
+    "serve": "python3 -m http.server 3002 --bind 0.0.0.0 -d dist",
+    "dev": "npm run build && npm run serve"
   }
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getMe, login } from "@/lib/auth";
+import { normalizeDomain } from "@/lib/domain-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { getDefaultDashboardRoute } from "@/lib/role-routing";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -30,7 +31,7 @@ export default function LoginPage() {
       useAuthStore.getState().setToken(tokenResponse.access_token);
       const user = await getMe();
       useAuthStore.getState().setUser(user);
-      router.push(getDefaultDashboardRoute(user.role, activeSection));
+      router.push(getDefaultDashboardRoute(user.role, normalizeDomain(activeSection)));
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string | Array<{ msg: string }> }; status?: number }; code?: string };
       if (!axiosErr.response) {

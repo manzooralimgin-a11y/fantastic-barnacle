@@ -9,6 +9,8 @@ from app.database import get_db
 from app.config import settings
 from app.integrations.schemas import VoiceBookerEvent, WebhookResponse
 from app.integrations.service import verify_signature, store_webhook_event
+from app.observability.logging import log_event
+from app.observability.metrics import api_metrics
 
 logger = logging.getLogger("integrations")
 
@@ -19,8 +21,8 @@ router = APIRouter(prefix="/webhooks", tags=["integrations"])
 async def receive_voicebooker_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
-    x_vb_signature: str = Header(None, alias="X-VB-Signature"),
-    x_vb_timestamp: str = Header(None, alias="X-VB-Timestamp"),
+    x_vb_signature: str | None = Header(None, alias="X-VB-Signature"),
+    x_vb_timestamp: str | None = Header(None, alias="X-VB-Timestamp"),
     db: AsyncSession = Depends(get_db),
 ):
     raw_body = await request.body()
@@ -37,6 +39,8 @@ async def receive_voicebooker_webhook(
         raise HTTPException(status_code=401, detail="Invalid timestamp format")
 
     # 2. Verify Signature
+    if not x_vb_signature:
+        raise HTTPException(status_code=401, detail="Missing X-VB-Signature header")
     if not verify_signature(raw_body, x_vb_signature, x_vb_timestamp, settings.voicebooker_secret):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
@@ -69,5 +73,13 @@ async def receive_voicebooker_webhook(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error("VoiceBooker webhook failure: %s", e, exc_info=True)
+        await api_metrics.record_business_event("integration.webhook.failure")
+        log_event(
+            logger,
+            logging.ERROR,
+            "voicebooker_webhook_failure",
+            error=str(e),
+            event_id=evt.event_id if "evt" in locals() else None,
+            path="/webhooks/voicebooker",
+        )
         raise HTTPException(status_code=500, detail="Internal processing error")

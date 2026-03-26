@@ -1,6 +1,7 @@
 import secrets
 from datetime import datetime, timezone
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,10 +11,42 @@ from app.billing.models import TableOrder, OrderItem
 from app.websockets.connection_manager import manager
 
 
+async def _get_active_table_context_by_code(db: AsyncSession, code: str):
+    result = await db.execute(
+        select(QRTableCode).where(QRTableCode.code == code, QRTableCode.is_active == True)
+    )
+    qr = result.scalar_one_or_none()
+    if not qr:
+        return None, None, None
+
+    table_result = await db.execute(select(Table).where(Table.id == qr.table_id))
+    table = table_result.scalar_one_or_none()
+    if not table:
+        return qr, None, None
+
+    section_result = await db.execute(select(FloorSection).where(FloorSection.id == table.section_id))
+    section = section_result.scalar_one_or_none()
+    return qr, table, section
+
+
 async def generate_qr_code(db: AsyncSession, table_id: int) -> QRTableCode:
     """Generate a unique QR code for a table."""
+    table_result = await db.execute(select(Table).where(Table.id == table_id))
+    table = table_result.scalar_one_or_none()
+    if not table:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found")
+    if table.restaurant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Table is missing restaurant scope",
+        )
     code = secrets.token_urlsafe(16)
-    qr = QRTableCode(table_id=table_id, code=code, is_active=True)
+    qr = QRTableCode(
+        table_id=table_id,
+        restaurant_id=table.restaurant_id,
+        code=code,
+        is_active=True,
+    )
     db.add(qr)
     await db.flush()
     await db.refresh(qr)
@@ -29,26 +62,13 @@ async def get_qr_codes_for_table(db: AsyncSession, table_id: int) -> list[QRTabl
 
 async def get_table_by_code(db: AsyncSession, code: str):
     """Get table info by QR code (public endpoint)."""
-    result = await db.execute(
-        select(QRTableCode).where(QRTableCode.code == code, QRTableCode.is_active == True)
-    )
-    qr = result.scalar_one_or_none()
-    if not qr:
-        return None
-
-    # Update scan count
-    qr.scan_count += 1
-    qr.last_scanned_at = datetime.now(timezone.utc)
-    await db.flush()
-
-    # Get table + section
-    table_result = await db.execute(select(Table).where(Table.id == qr.table_id))
-    table = table_result.scalar_one_or_none()
+    qr, table, section = await _get_active_table_context_by_code(db, code)
     if not table:
         return None
 
-    section_result = await db.execute(select(FloorSection).where(FloorSection.id == table.section_id))
-    section = section_result.scalar_one_or_none()
+    qr.scan_count += 1
+    qr.last_scanned_at = datetime.now(timezone.utc)
+    await db.flush()
 
     return {
         "table_number": table.table_number,
@@ -57,16 +77,18 @@ async def get_table_by_code(db: AsyncSession, code: str):
     }
 
 
-async def get_public_menu(db: AsyncSession):
+async def get_public_menu(db: AsyncSession, restaurant_id: int | None = None):
     """Get full menu organized by category (public endpoint)."""
-    cat_result = await db.execute(
-        select(MenuCategory).where(MenuCategory.is_active == True).order_by(MenuCategory.sort_order)
-    )
+    cat_query = select(MenuCategory).where(MenuCategory.is_active == True).order_by(MenuCategory.sort_order)
+    if restaurant_id is not None:
+        cat_query = cat_query.where(MenuCategory.restaurant_id == restaurant_id)
+    cat_result = await db.execute(cat_query)
     categories = list(cat_result.scalars().all())
 
-    item_result = await db.execute(
-        select(MenuItem).where(MenuItem.is_available == True).order_by(MenuItem.sort_order)
-    )
+    item_query = select(MenuItem).where(MenuItem.is_available == True).order_by(MenuItem.sort_order)
+    if restaurant_id is not None:
+        item_query = item_query.where(MenuItem.restaurant_id == restaurant_id)
+    item_result = await db.execute(item_query)
     items = list(item_result.scalars().all())
 
     cat_map = {}
@@ -103,26 +125,33 @@ async def get_public_menu(db: AsyncSession):
     return [v for v in cat_map.values() if v["items"]]
 
 
+async def get_public_menu_for_code(db: AsyncSession, code: str):
+    _qr, table, _section = await _get_active_table_context_by_code(db, code)
+    if not table or table.restaurant_id is None:
+        return None
+    return await get_public_menu(db, restaurant_id=table.restaurant_id)
+
+
 async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, items: list, notes: str | None):
     """Submit an order from QR code — creates TableOrder + OrderItems."""
-    # Validate QR code
-    qr_result = await db.execute(
-        select(QRTableCode).where(QRTableCode.code == table_code, QRTableCode.is_active == True)
-    )
-    qr = qr_result.scalar_one_or_none()
-    if not qr:
-        return None
-
-    # Get table
-    table_result = await db.execute(select(Table).where(Table.id == qr.table_id))
-    table = table_result.scalar_one_or_none()
+    qr, table, _section = await _get_active_table_context_by_code(db, table_code)
     if not table:
+        return None
+    if table.restaurant_id is None:
         return None
 
     # Fetch menu items to calculate total
     item_ids = [i["menu_item_id"] for i in items]
-    menu_result = await db.execute(select(MenuItem).where(MenuItem.id.in_(item_ids)))
+    menu_result = await db.execute(
+        select(MenuItem).where(
+            MenuItem.id.in_(item_ids),
+            MenuItem.restaurant_id == table.restaurant_id,
+            MenuItem.is_available == True,
+        )
+    )
     menu_items = {mi.id: mi for mi in menu_result.scalars().all()}
+    if len(menu_items) != len(set(item_ids)):
+        return None
 
     total = 0.0
     for item in items:
@@ -132,9 +161,15 @@ async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, it
 
     # Create TableOrder
     order = TableOrder(
+        restaurant_id=table.restaurant_id,
         table_id=qr.table_id,
+        order_type="dine_in",
         status="pending",
         guest_name=guest_name,
+        notes=notes,
+        subtotal=total,
+        tax_amount=0,
+        total=total,
     )
     db.add(order)
     await db.flush()
@@ -144,11 +179,15 @@ async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, it
         mi = menu_items.get(item["menu_item_id"])
         if not mi:
             continue
+        quantity = item.get("quantity", 1)
         oi = OrderItem(
+            restaurant_id=table.restaurant_id,
             order_id=order.id,
             menu_item_id=item["menu_item_id"],
-            quantity=item.get("quantity", 1),
+            item_name=mi.name,
+            quantity=quantity,
             unit_price=float(mi.price),
+            total_price=float(mi.price) * quantity,
             notes=item.get("notes"),
             status="pending",
         )

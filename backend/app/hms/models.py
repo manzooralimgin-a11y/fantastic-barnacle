@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, String, Float
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -39,19 +39,27 @@ class Room(Base):
 
 class HotelReservation(Base):
     __tablename__ = "hms_reservations"
+    __table_args__ = (
+        Index("ix_hms_reservations_booking_id", "booking_id", unique=True),
+    )
 
     property_id: Mapped[int] = mapped_column(Integer, ForeignKey("hms_properties.id", ondelete="CASCADE"), nullable=False)
     guest_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("guest_profiles.id", ondelete="SET NULL"), nullable=True)
     guest_name: Mapped[str] = mapped_column(String(255), nullable=False)
     guest_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    guest_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     check_in: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     check_out: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(20), default="confirmed", nullable=False)
     total_amount: Mapped[float] = mapped_column(Float, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="EUR", nullable=False)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    payment_status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
-    booking_id: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    room_type_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("hms_room_types.id", ondelete="SET NULL"), nullable=True
+    )
+    payment_status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    booking_id: Mapped[str] = mapped_column(String(50), default="", nullable=False)
     anrede: Mapped[str | None] = mapped_column(String(20), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     room: Mapped[str | None] = mapped_column(String(20), nullable=True)

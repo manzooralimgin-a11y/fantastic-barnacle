@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.auth.models import UserRole
 
@@ -8,14 +8,28 @@ from app.auth.models import UserRole
 # ── Auth request / response ──────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     email: EmailStr
     password: str = Field(min_length=12, max_length=128)
-    full_name: str
+    full_name: str = Field(min_length=2, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).lower()
 
 
 class LoginRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).lower()
 
 
 class TokenResponse(BaseModel):
@@ -25,7 +39,9 @@ class TokenResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    refresh_token: str = Field(min_length=16, max_length=4096)
 
 
 # ── User ─────────────────────────────────────────────────────────────

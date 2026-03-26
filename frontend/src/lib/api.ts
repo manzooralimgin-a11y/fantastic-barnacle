@@ -5,15 +5,22 @@ import { useAuthStore } from "@/stores/auth-store";
  * Resolve API base URL with runtime override support.
  * Priority: localStorage override > build-time env > relative path (Replit/dev).
  */
-function getApiBaseUrl(): string {
-  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+export function getApiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  if (typeof window !== "undefined" && env.NODE_ENV === "development") {
     const override = localStorage.getItem("gestronomy_api_url");
     if (override) return override.replace(/\/+$/, "") + "/api";
   }
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return `${process.env.NEXT_PUBLIC_API_URL}/api`;
+  if (env.NEXT_PUBLIC_API_URL) {
+    return `${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "")}/api`;
   }
   return "/api";
+}
+
+export interface ApiClientLike {
+  get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<{ data: T }>;
+  post<T = unknown>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<{ data: T }>;
+  put<T = unknown>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<{ data: T }>;
+  delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<{ data: T }>;
 }
 
 const api = axios.create({
@@ -23,11 +30,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  const token =
+    useAuthStore.getState().token ||
+    (typeof window !== "undefined" ? localStorage.getItem("access_token") : null);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -74,5 +81,43 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export async function getJson<T>(
+  url: string,
+  config?: AxiosRequestConfig,
+  client: ApiClientLike = api,
+): Promise<T> {
+  const response = await client.get<T>(url, config);
+  return response.data;
+}
+
+export async function postJson<T>(
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+  client: ApiClientLike = api,
+): Promise<T> {
+  const response = await client.post<T>(url, body, config);
+  return response.data;
+}
+
+export async function putJson<T>(
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+  client: ApiClientLike = api,
+): Promise<T> {
+  const response = await client.put<T>(url, body, config);
+  return response.data;
+}
+
+export async function deleteJson<T>(
+  url: string,
+  config?: AxiosRequestConfig,
+  client: ApiClientLike = api,
+): Promise<T> {
+  const response = await client.delete<T>(url, config);
+  return response.data;
+}
 
 export default api;

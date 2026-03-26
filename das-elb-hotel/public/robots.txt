@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /_next/
+Disallow: /404
+
+Sitemap: https://www.das-elb-hotel.com/sitemap.xml

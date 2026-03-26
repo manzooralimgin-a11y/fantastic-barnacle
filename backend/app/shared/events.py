@@ -12,7 +12,14 @@ _redis: aioredis.Redis | None = None
 async def get_redis() -> aioredis.Redis:
     global _redis
     if _redis is None:
-        _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+        timeout_seconds = max(settings.redis_operation_timeout_ms, 1) / 1000.0
+        _redis = aioredis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_timeout=timeout_seconds,
+            socket_connect_timeout=timeout_seconds,
+            retry_on_timeout=False,
+        )
     return _redis
 
 

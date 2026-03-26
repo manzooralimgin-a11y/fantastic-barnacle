@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+import time as time_module
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -15,17 +16,93 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import Restaurant, UserRole
 from app.billing.models import TableOrder
 from app.database import engine
-from app.dependencies import get_current_tenant_user
+from app.dependencies import get_current_tenant_user, get_optional_current_tenant_user
+from app.email_inbox.models import EmailThread
 from app.guests.models import GuestProfile
 from app.inventory.models import InventoryItem, Vendor
 from app.main import app
 from app.menu.models import MenuCategory, MenuItem
 from app.reservations.models import FloorSection, Reservation, Table
+from app.security import rate_limit
+from app.security.rate_limit import reset_rate_limit_counters
 
 
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def isolate_rate_limit_counters() -> AsyncGenerator[None, None]:
+    await reset_rate_limit_counters()
+    try:
+        yield
+    finally:
+        await reset_rate_limit_counters()
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def ensure_test_schema_compatibility() -> AsyncGenerator[None, None]:
+    """Keep the shared test database aligned with the current voucher model.
+
+    The backend tests run against a reusable local database in this workspace, so
+    they may encounter a schema that predates the latest idempotent Alembic head.
+    Apply the last safe voucher compatibility columns up front so the suite can
+    exercise the current code without mutating feature logic.
+    """
+
+    async with engine.begin() as connection:
+        await connection.exec_driver_sql(
+            "ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS is_gift_card BOOLEAN NOT NULL DEFAULT FALSE"
+        )
+        await connection.exec_driver_sql(
+            "ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS purchaser_name VARCHAR(255)"
+        )
+        await connection.exec_driver_sql(
+            """
+            CREATE TABLE IF NOT EXISTS email_threads (
+                id SERIAL PRIMARY KEY,
+                external_email_id VARCHAR(255) NOT NULL UNIQUE,
+                sender VARCHAR(255) NOT NULL,
+                subject VARCHAR(500),
+                body TEXT NOT NULL,
+                received_at TIMESTAMPTZ NOT NULL,
+                raw_email JSON NOT NULL,
+                category VARCHAR(20) NOT NULL DEFAULT 'pending',
+                classification_confidence DOUBLE PRECISION,
+                extracted_data JSON,
+                summary VARCHAR(500),
+                reply_generated BOOLEAN NOT NULL DEFAULT FALSE,
+                reply_sent BOOLEAN NOT NULL DEFAULT FALSE,
+                reply_content TEXT,
+                reply_generated_at TIMESTAMPTZ,
+                reply_sent_at TIMESTAMPTZ,
+                replied_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                reply_mode VARCHAR(20) NOT NULL DEFAULT 'generate_only',
+                processing_error TEXT,
+                reply_error TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        await connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_email_threads_received_at ON email_threads (received_at)"
+        )
+        await connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_email_threads_category ON email_threads (category)"
+        )
+        await connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_email_threads_status ON email_threads (status)"
+        )
+        await connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_email_threads_category_status ON email_threads (category, status)"
+        )
+        await connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_email_threads_reply_sent ON email_threads (reply_sent)"
+        )
+    yield
 
 
 @pytest_asyncio.fixture
@@ -67,14 +144,102 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     from app.database import get_db
 
+    async def failing_redis():
+        raise RuntimeError("redis disabled in tests")
+
+    original_get_redis = rate_limit.get_redis
+    rate_limit.get_redis = failing_redis
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_tenant_user] = override_get_current_tenant
+    app.dependency_overrides[get_optional_current_tenant_user] = override_get_current_tenant
+    await reset_rate_limit_counters()
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client
 
+    await reset_rate_limit_counters()
+    rate_limit.get_redis = original_get_redis
     app.dependency_overrides.clear()
+
+
+class InMemoryRedis:
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+        self.expiries: dict[str, float] = {}
+
+    def _purge_expired(self, key: str) -> None:
+        expires_at = self.expiries.get(key)
+        if expires_at is not None and expires_at <= time_module.monotonic():
+            self.values.pop(key, None)
+            self.expiries.pop(key, None)
+
+    async def get(self, key: str) -> str | None:
+        self._purge_expired(key)
+        return self.values.get(key)
+
+    async def set(
+        self,
+        key: str,
+        value: str,
+        ex: int | None = None,
+        nx: bool | None = None,
+    ) -> bool:
+        self._purge_expired(key)
+        if nx and key in self.values:
+            return False
+        self.values[key] = value
+        if ex is not None:
+            self.expiries[key] = time_module.monotonic() + ex
+        else:
+            self.expiries.pop(key, None)
+        return True
+
+    async def incr(self, key: str) -> int:
+        current = int(await self.get(key) or "0") + 1
+        self.values[key] = str(current)
+        return current
+
+    async def expire(self, key: str, seconds: int) -> bool:
+        self.expiries[key] = time_module.monotonic() + seconds
+        return True
+
+    async def ttl(self, key: str) -> int:
+        self._purge_expired(key)
+        expires_at = self.expiries.get(key)
+        if expires_at is None:
+            return -1
+        return max(int(expires_at - time_module.monotonic()), 0)
+
+    async def mget(self, keys: list[str]) -> list[str | None]:
+        return [await self.get(key) for key in keys]
+
+    async def delete(self, *keys: str) -> int:
+        deleted = 0
+        for key in keys:
+            existed = key in self.values
+            self.values.pop(key, None)
+            self.expiries.pop(key, None)
+            deleted += int(existed)
+        return deleted
+
+    async def scan_iter(self, match: str):
+        prefix = match[:-1] if match.endswith("*") else match
+        for key in list(self.values.keys()):
+            self._purge_expired(key)
+            if key.startswith(prefix):
+                yield key
+
+    async def ping(self) -> bool:
+        return True
+
+    async def publish(self, channel: str, data: str) -> int:
+        return 1
+
+
+@pytest.fixture
+def fake_shared_redis_backend() -> InMemoryRedis:
+    return InMemoryRedis()
 
 
 @dataclass

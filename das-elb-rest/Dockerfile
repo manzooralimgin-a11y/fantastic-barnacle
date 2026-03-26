@@ -1,34 +1,22 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN if [ -f package-lock.json ]; then npm ci; else npm install --no-package-lock; fi
 
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Accept API URL at build time for Vite
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
-
 RUN npm run build
 
 FROM nginx:alpine AS runner
 WORKDIR /usr/share/nginx/html
 
-# Copy the statically built Vite files (default: dist)
 COPY --from=builder /app/dist ./
-
-# Add basic Nginx config for port 3000
-RUN echo 'server { \
-    listen 3000; \
-    location / { \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    try_files $uri $uri/ /index.html; \
-    } \
-    }' > /etc/nginx/conf.d/default.conf
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.d/40-das-elb-rest-config.sh /docker-entrypoint.d/40-das-elb-rest-config.sh
+RUN chmod +x /docker-entrypoint.d/40-das-elb-rest-config.sh
 
 EXPOSE 3000
 ENV PORT=3000

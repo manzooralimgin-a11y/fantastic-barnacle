@@ -41,7 +41,7 @@
   </head>
   <body>
     <header>
-      <div class="pill">Live API: <span id="api-url">https://gestronomy-api.onrender.com</span></div>
+      <div class="pill">Live API: <span id="api-url">Detecting...</span></div>
       <h1>DAS ELB Restaurant</h1>
       <p>Browse the live menu, identify the table via QR/table code, and send orders straight into the kitchen and table management flow.</p>
     </header>
@@ -77,14 +77,25 @@
         <div class="status" id="order-status"></div>
       </aside>
     </main>
+    <script src="/config.js"></script>
     <script>
-      const API_BASE = "https://gestronomy-api.onrender.com";
+      function inferApiRoot() {
+        const { hostname, origin, protocol } = window.location;
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+          return `${protocol}//${hostname}:8000/api`;
+        }
+        return `${origin}/api`;
+      }
+
+      const runtimeConfig = window.__DAS_ELB_REST_CONFIG__ || {};
+      const API_BASE = String(runtimeConfig.API_BASE_URL || inferApiRoot()).replace(/\/$/, "");
       const state = { menu: [], cart: [] };
       const menuRoot = document.getElementById("menu");
       const cartRoot = document.getElementById("cart-items");
       const cartTotal = document.getElementById("cart-total");
       const tableInfo = document.getElementById("table-info");
       const orderStatus = document.getElementById("order-status");
+      document.getElementById("api-url").textContent = API_BASE;
 
       function renderCart() {
         if (!state.cart.length) {
@@ -151,7 +162,7 @@
       };
 
       async function loadMenu() {
-        const response = await fetch(`${API_BASE}/api/public/restaurant/menu`);
+        const response = await fetch(`${API_BASE}/public/restaurant/menu`);
         if (!response.ok) throw new Error("Menu unavailable");
         const data = await response.json();
         state.menu = data.categories || [];
@@ -165,7 +176,7 @@
           tableInfo.textContent = 'Please enter a table code first.';
           return;
         }
-        const response = await fetch(`${API_BASE}/api/public/restaurant/table/${encodeURIComponent(code)}`);
+        const response = await fetch(`${API_BASE}/public/restaurant/table/${encodeURIComponent(code)}`);
         if (!response.ok) {
           tableInfo.textContent = 'Table lookup failed. Check the code and try again.';
           return;
@@ -183,7 +194,7 @@
           orderStatus.textContent = 'Load a table and add at least one item first.';
           return;
         }
-        const response = await fetch(`${API_BASE}/api/public/restaurant/order`, {
+        const response = await fetch(`${API_BASE}/public/restaurant/order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -6,10 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.config import settings
+from app.reservations.cache import (
+    discard_pending_availability_invalidations,
+    flush_pending_availability_invalidations,
+)
 
 engine = create_async_engine(
     settings.database_url,
-    echo=False,
+    echo=settings.sql_echo,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
@@ -18,6 +22,7 @@ engine = create_async_engine(
 )
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+_SKIP_AUTO_COMMIT_KEY = "skip_auto_commit"
 
 
 class Base(DeclarativeBase):
@@ -33,10 +38,25 @@ class Base(DeclarativeBase):
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    from app.reservations.consistency import (
+        discard_pending_consistency_checks,
+        flush_pending_consistency_checks,
+    )
+
     async with async_session() as session:
         try:
             yield session
+            if session.info.pop(_SKIP_AUTO_COMMIT_KEY, False):
+                return
             await session.commit()
+            await flush_pending_availability_invalidations(session)
+            await flush_pending_consistency_checks(session)
         except Exception:
             await session.rollback()
+            discard_pending_availability_invalidations(session)
+            discard_pending_consistency_checks(session)
             raise
+
+
+def mark_session_commit_managed(session: AsyncSession) -> None:
+    session.info[_SKIP_AUTO_COMMIT_KEY] = True

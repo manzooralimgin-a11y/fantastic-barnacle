@@ -1,19 +1,41 @@
-export type UserRole = "admin" | "manager" | "staff";
+import { canAccessPath, normalizeRole, type AppRole } from "@/lib/access-control";
+import {
+  buildDomainPath,
+  getDefaultDomain,
+  normalizeDomain,
+  resolveDomainFromPath,
+  type AppDomain,
+} from "@/lib/domain-config";
 
-export function getDefaultDashboardRoute(role: string | undefined, section: "gestronomy" | "management" = "gestronomy"): string {
-  const userRole = (role || "staff") as UserRole;
-  
-  if (section === "management") {
-    switch (userRole) {
-      case "admin":
-      case "manager":
-        return "/hms/dashboard";
-      case "staff":
-      default:
-        return "/hms/dashboard";
-    }
+export type UserRole = AppRole;
+
+export function getDefaultDashboardRoute(
+  role: string | undefined,
+  domain: AppDomain = getDefaultDomain(),
+): string {
+  const userRole = normalizeRole(role);
+
+  if (normalizeDomain(domain) === "hotel") {
+    return userRole === "staff"
+      ? buildDomainPath("hotel", "/front-desk")
+      : buildDomainPath("hotel", "/dashboard");
   }
 
-  // DEFAULT: Gestronomy (Restaurant) — always land on the main dashboard
-  return "/";
+  return buildDomainPath("gastronomy", "/");
+}
+
+export function resolveAuthorizedRoute(
+  pathname: string | null | undefined,
+  role: string | undefined,
+  fallbackDomain: AppDomain = getDefaultDomain(),
+): string {
+  if (!pathname) {
+    return getDefaultDashboardRoute(role, fallbackDomain);
+  }
+
+  if (canAccessPath(pathname, role)) {
+    return pathname;
+  }
+
+  return getDefaultDashboardRoute(role, resolveDomainFromPath(pathname) || fallbackDomain);
 }

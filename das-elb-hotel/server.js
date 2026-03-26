@@ -3,8 +3,12 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 const PUBLIC_DIR = path.join(__dirname, "public");
+const API_BASE_URL = process.env.PUBLIC_API_BASE_URL || "http://localhost:8000/api";
+const HOTEL_PROPERTY_ID = parseInt(process.env.PUBLIC_HOTEL_PROPERTY_ID || "546", 10) || 546;
+const RESTAURANT_ID = parseInt(process.env.PUBLIC_RESTAURANT_ID || "4240", 10) || 4240;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -23,6 +27,8 @@ const MIME_TYPES = {
   ".woff": "font/woff",
   ".woff2": "font/woff2",
   ".ttf": "font/ttf",
+  ".xml": "application/xml; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
 };
 
 const COMPRESSIBLE = new Set([
@@ -69,6 +75,33 @@ function getCacheControl(urlPath, ext) {
     return "public, max-age=3600, stale-while-revalidate=3600";
   }
   return "no-cache, must-revalidate";
+}
+
+function buildInjectedScripts() {
+  const runtimeConfig = [
+    "<script id=\"das-elb-runtime-config\">",
+    `window.API_BASE_URL=${JSON.stringify(API_BASE_URL)};`,
+    `window.HOTEL_PROPERTY_ID=${JSON.stringify(HOTEL_PROPERTY_ID)};`,
+    `window.RESTAURANT_ID=${JSON.stringify(RESTAURANT_ID)};`,
+    "</script>",
+    "<script src=\"/assets/api-integration.js\"></script>",
+  ].join("");
+  return runtimeConfig;
+}
+
+function injectClientScripts(html) {
+  if (html.includes("/assets/api-integration.js")) {
+    return html;
+  }
+
+  const injectedScripts = buildInjectedScripts();
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `${injectedScripts}</head>`);
+  }
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `${injectedScripts}</body>`);
+  }
+  return `${html}${injectedScripts}`;
 }
 
 process.on("uncaughtException", (err) => console.error("Uncaught:", err.message));
@@ -121,7 +154,7 @@ const server = http.createServer((req, res) => {
     const info = getCachedStat(filePath);
 
     // Conditional GET via ETag
-    if (info && req.headers["if-none-match"] === info.etag) {
+    if (!isHtmlRequest && info && req.headers["if-none-match"] === info.etag) {
       res.writeHead(304, {
         "ETag": info.etag,
         "Cache-Control": cacheControl,
@@ -151,19 +184,85 @@ const server = http.createServer((req, res) => {
     }
 
     const acceptEncoding = req.headers["accept-encoding"] || "";
-    const shouldGzip = COMPRESSIBLE.has(contentType) && acceptEncoding.includes("gzip");
+    const shouldBrotli = COMPRESSIBLE.has(contentType) && acceptEncoding.includes("br");
+    const shouldGzip = !shouldBrotli && COMPRESSIBLE.has(contentType) && acceptEncoding.includes("gzip");
 
     const headers = {
       "Content-Type": contentType,
       "Cache-Control": cacheControl,
       "Accept-Ranges": "bytes",
+      // Security headers
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-XSS-Protection": "1; mode=block",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     };
+
+    if (isHtmlRequest) {
+      const html = injectClientScripts(fs.readFileSync(filePath, "utf8"));
+      const body = Buffer.from(html, "utf8");
+      const etag = `"${body.length.toString(36)}-${(info?.mtime || new Date(0).toUTCString()).length.toString(36)}-html"`;
+
+      if (req.headers["if-none-match"] === etag) {
+        res.writeHead(304, {
+          "ETag": etag,
+          "Cache-Control": cacheControl,
+          "Last-Modified": info?.mtime || new Date(0).toUTCString(),
+        });
+        res.end();
+        return;
+      }
+
+      headers["ETag"] = etag;
+      if (info) {
+        headers["Last-Modified"] = info.mtime;
+      }
+      if (shouldBrotli) {
+        headers["Content-Encoding"] = "br";
+        headers["Vary"] = "Accept-Encoding";
+      } else if (shouldGzip) {
+        headers["Content-Encoding"] = "gzip";
+        headers["Vary"] = "Accept-Encoding";
+      } else {
+        headers["Content-Length"] = String(body.length);
+      }
+
+      res.writeHead(200, headers);
+
+      if (shouldBrotli) {
+        zlib.brotliCompress(body, {
+          params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 },
+        }, (err, compressed) => {
+          if (err) {
+            if (!res.writableEnded) res.end();
+            return;
+          }
+          res.end(compressed);
+        });
+      } else if (shouldGzip) {
+        zlib.gzip(body, { level: 6, memLevel: 8 }, (err, compressed) => {
+          if (err) {
+            if (!res.writableEnded) res.end();
+            return;
+          }
+          res.end(compressed);
+        });
+      } else {
+        res.end(body);
+      }
+      return;
+    }
+
     if (info) {
       headers["ETag"] = info.etag;
       headers["Last-Modified"] = info.mtime;
-      if (!shouldGzip) headers["Content-Length"] = String(info.size);
+      if (!shouldGzip && !shouldBrotli) headers["Content-Length"] = String(info.size);
     }
-    if (shouldGzip) {
+    if (shouldBrotli) {
+      headers["Content-Encoding"] = "br";
+      headers["Vary"] = "Accept-Encoding";
+    } else if (shouldGzip) {
       headers["Content-Encoding"] = "gzip";
       headers["Vary"] = "Accept-Encoding";
     }
@@ -174,7 +273,13 @@ const server = http.createServer((req, res) => {
     stream.on("error", () => { if (!res.writableEnded) res.end(); });
     res.on("error", () => stream.destroy());
 
-    if (shouldGzip) {
+    if (shouldBrotli) {
+      const br = zlib.createBrotliCompress({
+        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 },
+      });
+      br.on("error", () => { if (!res.writableEnded) res.end(); });
+      stream.pipe(br).pipe(res);
+    } else if (shouldGzip) {
       const gz = zlib.createGzip({ level: 6, memLevel: 8 });
       gz.on("error", () => { if (!res.writableEnded) res.end(); });
       stream.pipe(gz).pipe(res);
@@ -189,6 +294,6 @@ const server = http.createServer((req, res) => {
 
 server.on("error", (err) => console.error("Server error:", err.message));
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Das Elb Hotel running at http://0.0.0.0:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Das Elb Hotel running at http://${HOST}:${PORT}`);
 });

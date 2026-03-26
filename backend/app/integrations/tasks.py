@@ -6,6 +6,8 @@ import logging
 from app.shared.celery_app import celery
 from app.database import async_session
 from app.integrations.models import WebhookEvent, WebhookAudit
+from app.observability.logging import log_event
+from app.observability.metrics import api_metrics
 from app.reservations.models import Reservation
 
 logger = logging.getLogger(__name__)
@@ -30,33 +32,7 @@ async def process_voicebooker_event_async(event_id: str):
         event_payload = payload.get("payload", {})
 
         try:
-            if event_type == "booking.created":
-                dt = datetime.fromisoformat(event_payload.get("datetime", "").replace("Z", "+00:00"))
-                customer = event_payload.get("customer", {})
-                
-                reservation = Reservation(
-                    restaurant_id=1,  # Default to 1
-                    guest_name=customer.get("name", "Unknown VoiceBooker Guest"),
-                    guest_phone=customer.get("phone"),
-                    party_size=event_payload.get("party_size", 2),
-                    reservation_date=dt.date(),
-                    start_time=dt.time(),
-                    source="voicebooker",
-                    notes=f"VoiceBooker Ref: {event_payload.get('booking_id')} | " + event_payload.get("notes", ""),
-                    status="confirmed"
-                )
-                db.add(reservation)
-                await db.flush()
-                
-                audit = WebhookAudit(
-                    event_id=event_id,
-                    action="create_reservation",
-                    actor="system",
-                    message=f"Created reservation {reservation.id} for {reservation.guest_name}"
-                )
-                db.add(audit)
-                
-            elif event_type == "booking.cancelled":
+            if event_type == "booking.cancelled":
                 booking_ref = event_payload.get("booking_id")
                 if booking_ref:
                     # Cancel any booking containing the ref in notes
@@ -81,7 +57,14 @@ async def process_voicebooker_event_async(event_id: str):
             
         except Exception as e:
             await db.rollback()
-            logger.exception(f"Error processing webhook {event_id}")
+            await api_metrics.record_business_event("integration.webhook.processing_failure")
+            log_event(
+                logger,
+                logging.ERROR,
+                "voicebooker_webhook_processing_failure",
+                event_id=event_id,
+                error=str(e),
+            )
             async with async_session() as error_db:
                 await error_db.execute(
                     update(WebhookEvent).where(WebhookEvent.event_id == event_id).values(

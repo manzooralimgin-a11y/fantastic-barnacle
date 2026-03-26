@@ -36,7 +36,7 @@ export interface RechnungData {
   firma_ust_id: string; // USt-IdNr for company
   // Stay details
   zimmer: string;
-  zimmer_typ: string; // Komfort, Komfort Plus, Suite
+  zimmer_typ: string;
   anreise: string;
   abreise: string;
   // Items
@@ -61,7 +61,7 @@ export const emptyRechnung: RechnungData = {
   rechnungs_nr: "", folio: "", reservierung_nr: "", datum: new Date().toISOString().slice(0, 10),
   gast_name: "", gast_anrede: "", gast_strasse: "", gast_plz_stadt: "", gast_land: "Deutschland",
   firma_name: "", firma_strasse: "", firma_plz_stadt: "", firma_land: "", firma_ust_id: "",
-  zimmer: "", zimmer_typ: "Komfort", anreise: "", abreise: "",
+  zimmer: "", zimmer_typ: "", anreise: "", abreise: "",
   items: [], netto_7: 0, mwst_7: 0, netto_19: 0, mwst_19: 0,
   gesamtsumme: 0, kurtaxe: 0, anzahlung: 0, anzahlung_label: "", zahlung: 0,
   zahlungs_methode: "", zahlungs_status: "offen", zahlungs_datum: "",

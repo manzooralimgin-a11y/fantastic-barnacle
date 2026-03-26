@@ -21,8 +21,67 @@ from app.billing.schemas import (
     TableOrderCreate,
     TableOrderUpdate,
 )
-from app.reservations.models import Table
+from app.menu.models import MenuItem
+from app.reservations.models import Table, TableSession
 from app.shared.audit import log_human_action
+from app.workforce.models import Employee
+
+
+async def _ensure_table_belongs_to_restaurant(
+    db: AsyncSession, restaurant_id: int, table_id: int | None
+) -> None:
+    if table_id is None:
+        return
+    result = await db.execute(
+        select(Table.id).where(Table.id == table_id, Table.restaurant_id == restaurant_id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found")
+
+
+async def _get_session_for_restaurant(
+    db: AsyncSession, restaurant_id: int, session_id: int | None
+) -> TableSession | None:
+    if session_id is None:
+        return None
+    result = await db.execute(
+        select(TableSession).where(
+            TableSession.id == session_id,
+            TableSession.restaurant_id == restaurant_id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table session not found")
+    return session
+
+
+async def _ensure_employee_belongs_to_restaurant(
+    db: AsyncSession, restaurant_id: int, employee_id: int | None, detail: str
+) -> None:
+    if employee_id is None:
+        return
+    result = await db.execute(
+        select(Employee.id).where(
+            Employee.id == employee_id,
+            Employee.restaurant_id == restaurant_id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+
+async def _ensure_menu_item_belongs_to_restaurant(
+    db: AsyncSession, restaurant_id: int, menu_item_id: int
+) -> None:
+    result = await db.execute(
+        select(MenuItem.id).where(
+            MenuItem.id == menu_item_id,
+            MenuItem.restaurant_id == restaurant_id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
 
 
 # ── Table Orders ──
@@ -53,6 +112,19 @@ async def get_order_by_id(db: AsyncSession, restaurant_id: int, order_id: int) -
 
 
 async def create_order(db: AsyncSession, restaurant_id: int, payload: TableOrderCreate) -> TableOrder:
+    await _ensure_table_belongs_to_restaurant(db, restaurant_id, payload.table_id)
+    session = await _get_session_for_restaurant(db, restaurant_id, payload.session_id)
+    if session is not None and payload.table_id is not None and session.table_id != payload.table_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Table session does not belong to the selected table",
+        )
+    await _ensure_employee_belongs_to_restaurant(
+        db,
+        restaurant_id,
+        payload.server_id,
+        detail="Server not found",
+    )
     order = TableOrder(**payload.model_dump(), restaurant_id=restaurant_id)
     db.add(order)
     await db.flush()
@@ -126,6 +198,7 @@ async def add_order_item(
     db: AsyncSession, restaurant_id: int, order_id: int, payload: OrderItemCreate
 ) -> OrderItem:
     await get_order_by_id(db, restaurant_id, order_id)
+    await _ensure_menu_item_belongs_to_restaurant(db, restaurant_id, payload.menu_item_id)
     item = OrderItem(
         restaurant_id=restaurant_id,
         order_id=order_id,
@@ -487,6 +560,12 @@ async def open_cash_shift(db: AsyncSession, restaurant_id: int, payload: CashShi
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="A cash shift is already open")
+    await _ensure_employee_belongs_to_restaurant(
+        db,
+        restaurant_id,
+        payload.opened_by,
+        detail="Opening employee not found",
+    )
 
     shift = CashShift(
         restaurant_id=restaurant_id,
@@ -519,6 +598,12 @@ async def close_cash_shift(
     shift = result.scalar_one_or_none()
     if shift is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash shift not found")
+    await _ensure_employee_belongs_to_restaurant(
+        db,
+        restaurant_id,
+        payload.closed_by,
+        detail="Closing employee not found",
+    )
     if shift.status != "open":
         raise HTTPException(status_code=400, detail="Shift is not open")
 

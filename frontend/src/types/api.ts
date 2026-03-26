@@ -64,3 +64,35 @@ export interface AccuracyMetrics {
   model_version: string;
   last_retrained: string;
 }
+
+export interface EmailInboxThread {
+  id: number;
+  external_email_id: string;
+  sender: string;
+  subject: string | null;
+  body: string;
+  received_at: string;
+  category: string;
+  classification_confidence: number | null;
+  extracted_data: Record<string, unknown> | null;
+  summary: string | null;
+  reply_generated: boolean;
+  reply_sent: boolean;
+  reply_content: string | null;
+  reply_generated_at: string | null;
+  reply_sent_at: string | null;
+  replied_by_user_id: number | null;
+  status: string;
+  reply_mode: string;
+  processing_error: string | null;
+  reply_error: string | null;
+  reply_badge: string;
+}
+
+export interface EmailInboxResponse {
+  items: EmailInboxThread[];
+  total: number;
+  pending: number;
+  auto_replied: number;
+  manually_replied: number;
+}

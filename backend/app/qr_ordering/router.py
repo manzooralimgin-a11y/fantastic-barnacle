@@ -6,11 +6,12 @@ from app.dependencies import get_current_user
 from app.qr_ordering import service, schemas
 
 router = APIRouter()
+admin_router = APIRouter()
 
 
 # ── Admin endpoints (auth required) ──
 
-@router.post("/tables/{table_id}/qr-code", response_model=schemas.QRTableCodeRead)
+@admin_router.post("/tables/{table_id}/qr-code", response_model=schemas.QRTableCodeRead)
 async def create_qr_code(
     table_id: int,
     db: AsyncSession = Depends(get_db),
@@ -19,7 +20,7 @@ async def create_qr_code(
     return await service.generate_qr_code(db, table_id)
 
 
-@router.get("/tables/{table_id}/qr-codes", response_model=list[schemas.QRTableCodeRead])
+@admin_router.get("/tables/{table_id}/qr-codes", response_model=list[schemas.QRTableCodeRead])
 async def list_qr_codes(
     table_id: int,
     db: AsyncSession = Depends(get_db),
@@ -52,7 +53,9 @@ async def get_menu_for_code(code: str, db: AsyncSession = Depends(get_db)):
     info = await service.get_table_by_code(db, code)
     if not info:
         raise HTTPException(status_code=404, detail="Invalid or expired QR code")
-    menu = await service.get_public_menu(db)
+    menu = await service.get_public_menu_for_code(db, code)
+    if menu is None:
+        raise HTTPException(status_code=404, detail="Invalid or expired QR code")
     return {"table": info, "categories": menu}
 
 

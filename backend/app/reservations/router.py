@@ -1,17 +1,31 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, Request
+from starlette.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.database import get_db
-from app.dependencies import get_current_tenant_user
+from app.database import get_db, mark_session_commit_managed
+from app.dependencies import get_current_tenant_user, get_optional_current_tenant_user
+from app.middleware.request_id import reset_idempotency_key, set_idempotency_key
+from app.reservations.cache import (
+    discard_pending_availability_invalidations,
+    flush_pending_availability_invalidations,
+)
+from app.reservations.consistency import (
+    discard_pending_consistency_checks,
+    flush_pending_consistency_checks,
+)
+from app.reservations.idempotency import (
+    IdempotencyClaim,
+    IdempotencyReplay,
+    ReservationIdempotencyService,
+)
 from app.reservations.schemas import (
     FloorSectionCreate,
     FloorSectionRead,
     FloorSectionUpdate,
     FloorSummary,
-    ReservationCreate,
     ReservationRead,
     ReservationUpdate,
     TableCreate,
@@ -20,6 +34,7 @@ from app.reservations.schemas import (
     TableSessionRead,
     TableStatusUpdate,
     TableUpdate,
+    UnifiedReservationCreate,
     WaitlistEntryCreate,
     WaitlistEntryRead,
 )
@@ -29,7 +44,6 @@ from app.reservations.service import (
     check_availability,
     close_session,
     complete_reservation,
-    create_reservation,
     create_section,
     create_session,
     create_table,
@@ -51,6 +65,7 @@ from app.reservations.service import (
     update_table,
     update_table_status,
 )
+from app.reservations.unified_service import ReservationService, serialize_created_reservation
 
 router = APIRouter()
 
@@ -156,6 +171,7 @@ async def floor_summary(
 
 
 @router.get("", response_model=list[ReservationRead])
+@router.get("/", response_model=list[ReservationRead], include_in_schema=False)
 async def list_reservations(
     reservation_date: date | None = None,
     table_id: int | None = None,
@@ -172,13 +188,79 @@ async def list_reservations(
     )
 
 
-@router.post("", response_model=ReservationRead, status_code=201)
+@router.post("", status_code=201)
+@router.post("/", status_code=201, include_in_schema=False)
 async def add_reservation(
-    payload: ReservationCreate,
+    request: Request,
+    payload: UnifiedReservationCreate,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_tenant_user),
+    current_user: User | None = Depends(get_optional_current_tenant_user),
 ):
-    return await create_reservation(db, current_user.restaurant_id, payload)
+    idempotency_token = set_idempotency_key(idempotency_key)
+    claim: IdempotencyClaim | None = None
+    try:
+        request_payload = payload.model_dump(mode="json", exclude_none=True)
+        if payload.kind == "restaurant" and request_payload.get("restaurant_id") is None:
+            actor_restaurant_id = getattr(current_user, "restaurant_id", None)
+            if actor_restaurant_id not in (None, 0):
+                request_payload["restaurant_id"] = int(actor_restaurant_id)
+        claim_or_replay = await ReservationIdempotencyService.claim_or_replay(
+            scope="rest:reservations",
+            key=idempotency_key,
+            request_payload=request_payload,
+            request_source="canonical",
+            endpoint="/api/reservations",
+        )
+        if isinstance(claim_or_replay, IdempotencyReplay):
+            request.state.created_reservation_kind = claim_or_replay.reservation_kind
+            if isinstance(claim_or_replay.response, dict):
+                request.state.created_reservation_id = claim_or_replay.response.get("id")
+            return JSONResponse(
+                status_code=claim_or_replay.status_code,
+                content=claim_or_replay.response,
+            )
+        if isinstance(claim_or_replay, IdempotencyClaim):
+            claim = claim_or_replay
+
+        result = await ReservationService.create_reservation(
+            db,
+            payload,
+            actor_user=current_user,
+        )
+        response_payload = serialize_created_reservation(result)
+        request.state.created_reservation_kind = result.reservation_kind
+        request.state.created_reservation_id = result.reservation.id
+        if claim is None:
+            return response_payload
+
+        mark_session_commit_managed(db)
+        try:
+            await db.commit()
+            await flush_pending_availability_invalidations(db)
+            await flush_pending_consistency_checks(db)
+        except Exception:
+            await db.rollback()
+            discard_pending_availability_invalidations(db)
+            discard_pending_consistency_checks(db)
+            await ReservationIdempotencyService.release(
+                claim=claim,
+                request_source="canonical",
+                endpoint="/api/reservations",
+                error="reservation_create_failed",
+            )
+            raise
+        await ReservationIdempotencyService.complete_or_log(
+            claim=claim,
+            response=response_payload,
+            status_code=201,
+            reservation_kind=result.reservation_kind,
+            request_source="canonical",
+            endpoint="/api/reservations",
+        )
+        return JSONResponse(status_code=201, content=response_payload)
+    finally:
+        reset_idempotency_key(idempotency_token)
 
 
 @router.get("/availability")

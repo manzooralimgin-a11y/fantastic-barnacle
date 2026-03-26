@@ -230,10 +230,12 @@ start_frontend() {
 start_restaurant() {
   stop_known_listener 3002 "http.server 3002" "http.server --bind 0.0.0.0 -d dist"
   ensure_port_available 3002
+  local restaurant_id
+  restaurant_id="$(runtime_value restaurant_id)"
   start_detached \
     restaurant \
     "$LOG_DIR/restaurant.log" \
-    "cd '$ROOT_DIR/das-elb-rest' && env DAS_ELB_REST_API_URL=http://localhost:8000/api npm run build && exec python3 -m http.server 3002 --bind 0.0.0.0 -d dist"
+    "cd '$ROOT_DIR/das-elb-rest' && env DAS_ELB_REST_API_URL=http://localhost:8000/api DAS_ELB_REST_RESTAURANT_ID=$restaurant_id npm run build && exec python3 -m http.server 3002 --bind 0.0.0.0 -d dist"
   wait_for_url "http://localhost:3002/healthz" 120 1 || {
     echo "Restaurant app failed to start. See $LOG_DIR/restaurant.log" >&2
     exit 1

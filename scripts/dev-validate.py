@@ -85,14 +85,22 @@ def wait_for_url(url: str, timeout_seconds: int = 120) -> tuple[bool, str]:
     return False, last_error
 
 
-def choose_restaurant_slot(base_url: str, restaurant_id: int) -> dict:
+def choose_restaurant_slot(
+    base_url: str,
+    restaurant_id: int,
+    *,
+    party_size: int = 2,
+    exclude: set[tuple[str, str]] | None = None,
+) -> dict:
+    excluded = exclude or set()
     for offset in range(120, 150):
         booking_date = (date.today() + timedelta(days=offset)).isoformat()
         payload = http_get_json(
-            f"{base_url}/api/availability?restaurant_id={restaurant_id}&date={booking_date}&party_size=2"
+            f"{base_url}/api/availability?restaurant_id={restaurant_id}&date={booking_date}&party_size={party_size}"
         )
         for slot in payload["slots"]:
-            if slot["available"]:
+            signature = (booking_date, slot["start_time"])
+            if slot["available"] and signature not in excluded:
                 return {
                     "date": booking_date,
                     "slot": slot,
@@ -134,6 +142,8 @@ def run_ui_check(runtime: dict, restaurant_selection: dict, hotel_selection: dic
     restaurant_name = f"Local Landing Restaurant {ts}"
     hotel_name = f"Local Landing Hotel {ts}"
     tagung_name = f"Local Landing Tagung {ts}"
+    restaurant_app_reservation_name = f"Local Restaurant App Reservation {ts}"
+    restaurant_app_order_guest = f"Local Restaurant App Order {ts}"
     command = [
         "node",
         str(ROOT / "scripts" / "dev-ui-check.mjs"),
@@ -153,6 +163,16 @@ def run_ui_check(runtime: dict, restaurant_selection: dict, hotel_selection: dic
         restaurant_selection["date"],
         "--restaurant-time",
         restaurant_selection["slot"]["start_time"],
+        "--restaurant-app-reservation-name",
+        restaurant_app_reservation_name,
+        "--restaurant-app-order-guest",
+        restaurant_app_order_guest,
+        "--restaurant-table-code",
+        runtime["restaurant_table_code"],
+        "--restaurant-app-reservation-date",
+        runtime["restaurant_app_slot"]["date"],
+        "--restaurant-app-reservation-time",
+        runtime["restaurant_app_slot"]["slot"]["start_time"],
         "--hotel-check-in",
         hotel_selection["check_in"],
         "--hotel-check-out",
@@ -181,6 +201,8 @@ def run_ui_check(runtime: dict, restaurant_selection: dict, hotel_selection: dic
         "restaurant": restaurant_name,
         "hotel": hotel_name,
         "tagung": tagung_name,
+        "restaurant_app_reservation": restaurant_app_reservation_name,
+        "restaurant_app_order": restaurant_app_order_guest,
     }
     return payload
 
@@ -189,6 +211,42 @@ def read_backend_log(log_path: Path) -> str:
     if not log_path.exists():
         return ""
     return log_path.read_text(encoding="utf-8", errors="ignore")
+
+
+def ensure_restaurant_table_code(base_url: str, auth_headers: dict[str, str]) -> dict:
+    tables = http_get_json(f"{base_url}/api/reservations/tables", headers=auth_headers)
+    active_tables = [
+        table
+        for table in tables
+        if table.get("is_active")
+        and table.get("status") == "available"
+        and (table.get("capacity") or 0) > 0
+    ]
+    if not active_tables:
+        active_tables = [table for table in tables if table.get("is_active")]
+    if not active_tables:
+        raise RuntimeError("No active restaurant tables available for QR ordering validation")
+
+    table = active_tables[0]
+    codes = http_get_json(
+        f"{base_url}/api/qr/admin/tables/{table['id']}/qr-codes",
+        headers=auth_headers,
+    )
+    active_code = next((code for code in codes if code.get("is_active")), None)
+    if active_code is None:
+        status, active_code = http_post_json(
+            f"{base_url}/api/qr/admin/tables/{table['id']}/qr-code",
+            {},
+            headers=auth_headers,
+        )
+        if status != 200:
+            raise RuntimeError(f"Failed to create QR code for table {table['id']}: {status} {active_code}")
+
+    return {
+        "table_id": table["id"],
+        "table_number": table["table_number"],
+        "code": active_code["code"],
+    }
 
 
 async def run_mcp_validation(runtime: dict, restaurant_id: int, property_id: int, room_type_name: str) -> dict:
@@ -283,10 +341,28 @@ def main() -> int:
     checks["restaurant_healthz"] = "PASS"
 
     restaurant_selection = choose_restaurant_slot(runtime["backend_url"], runtime["restaurant_id"])
+    restaurant_app_slot = choose_restaurant_slot(
+        runtime["backend_url"],
+        runtime["restaurant_id"],
+        exclude={(restaurant_selection["date"], restaurant_selection["slot"]["start_time"])},
+    )
     hotel_selection = choose_hotel_room_type(runtime["backend_url"], runtime["property_id"])
+
+    token = backend_login(runtime["backend_url"], runtime["admin_email"], runtime["admin_password"])
+    auth_headers = {"Authorization": f"Bearer {token}"}
+    restaurant_table = ensure_restaurant_table_code(runtime["backend_url"], auth_headers)
+    runtime["restaurant_table_code"] = restaurant_table["code"]
+    runtime["restaurant_table_number"] = restaurant_table["table_number"]
+    runtime["restaurant_app_slot"] = restaurant_app_slot
 
     ui = run_ui_check(runtime, restaurant_selection, hotel_selection)
     checks["ui"] = ui
+    if not ui["restaurantApp"]["ok"]:
+        raise RuntimeError("Restaurant guest app did not use the expected local backend API")
+    if not ui["restaurantApp"]["orderId"]:
+        raise RuntimeError("Restaurant guest app did not return a live order id")
+    if not ui["restaurantApp"]["reservationId"]:
+        raise RuntimeError("Restaurant guest app did not return a reservation id")
 
     restaurant_after = http_get_json(
         f"{runtime['backend_url']}/api/availability?restaurant_id={runtime['restaurant_id']}&date={restaurant_selection['date']}&party_size=2"
@@ -300,27 +376,96 @@ def main() -> int:
     hotel_after_room = next(
         room for room in hotel_after["room_types"] if room["room_type_id"] == hotel_selection["room_type"]["room_type_id"]
     )
+    restaurant_app_after = http_get_json(
+        f"{runtime['backend_url']}/api/availability?restaurant_id={runtime['restaurant_id']}&date={restaurant_app_slot['date']}&party_size=2"
+    )
+    restaurant_app_after_slot = next(
+        slot for slot in restaurant_app_after["slots"] if slot["start_time"] == restaurant_app_slot["slot"]["start_time"]
+    )
     checks["availability_before"] = {
         "restaurant": restaurant_selection["slot"],
+        "restaurant_app": restaurant_app_slot["slot"],
         "hotel": hotel_selection["room_type"],
     }
     checks["availability_after"] = {
         "restaurant": restaurant_after_slot,
+        "restaurant_app": restaurant_app_after_slot,
         "hotel": hotel_after_room,
     }
     if restaurant_after_slot["table_options"] >= restaurant_selection["slot"]["table_options"]:
         raise RuntimeError("Restaurant availability did not decrease after landing booking")
+    if restaurant_app_after_slot["table_options"] >= restaurant_app_slot["slot"]["table_options"]:
+        raise RuntimeError("Restaurant availability did not decrease after restaurant app booking")
     if hotel_after_room["available_rooms"] >= hotel_selection["room_type"]["available_rooms"]:
         raise RuntimeError("Hotel availability did not decrease after landing booking")
 
-    token = backend_login(runtime["backend_url"], runtime["admin_email"], runtime["admin_password"])
-    auth_headers = {"Authorization": f"Bearer {token}"}
     hms_reservations = http_get_text(f"{runtime['backend_url']}/api/hms/reservations", headers=auth_headers)
     restaurant_reservations = http_get_text(f"{runtime['backend_url']}/api/reservations", headers=auth_headers)
-    for name in [ui["names"]["hotel"], ui["names"]["restaurant"], ui["names"]["tagung"]]:
+    for name in [
+        ui["names"]["hotel"],
+        ui["names"]["restaurant"],
+        ui["names"]["tagung"],
+        ui["names"]["restaurant_app_reservation"],
+    ]:
         haystack = hms_reservations if "Hotel" in name else restaurant_reservations
         if name not in haystack:
             raise RuntimeError(f"Reservation {name} not visible in authenticated backend view")
+
+    order_id = ui["restaurantApp"]["orderId"]
+    order_detail = http_get_json(
+        f"{runtime['backend_url']}/api/billing/orders/{order_id}",
+        headers=auth_headers,
+    )
+    order_items = http_get_json(
+        f"{runtime['backend_url']}/api/billing/orders/{order_id}/items",
+        headers=auth_headers,
+    )
+    checks["restaurant_app_order_before_kitchen"] = {
+        "order": order_detail,
+        "items": order_items,
+        "table": restaurant_table,
+    }
+    if order_detail["guest_name"] != ui["names"]["restaurant_app_order"]:
+        raise RuntimeError("Restaurant guest app order guest name mismatch in billing order")
+    if order_detail["status"] != "pending":
+        raise RuntimeError("Restaurant guest app order should enter billing as pending before kitchen handoff")
+    if not order_items:
+        raise RuntimeError("Restaurant guest app order has no persisted order items")
+
+    live_orders_before = http_get_json(
+        f"{runtime['backend_url']}/api/billing/orders/live",
+        headers=auth_headers,
+    )
+    if any(order["id"] == order_id for order in live_orders_before):
+        raise RuntimeError("Pending restaurant guest app order unexpectedly appeared in live waiter orders before kitchen handoff")
+
+    kitchen_status, sent_order = http_post_json(
+        f"{runtime['backend_url']}/api/billing/orders/{order_id}/send-to-kitchen",
+        {},
+        headers=auth_headers,
+    )
+    if kitchen_status != 200:
+        raise RuntimeError(f"Failed to send restaurant guest order to kitchen: {kitchen_status} {sent_order}")
+
+    live_orders_after_send = http_get_json(
+        f"{runtime['backend_url']}/api/billing/orders/live",
+        headers=auth_headers,
+    )
+    if not any(order["id"] == order_id for order in live_orders_after_send):
+        raise RuntimeError("Restaurant guest app order did not appear in live waiter orders after kitchen handoff")
+
+    kds_orders = http_get_json(
+        f"{runtime['backend_url']}/api/billing/kds/orders",
+        headers=auth_headers,
+    )
+    kds_match = next((order for order in kds_orders if order["order_id"] == order_id), None)
+    if kds_match is None:
+        raise RuntimeError("Restaurant guest app order did not appear in the kitchen board after handoff")
+    checks["restaurant_app_order_after_kitchen"] = {
+        "sent_order": sent_order,
+        "live_order_visible": True,
+        "kds_order": kds_match,
+    }
 
     mcp_result = asyncio.run(
         run_mcp_validation(

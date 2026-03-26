@@ -3,6 +3,6 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "mkdir -p out && cp -r public/* out/"
+    "build": "node scripts/build.mjs"
   }
 }

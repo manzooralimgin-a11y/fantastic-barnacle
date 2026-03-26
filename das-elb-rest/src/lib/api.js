@@ -1,17 +1,32 @@
+const DEFAULT_API_BASE_URL = "http://localhost:8000/api";
+
+function normalizeApiBaseUrl(value) {
+    const raw = String(value || "").trim();
+    const base = raw || DEFAULT_API_BASE_URL;
+    const withoutTrailing = base.replace(/\/+$/, "");
+    if (withoutTrailing.endsWith("/api")) {
+        return withoutTrailing;
+    }
+    return `${withoutTrailing}/api`;
+}
+
 const getApiBaseUrl = () => {
     if (typeof window !== "undefined") {
-        if (window.location.hostname === "localhost") return "http://localhost:8002";
-        if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-        return "https://gestronomy-api.onrender.com";
+        const params = new URLSearchParams(window.location.search || "");
+        return normalizeApiBaseUrl(
+            window.API_BASE_URL ||
+            window.DAS_ELB_REST_CONFIG?.apiBaseUrl ||
+            params.get("api_base")
+        );
     }
-    return process.env.NEXT_PUBLIC_API_URL || "https://gestronomy-api.onrender.com";
+    return normalizeApiBaseUrl(process.env.PUBLIC_API_BASE_URL || process.env.VITE_API_URL);
 };
 
 const API_BASE = getApiBaseUrl();
 
 export async function fetchMenu() {
     try {
-        const res = await fetch(`${API_BASE}/api/public/restaurant/menu`);
+        const res = await fetch(`${API_BASE}/public/restaurant/menu`);
         if (!res.ok) throw new Error("Failed to fetch menu");
         const data = await res.json();
         return data.categories || [];
@@ -23,7 +38,7 @@ export async function fetchMenu() {
 
 export async function submitOrder(orderData) {
     try {
-        const response = await fetch(`${API_BASE}/api/public/restaurant/order`, {
+        const response = await fetch(`${API_BASE}/public/restaurant/order`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(orderData),
@@ -38,7 +53,7 @@ export async function submitOrder(orderData) {
 
 export async function getTableInfo(code) {
     try {
-        const response = await fetch(`${API_BASE}/api/public/restaurant/table/${code}`);
+        const response = await fetch(`${API_BASE}/public/restaurant/table/${code}`);
         if (!response.ok) throw new Error("Failed to fetch table info");
         return await response.json();
     } catch (error) {

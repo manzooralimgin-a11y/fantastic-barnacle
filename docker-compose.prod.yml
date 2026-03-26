@@ -95,6 +95,7 @@ services:
       - "3002:3000"
     environment:
       VITE_API_URL: ${DAS_ELB_REST_API_URL:-http://localhost:8000}
+      VITE_RESTAURANT_ID: ${DAS_ELB_REST_RESTAURANT_ID:-}
     depends_on:
       backend:
         condition: service_started

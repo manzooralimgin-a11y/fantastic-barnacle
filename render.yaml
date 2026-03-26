@@ -69,8 +69,8 @@ services:
     dockerfilePath: ./das-elb-hotel/Dockerfile
     dockerContext: ./das-elb-hotel
     envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://gestronomy-api.onrender.com
+      - key: PUBLIC_API_BASE_URL
+        value: https://gestronomy-api.onrender.com/api
 
   # --- Das Elb Rest (QR App/Direct Order) ---
   - type: web
@@ -82,6 +82,8 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://gestronomy-api.onrender.com
+      - key: VITE_RESTAURANT_ID
+        sync: false
 
   # --- Redis (Shared) ---
   - type: redis

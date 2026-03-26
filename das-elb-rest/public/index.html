@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,224 +7,654 @@
     <style>
       :root {
         --bg: #09101b;
-        --panel: #132133;
-        --line: rgba(255, 255, 255, 0.12);
+        --bg-soft: #101b2a;
+        --panel: rgba(19, 33, 51, 0.9);
+        --panel-solid: #132133;
+        --line: rgba(255, 255, 255, 0.11);
+        --line-strong: rgba(255, 255, 255, 0.18);
         --text: #f7efe3;
-        --muted: #c5b7a1;
+        --muted: #c9ba9f;
         --accent: #d7a84a;
         --accent-dark: #a97a1f;
         --success: #4ade80;
+        --danger: #fb7185;
+        --warning: #facc15;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
       }
+
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: "DM Sans", system-ui, sans-serif; background: radial-gradient(circle at top, #1b2f45, var(--bg) 55%); color: var(--text); }
-      header, main { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
-      header { padding: 40px 0 24px; }
-      h1, h2 { font-family: Georgia, serif; margin: 0 0 12px; }
-      p { color: var(--muted); line-height: 1.6; }
-      .grid { display: grid; gap: 20px; grid-template-columns: 1.2fr 1fr; padding-bottom: 40px; }
-      .panel { background: rgba(19,33,51,0.92); border: 1px solid var(--line); border-radius: 20px; padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,0.32); }
-      .controls, .cart-items, .menu-list { display: grid; gap: 14px; }
-      label { display: grid; gap: 8px; font-size: 0.92rem; color: var(--muted); }
-      input, button, textarea { font: inherit; }
-      input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,0.04); color: var(--text); padding: 12px 14px; }
-      button { border: 0; border-radius: 999px; padding: 12px 18px; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #1d1402; font-weight: 700; cursor: pointer; }
-      button.secondary { background: rgba(255,255,255,0.08); color: var(--text); }
-      .menu-card, .cart-row { border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
-      .menu-card { display: grid; gap: 10px; }
-      .price { color: var(--accent); font-weight: 700; }
-      .row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-      .muted { color: var(--muted); font-size: 0.9rem; }
-      .pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--muted); font-size: 0.9rem; }
-      .status { min-height: 24px; color: var(--success); font-weight: 600; }
-      @media (max-width: 840px) { .grid { grid-template-columns: 1fr; } }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        font-family: "DM Sans", system-ui, sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(215, 168, 74, 0.12), transparent 32%),
+          radial-gradient(circle at top right, rgba(74, 124, 215, 0.08), transparent 28%),
+          linear-gradient(180deg, #102238 0%, var(--bg) 48%);
+        color: var(--text);
+      }
+
+      a { color: inherit; }
+      button, input, textarea { font: inherit; }
+      button {
+        cursor: pointer;
+        border: 0;
+      }
+
+      .shell {
+        width: min(1280px, calc(100% - 32px));
+        margin: 0 auto;
+        padding-bottom: 48px;
+      }
+
+      header {
+        padding: 36px 0 20px;
+      }
+
+      .topline,
+      .hero-actions,
+      .context-pills,
+      .panel-actions,
+      .menu-meta,
+      .menu-card__actions,
+      .tracker-grid,
+      .tracker-stats,
+      .cart-row,
+      .cart-footer,
+      .section-header,
+      .booking-grid,
+      .order-form-grid {
+        display: flex;
+        gap: 12px;
+      }
+
+      .topline,
+      .hero-actions,
+      .context-pills,
+      .tracker-stats,
+      .menu-meta,
+      .panel-actions {
+        flex-wrap: wrap;
+      }
+
+      .topline {
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 18px;
+      }
+
+      .badge,
+      .chip,
+      .status-pill,
+      .slot-pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+      }
+
+      .badge {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 14px;
+        font-size: 0.9rem;
+      }
+
+      .badge strong {
+        color: var(--text);
+      }
+
+      h1, h2, h3, h4 {
+        font-family: Georgia, serif;
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2.8rem, 6vw, 4.8rem);
+        line-height: 0.94;
+        margin-bottom: 12px;
+      }
+
+      header p {
+        color: var(--muted);
+        line-height: 1.6;
+        max-width: 740px;
+        margin: 0 0 18px;
+      }
+
+      .hero-actions a {
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.92fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .main-stack,
+      .side-stack {
+        display: grid;
+        gap: 20px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+
+      .panel h2 {
+        font-size: 1.6rem;
+        margin-bottom: 10px;
+      }
+
+      .panel-subtitle,
+      .empty-state,
+      .status-text {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .hero-panel {
+        overflow: hidden;
+        position: relative;
+        min-height: 260px;
+        background:
+          linear-gradient(135deg, rgba(215, 168, 74, 0.1), transparent 40%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.15)),
+          var(--panel-solid);
+      }
+
+      .hero-panel::after {
+        content: "";
+        position: absolute;
+        inset: auto -60px -60px auto;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(215, 168, 74, 0.22), transparent 62%);
+        pointer-events: none;
+      }
+
+      .context-pills {
+        margin-top: 18px;
+      }
+
+      .context-pills span,
+      .tracker-stats span {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .booking-grid,
+      .order-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+        padding: 13px 14px;
+      }
+
+      textarea {
+        min-height: 112px;
+        resize: vertical;
+      }
+
+      .panel-actions {
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 16px;
+      }
+
+      .primary-button,
+      .secondary-button,
+      .ghost-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font-weight: 700;
+        transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+      }
+
+      .primary-button {
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        color: #1d1402;
+      }
+
+      .secondary-button {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+
+      .ghost-button {
+        background: transparent;
+        color: var(--muted);
+        border: 1px dashed var(--line-strong);
+      }
+
+      .primary-button:hover,
+      .secondary-button:hover,
+      .ghost-button:hover,
+      .chip:hover,
+      .slot-pill:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary-button:disabled,
+      .secondary-button:disabled,
+      .ghost-button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .status-text[data-tone="success"] { color: var(--success); }
+      .status-text[data-tone="error"] { color: var(--danger); }
+      .status-text[data-tone="warning"] { color: var(--warning); }
+
+      .slot-list,
+      .tracker-items,
+      .menu-categories,
+      .menu-grid,
+      .cart-items {
+        display: grid;
+        gap: 12px;
+      }
+
+      .slot-list {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+
+      .slot-pill {
+        display: grid;
+        gap: 6px;
+        text-align: left;
+        padding: 12px 14px;
+      }
+
+      .slot-pill.is-available {
+        color: var(--text);
+        border-color: rgba(74, 222, 128, 0.28);
+        background: rgba(74, 222, 128, 0.08);
+      }
+
+      .slot-pill.is-unavailable {
+        color: rgba(247, 239, 227, 0.35);
+      }
+
+      .slot-pill small { color: inherit; opacity: 0.72; }
+
+      .menu-panel {
+        grid-column: 1 / -1;
+      }
+
+      .menu-panel header {
+        padding: 0;
+      }
+
+      .menu-toolbar {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        margin-bottom: 18px;
+      }
+
+      .menu-categories {
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        overflow-x: auto;
+        padding-bottom: 6px;
+      }
+
+      .chip {
+        padding: 10px 14px;
+        font-size: 0.9rem;
+      }
+
+      .chip.is-active {
+        background: linear-gradient(135deg, rgba(215, 168, 74, 0.24), rgba(169, 122, 31, 0.24));
+        color: var(--text);
+        border-color: rgba(215, 168, 74, 0.34);
+      }
+
+      .menu-category + .menu-category {
+        margin-top: 24px;
+      }
+
+      .menu-grid {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        margin-top: 14px;
+      }
+
+      .menu-card,
+      .tracker-item,
+      .cart-row {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .menu-card__top,
+      .cart-row,
+      .section-header {
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .menu-card__top h4 {
+        font-size: 1.15rem;
+        margin-bottom: 6px;
+      }
+
+      .menu-card__top p,
+      .cart-row p,
+      .tracker-item p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .menu-card__actions,
+      .cart-footer {
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 14px;
+      }
+
+      .qty-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 999px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .qty-control button {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+      }
+
+      .tracker-grid {
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .tracker-grid h3 {
+        font-size: 2rem;
+        margin: 4px 0 8px;
+      }
+
+      .kicker {
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+
+      .status-pill {
+        padding: 10px 14px;
+        color: var(--text);
+        text-transform: capitalize;
+      }
+
+      .tracker-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .order-footnote {
+        margin-top: 14px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .empty-state {
+        border: 1px dashed var(--line);
+        border-radius: 18px;
+        padding: 18px;
+      }
+
+      .cart-footer {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      .cart-total {
+        font-size: 1.4rem;
+        font-family: Georgia, serif;
+      }
+
+      @media (max-width: 1024px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .menu-panel {
+          grid-column: auto;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .shell {
+          width: min(100%, calc(100% - 20px));
+        }
+        .topline {
+          align-items: flex-start;
+        }
+        .booking-grid,
+        .order-form-grid,
+        .menu-toolbar {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          font-size: 2.7rem;
+        }
+      }
     </style>
+    <script src="./assets/config.js"></script>
   </head>
   <body>
-    <header>
-      <div class="pill">Live API: <span id="api-url">Detecting...</span></div>
-      <h1>DAS ELB Restaurant</h1>
-      <p>Browse the live menu, identify the table via QR/table code, and send orders straight into the kitchen and table management flow.</p>
-    </header>
-    <main class="grid">
-      <section class="panel">
-        <h2>Guest Order</h2>
-        <div class="controls">
-          <label>
-            Table code
-            <input id="table-code" placeholder="Paste QR/table code" />
-          </label>
-          <label>
-            Guest name
-            <input id="guest-name" value="Restaurant Guest" />
-          </label>
-          <button id="load-table" class="secondary" type="button">Load table + menu</button>
-          <div class="muted" id="table-info">No table loaded yet.</div>
-          <div id="menu" class="menu-list"></div>
+    <div class="shell" data-restaurant-app="true">
+      <header>
+        <div class="topline">
+          <div class="badge">Live API <strong id="api-url" data-api-url>loading…</strong></div>
+          <div class="badge">Restaurant ID <strong id="restaurant-id">loading…</strong></div>
         </div>
-      </section>
-      <aside class="panel">
-        <h2>Current Cart</h2>
-        <div id="cart-items" class="cart-items"></div>
-        <div class="row">
-          <span>Total</span>
-          <strong class="price" id="cart-total">EUR 0.00</strong>
+        <h1>DAS ELB Restaurant</h1>
+        <p>
+          Explore the live gastronomy menu, reserve a table through the canonical reservation flow,
+          and place guest orders that feed the same backend used by service and kitchen management.
+        </p>
+        <div class="hero-actions" aria-label="Quick sections">
+          <a href="#menu-panel">Menu browsing</a>
+          <a href="#reservation-panel">Restaurant reservations</a>
+          <a href="#tracker-panel">Order tracking</a>
         </div>
-        <label>
-          Order notes
-          <textarea id="order-notes" rows="3" placeholder="Allergies, timing, special requests"></textarea>
-        </label>
-        <button id="submit-order" type="button">Send order to kitchen</button>
-        <div class="status" id="order-status"></div>
-      </aside>
-    </main>
-    <script src="/config.js"></script>
-    <script>
-      function inferApiRoot() {
-        const { hostname, origin, protocol } = window.location;
-        if (hostname === "localhost" || hostname === "127.0.0.1") {
-          return `${protocol}//${hostname}:8000/api`;
-        }
-        return `${origin}/api`;
-      }
+      </header>
 
-      const runtimeConfig = window.__DAS_ELB_REST_CONFIG__ || {};
-      const API_BASE = String(runtimeConfig.API_BASE_URL || inferApiRoot()).replace(/\/$/, "");
-      const state = { menu: [], cart: [] };
-      const menuRoot = document.getElementById("menu");
-      const cartRoot = document.getElementById("cart-items");
-      const cartTotal = document.getElementById("cart-total");
-      const tableInfo = document.getElementById("table-info");
-      const orderStatus = document.getElementById("order-status");
-      document.getElementById("api-url").textContent = API_BASE;
-
-      function renderCart() {
-        if (!state.cart.length) {
-          cartRoot.innerHTML = '<div class="muted">No items selected yet.</div>';
-          cartTotal.textContent = 'EUR 0.00';
-          return;
-        }
-        cartRoot.innerHTML = state.cart.map((item, index) => `
-          <div class="cart-row">
-            <div>
-              <strong>${item.name}</strong>
-              <div class="muted">Qty ${item.quantity}</div>
-            </div>
-            <div class="row">
-              <span class="price">EUR ${(item.unit_price * item.quantity).toFixed(2)}</span>
-              <button class="secondary" type="button" onclick="window.removeCartItem(${index})">Remove</button>
-            </div>
-          </div>
-        `).join("");
-        const total = state.cart.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-        cartTotal.textContent = `EUR ${total.toFixed(2)}`;
-      }
-
-      function renderMenu() {
-        if (!state.menu.length) {
-          menuRoot.innerHTML = '<div class="muted">Load a table to fetch the live menu.</div>';
-          return;
-        }
-        menuRoot.innerHTML = state.menu.map((category) => `
-          <div class="panel" style="padding:16px">
-            <h3>${category.name}</h3>
-            ${category.items.map((item) => `
-              <div class="menu-card">
-                <div class="row">
-                  <strong>${item.name}</strong>
-                  <span class="price">EUR ${Number(item.price).toFixed(2)}</span>
-                </div>
-                <div class="muted">${item.description || "Chef special."}</div>
-                <button type="button" onclick='window.addMenuItem(${JSON.stringify(item).replace(/'/g, "&apos;")})'>Add to order</button>
+      <main class="layout">
+        <div class="main-stack">
+          <section class="panel hero-panel">
+            <div class="section-header">
+              <div>
+                <h2>Guest table context</h2>
+                <p class="panel-subtitle">
+                  Load a table QR/code to unlock live dine-in ordering. Menu browsing works immediately; ordering stays connected to real table context.
+                </p>
               </div>
-            `).join("")}
-          </div>
-        `).join("");
-      }
+            </div>
+            <div class="order-form-grid" data-guest-order-form="true">
+              <label>
+                Table / QR code
+                <input id="table-code" name="table_code" placeholder="Paste or scan table code" />
+              </label>
+              <label>
+                Guest name
+                <input id="guest-name" name="guest_name" placeholder="Restaurant Guest" data-order-guest-name />
+              </label>
+            </div>
+            <div class="panel-actions">
+              <button id="load-table" class="secondary-button" type="button">Load live table context</button>
+              <span class="status-text" id="table-message" data-tone="muted"></span>
+            </div>
+            <div class="context-pills" id="table-summary" data-table-summary>
+              <span>No live table context loaded.</span>
+            </div>
+          </section>
 
-      window.addMenuItem = (item) => {
-        const existing = state.cart.find((entry) => entry.menu_item_id === item.id);
-        if (existing) {
-          existing.quantity += 1;
-        } else {
-          state.cart.push({
-            menu_item_id: item.id,
-            name: item.name,
-            quantity: 1,
-            unit_price: Number(item.price),
-          });
-        }
-        renderCart();
-      };
+          <section class="panel menu-panel" id="menu-panel">
+            <div class="section-header">
+              <div>
+                <h2>Live gastronomy menu</h2>
+                <p class="panel-subtitle">
+                  Browse the public restaurant menu, build a cart, and send the order into the shared gastronomy backend.
+                </p>
+              </div>
+              <span class="status-text" id="menu-status" data-tone="muted"></span>
+            </div>
+            <div class="menu-toolbar">
+              <input id="menu-search" type="search" placeholder="Search dishes or descriptions" />
+              <div class="menu-categories" id="menu-categories" aria-label="Menu categories"></div>
+            </div>
+            <div id="menu-list" class="menu-list" data-order-menu></div>
+          </section>
 
-      window.removeCartItem = (index) => {
-        state.cart.splice(index, 1);
-        renderCart();
-      };
+          <section class="panel" id="reservation-panel">
+            <div class="section-header">
+              <div>
+                <h2>Restaurant reservation</h2>
+                <p class="panel-subtitle">
+                  This form uses the canonical reservation API and stays aligned with gastronomy management visibility.
+                </p>
+              </div>
+              <span class="status-text" id="availability-status" data-tone="muted"></span>
+            </div>
 
-      async function loadMenu() {
-        const response = await fetch(`${API_BASE}/public/restaurant/menu`);
-        if (!response.ok) throw new Error("Menu unavailable");
-        const data = await response.json();
-        state.menu = data.categories || [];
-        renderMenu();
-      }
+            <form id="reservation-form" data-restaurant-reservation-form>
+              <div class="booking-grid">
+                <label>
+                  Guest name
+                  <input id="reservation-guest-name" name="guest_name" required />
+                </label>
+                <label>
+                  Email
+                  <input id="reservation-email" name="email" type="email" placeholder="guest@example.com" />
+                </label>
+                <label>
+                  Phone
+                  <input id="reservation-phone" name="phone" type="tel" placeholder="+49 …" />
+                </label>
+                <label>
+                  Party size
+                  <input id="reservation-party-size" name="party_size" type="number" min="1" step="1" required />
+                </label>
+                <label>
+                  Date
+                  <input id="reservation-date" name="reservation_date" type="date" required />
+                </label>
+                <label>
+                  Start time
+                  <input id="reservation-time" name="start_time" type="time" required />
+                </label>
+              </div>
 
-      async function loadTable() {
-        orderStatus.textContent = '';
-        const code = document.getElementById("table-code").value.trim();
-        if (!code) {
-          tableInfo.textContent = 'Please enter a table code first.';
-          return;
-        }
-        const response = await fetch(`${API_BASE}/public/restaurant/table/${encodeURIComponent(code)}`);
-        if (!response.ok) {
-          tableInfo.textContent = 'Table lookup failed. Check the code and try again.';
-          return;
-        }
-        const data = await response.json();
-        tableInfo.textContent = `Table ${data.table_number} · ${data.section_name} · capacity ${data.capacity}`;
-        await loadMenu();
-      }
+              <label style="margin-top: 14px;">
+                Special requests
+                <textarea id="reservation-special-requests" name="special_requests" placeholder="Window seat, allergies, celebration, seating note"></textarea>
+              </label>
 
-      async function submitOrder() {
-        const tableCode = document.getElementById("table-code").value.trim();
-        const guestName = document.getElementById("guest-name").value.trim() || "Restaurant Guest";
-        const notes = document.getElementById("order-notes").value.trim();
-        if (!tableCode || !state.cart.length) {
-          orderStatus.textContent = 'Load a table and add at least one item first.';
-          return;
-        }
-        const response = await fetch(`${API_BASE}/public/restaurant/order`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            table_code: tableCode,
-            guest_name: guestName,
-            notes,
-            items: state.cart.map(({ menu_item_id, quantity }) => ({ menu_item_id, quantity })),
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          orderStatus.textContent = data.detail || 'Order submission failed.';
-          return;
-        }
-        orderStatus.textContent = `Order #${data.order_id} sent. Kitchen and table screens should update now.`;
-        state.cart = [];
-        renderCart();
-      }
+              <div class="slot-list" id="availability-slots" data-availability-slots></div>
+              <div class="panel-actions">
+                <button id="submit-reservation" class="primary-button" type="submit">Book restaurant reservation</button>
+                <span id="reservation-message" class="status-text" data-restaurant-message data-tone="muted"></span>
+              </div>
+            </form>
+          </section>
+        </div>
 
-      document.getElementById("load-table").addEventListener("click", () => loadTable().catch((error) => {
-        console.error(error);
-        tableInfo.textContent = 'Unable to load the table or menu.';
-      }));
-      document.getElementById("submit-order").addEventListener("click", () => submitOrder().catch((error) => {
-        console.error(error);
-        orderStatus.textContent = 'Unexpected error while sending the order.';
-      }));
+        <div class="side-stack">
+          <aside class="panel">
+            <div class="section-header">
+              <div>
+                <h2>Current cart</h2>
+                <p class="panel-subtitle">Orders route into the shared gastronomy service flow.</p>
+              </div>
+            </div>
+            <div id="cart-items" class="cart-items"></div>
+            <label style="margin-top: 16px;">
+              Order notes
+              <textarea id="order-notes" name="notes" placeholder="Timing, allergies, pacing, special service note" data-order-notes></textarea>
+            </label>
+            <div class="cart-footer">
+              <div>
+                <div class="kicker">Total</div>
+                <div id="cart-total" class="cart-total">€0.00</div>
+              </div>
+              <button id="submit-order" class="primary-button" type="button" data-order-submit>Send order</button>
+            </div>
+            <div id="order-message" class="status-text" data-order-message data-tone="muted"></div>
+          </aside>
 
-      renderMenu();
-      renderCart();
-    </script>
+          <section class="panel" id="tracker-panel">
+            <div class="section-header">
+              <div>
+                <h2>Order tracker</h2>
+                <p class="panel-subtitle">
+                  Watch the public guest status, then hand the same order into waiter and kitchen flows from management.
+                </p>
+              </div>
+              <button id="refresh-order-status" class="ghost-button" type="button">Refresh status</button>
+            </div>
+            <div id="order-tracker" data-order-tracker></div>
+            <div id="tracker-message" class="status-text" data-tone="muted"></div>
+            <p class="order-footnote">
+              New guest orders are stored in the shared gastronomy billing model. Management can send them onward to the kitchen board using the existing waiter workflow.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="./assets/app.js"></script>
   </body>
 </html>

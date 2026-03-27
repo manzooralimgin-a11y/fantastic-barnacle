@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Clock, CheckCircle2, Timer, Plus } from "lucide-react";
 import { fetchHotelRooms, type HotelRoomItem } from "@/lib/hotel-room-types";
+import { ApiError } from "@/components/shared/api-error";
 import { cn } from "@/lib/utils";
 
 type Ticket = { id: string; title: string; location: string; priority: "critical" | "high" | "medium" | "low"; assigned_to: string; status: "open" | "in-progress" | "resolved"; created: string };
@@ -52,14 +53,17 @@ function deriveMaintenanceTickets(rooms: HotelRoomItem[]): Ticket[] {
 
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHotelRooms()
       .then((rooms) => {
+        setFetchError(null);
         setTickets(deriveMaintenanceTickets(rooms));
       })
       .catch((error) => {
         console.error("Failed to load maintenance room data", error);
+        setFetchError("Failed to load maintenance room inventory.");
       });
   }, []);
 
@@ -95,6 +99,8 @@ export default function MaintenancePage() {
           </Card>
         ))}
       </div>
+
+      {fetchError && <ApiError message={fetchError} dismissible={false} />}
 
       <Card className="bg-card shadow-[var(--shadow-soft)] border-none overflow-hidden">
         <CardContent className="p-0">

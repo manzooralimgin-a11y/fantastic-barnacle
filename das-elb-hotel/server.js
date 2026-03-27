@@ -78,30 +78,57 @@ function getCacheControl(urlPath, ext) {
 }
 
 function buildInjectedScripts() {
-  const runtimeConfig = [
+  return [
     "<script id=\"das-elb-runtime-config\">",
     `window.API_BASE_URL=${JSON.stringify(API_BASE_URL)};`,
     `window.HOTEL_PROPERTY_ID=${JSON.stringify(HOTEL_PROPERTY_ID)};`,
     `window.RESTAURANT_ID=${JSON.stringify(RESTAURANT_ID)};`,
     "</script>",
     "<script src=\"/assets/api-integration.js\"></script>",
+    "<script src=\"/assets/landing-performance.js\" defer></script>",
+    "<script src=\"/assets/sw-register.js\" defer></script>",
   ].join("");
-  return runtimeConfig;
 }
 
 function injectClientScripts(html) {
-  if (html.includes("/assets/api-integration.js")) {
-    return html;
+  let result = html;
+
+  if (!result.includes("das-elb-runtime-config")) {
+    result = result.replace(
+      "</head>",
+      [
+        "<script id=\"das-elb-runtime-config\">",
+        `window.API_BASE_URL=${JSON.stringify(API_BASE_URL)};`,
+        `window.HOTEL_PROPERTY_ID=${JSON.stringify(HOTEL_PROPERTY_ID)};`,
+        `window.RESTAURANT_ID=${JSON.stringify(RESTAURANT_ID)};`,
+        "</script>",
+        "</head>",
+      ].join(""),
+    );
   }
 
-  const injectedScripts = buildInjectedScripts();
-  if (html.includes("</head>")) {
-    return html.replace("</head>", `${injectedScripts}</head>`);
+  const scriptTags = [
+    "<script src=\"/assets/api-integration.js\"></script>",
+    "<script src=\"/assets/landing-performance.js\" defer></script>",
+    "<script src=\"/assets/sw-register.js\" defer></script>",
+  ];
+
+  for (const tag of scriptTags) {
+    const srcMatch = tag.match(/src="([^"]+)"/);
+    const src = srcMatch ? srcMatch[1] : "";
+    if (src && result.includes(src)) {
+      continue;
+    }
+    if (result.includes("</head>")) {
+      result = result.replace("</head>", `${tag}</head>`);
+    } else if (result.includes("</body>")) {
+      result = result.replace("</body>", `${tag}</body>`);
+    } else {
+      result += tag;
+    }
   }
-  if (html.includes("</body>")) {
-    return html.replace("</body>", `${injectedScripts}</body>`);
-  }
-  return `${html}${injectedScripts}`;
+
+  return result;
 }
 
 process.on("uncaughtException", (err) => console.error("Uncaught:", err.message));

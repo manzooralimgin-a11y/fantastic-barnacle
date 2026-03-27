@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "node scripts/build.mjs"
+    "optimize:videos": "node scripts/optimize-videos.mjs",
+    "build": "npm run optimize:videos && node scripts/build.mjs",
+    "validate:perf": "node scripts/validate-performance.mjs"
   }
 }

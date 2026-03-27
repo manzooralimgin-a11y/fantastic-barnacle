@@ -225,7 +225,7 @@ export default function WaiterStationPage() {
     try {
       const [catRes, itemRes] = await Promise.all([
         api.get("/menu/categories"),
-        api.get("/menu/items"),
+        api.get("/menu/items?available=true"),
       ]);
       setCategories(catRes.data);
       setMenuItems(itemRes.data);

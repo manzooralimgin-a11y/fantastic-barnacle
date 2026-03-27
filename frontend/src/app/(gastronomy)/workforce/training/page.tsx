@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 import { BookOpen } from "lucide-react";
 
 interface TrainingModule {
@@ -18,15 +19,52 @@ interface TrainingModule {
 }
 
 export default function TrainingPage() {
-  const { data: modules, isLoading } = useQuery<TrainingModule[]>({
+  const { data: modules, isLoading, isError, refetch } = useQuery<TrainingModule[]>({
     queryKey: ["workforce-training"],
     queryFn: async () => {
       const { data } = await api.get("/workforce/training");
-      return data;
+      const modules = Array.isArray(data?.modules) ? data.modules : [];
+      const progress = Array.isArray(data?.progress) ? data.progress : [];
+
+      return modules.map((module: Record<string, unknown>) => {
+        const moduleId = Number(module.id);
+        const moduleProgress = progress.filter(
+          (item: Record<string, unknown>) => Number(item.module_id) === moduleId,
+        );
+        const completedCount = moduleProgress.filter(
+          (item: Record<string, unknown>) => item.status === "completed",
+        ).length;
+        const completionRate = moduleProgress.length
+          ? Math.round((completedCount / moduleProgress.length) * 100)
+          : 0;
+
+        return {
+          id: moduleId,
+          title: String(module.title || ""),
+          description: String(module.content_url || "Training module"),
+          category: String(module.category || "General"),
+          duration_minutes: Number(module.duration_min || 0),
+          completion_rate: completionRate,
+          is_required:
+            Boolean(module.required_for_roles) &&
+            Object.keys((module.required_for_roles as Record<string, unknown>) || {}).length > 0,
+        };
+      });
     },
+    retry: false,
   });
 
   if (isLoading) return <Loading className="py-20" size="lg" />;
+  if (isError) {
+    return (
+      <ApiError
+        message="Failed to load training overview."
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

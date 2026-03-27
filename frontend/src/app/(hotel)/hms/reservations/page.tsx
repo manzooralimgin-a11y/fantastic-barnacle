@@ -90,10 +90,12 @@ export default function ReservationsPage() {
   const [companyForm, setCompanyForm] = useState({ firma: "", strasse: "", plz_stadt: "", land: "Deutschland", ust_id: "" });
   const printRef = useRef<HTMLDivElement>(null);
   const roomRates = buildRoomRateMap(roomTypes);
+  const reservationQueryConfig = { params: { property_id: defaultHotelPropertyId } };
+  const normalizedToday = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     Promise.all([
-      api.get("/hms/reservations"),
+      api.get("/hms/reservations", reservationQueryConfig),
       fetchHotelRoomTypes(defaultHotelPropertyId),
     ])
       .then(([reservationResponse, roomTypeResponse]) => {
@@ -113,15 +115,18 @@ export default function ReservationsPage() {
 
   useWebSocket("NEW_HOTEL_BOOKING", (data) => {
     console.log("New hotel booking:", data);
-    api.get("/hms/reservations").then(r => setReservations(r.data.items || r.data || [])).catch(() => {});
-  });
+    api.get("/hms/reservations", reservationQueryConfig).then(r => setReservations(r.data.items || r.data || [])).catch(() => {});
+  }, defaultHotelPropertyId);
+
+  const isUpcomingStatus = (status: Reservation["status"] | string) =>
+    status === "confirmed" || status === "pending" || status === "checked-in";
 
   const filtered = reservations.filter(r => {
     const matchesSearch = !search || r.guest_name.toLowerCase().includes(search.toLowerCase()) || r.id.toLowerCase().includes(search.toLowerCase());
     if (activeTab === "Cancelled") return r.status === "cancelled" && matchesSearch;
-    if (activeTab === "Today") return r.check_in === new Date().toISOString().slice(0, 10) && r.status !== "cancelled" && matchesSearch;
+    if (activeTab === "Today") return r.check_in === normalizedToday && r.status !== "cancelled" && matchesSearch;
     if (activeTab === "Past") return (r.status === "checked-out") && matchesSearch;
-    return (r.status === "confirmed" || r.status === "checked-in") && matchesSearch;
+    return isUpcomingStatus(r.status) && matchesSearch;
   });
 
   const openNew = () => {

@@ -1,13 +1,15 @@
 "use client";
 
+import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/shared/stat-card";
 import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 import { Users, Clock, DollarSign } from "lucide-react";
 
-interface ScheduleData {
+interface WorkforceDashboardData {
   total_employees_today: number;
   labor_hours_today: number;
   labor_cost_today: number;
@@ -25,15 +27,34 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
 
 export default function WorkforcePage() {
-  const { data, isLoading } = useQuery<ScheduleData>({
+  const { data, isLoading, isError, refetch } = useQuery<WorkforceDashboardData>({
     queryKey: ["workforce-schedule"],
     queryFn: async () => {
-      const { data } = await api.get("/workforce/schedule");
-      return data;
+      const [trackerResponse] = await Promise.all([
+        api.get("/workforce/labor-tracker"),
+        api.get("/workforce/schedule"),
+      ]);
+      return {
+        total_employees_today: trackerResponse.data.active_employees ?? 0,
+        labor_hours_today: trackerResponse.data.total_scheduled_hours ?? 0,
+        labor_cost_today: trackerResponse.data.total_labor_cost ?? 0,
+        shifts: [],
+      };
     },
+    retry: false,
   });
 
   if (isLoading) return <Loading className="py-20" size="lg" />;
+  if (isError) {
+    return (
+      <ApiError
+        message="Failed to load workforce schedule data."
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -75,7 +96,7 @@ export default function WorkforcePage() {
                   </div>
                 ))}
                 {HOURS.map((hour) => (
-                  <>
+                  <Fragment key={`hour-${hour}`}>
                     <div key={`h-${hour}`} className="bg-card p-2 text-xs text-muted-foreground">
                       {hour}:00
                     </div>
@@ -98,10 +119,10 @@ export default function WorkforcePage() {
                             >
                               {s.employee_name}
                             </div>
-                          ))}
+                        ))}
                       </div>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </div>
             </div>

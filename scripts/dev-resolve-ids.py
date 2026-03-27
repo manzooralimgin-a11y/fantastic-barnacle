@@ -48,6 +48,11 @@ def main() -> int:
         "property_name": property_row["name"],
         "admin_email": os.environ.get("LOCAL_ADMIN_EMAIL", "local-admin@gestronomy.app"),
         "admin_password": os.environ.get("LOCAL_ADMIN_PASSWORD", "LocalAdmin1234!"),
+        "backend_url": os.environ.get("LOCAL_BACKEND_URL", "http://localhost:8000"),
+        "hotel_url": os.environ.get("LOCAL_HOTEL_URL", "http://localhost:3000"),
+        "frontend_url": os.environ.get("LOCAL_FRONTEND_URL", "http://localhost:3001"),
+        "restaurant_url": os.environ.get("LOCAL_RESTAURANT_URL", "http://localhost:3002"),
+        "mcp_url": os.environ.get("LOCAL_MCP_URL", "http://localhost:8000/mcp/voicebooker/"),
     }
     print(json.dumps(payload))
     return 0

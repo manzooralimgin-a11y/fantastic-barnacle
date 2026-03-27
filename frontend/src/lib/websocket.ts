@@ -112,9 +112,17 @@ class WebSocketClient {
 
 export const wsClient = new WebSocketClient(getWsUrl());
 
-export function useWebSocket(type: string, onMessage: MessageHandler) {
+export function useWebSocket(
+  type: string,
+  onMessage: MessageHandler,
+  channelId?: number | null,
+) {
   useEffect(() => {
-    wsClient.connect();
+    if (typeof channelId === "number" && Number.isFinite(channelId) && channelId > 0) {
+      wsClient.setRestaurantId(channelId);
+    } else {
+      wsClient.connect();
+    }
     return wsClient.subscribe(type, onMessage);
-  }, [type, onMessage]);
+  }, [type, onMessage, channelId]);
 }

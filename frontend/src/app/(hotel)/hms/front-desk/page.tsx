@@ -101,12 +101,13 @@ export default function FrontDeskPage() {
   const [companyForm, setCompanyForm] = useState({ firma: "", strasse: "", plz_stadt: "", land: "Deutschland", ust_id: "" });
   const printRef = useRef<HTMLDivElement>(null);
   const roomRates = buildRoomRateMap(roomTypes);
+  const propertyQueryConfig = { params: { property_id: defaultHotelPropertyId } };
 
   useEffect(() => {
     Promise.all([
-      api.get<FrontDeskStats>("/hms/front-desk/stats"),
-      api.get<{ items?: Arrival[] }>("/hms/front-desk/arrivals"),
-      api.get<{ items?: Departure[] }>("/hms/front-desk/departures"),
+      api.get<FrontDeskStats>("/hms/front-desk/stats", propertyQueryConfig),
+      api.get<{ items?: Arrival[] }>("/hms/front-desk/arrivals", propertyQueryConfig),
+      api.get<{ items?: Departure[] }>("/hms/front-desk/departures", propertyQueryConfig),
       fetchHotelRoomTypes(defaultHotelPropertyId),
     ])
       .then(([statsResponse, arrivalsResponse, departuresResponse, roomTypeResponse]) => {

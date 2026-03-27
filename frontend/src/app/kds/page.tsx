@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { getApiBaseUrl } from "@/lib/api";
+import { ApiError } from "@/components/shared/api-error";
 import {
   ChefHat,
   Clock,
@@ -44,9 +46,7 @@ interface KDSStation {
   is_active: boolean;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : "/api";
+const API_BASE = getApiBaseUrl(process.env);
 
 function getToken(): string | null {
   if (typeof window !== "undefined") {
@@ -83,20 +83,26 @@ export default function KDSPage() {
   const [stations, setStations] = useState<KDSStation[]>([]);
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const fetchData = useCallback(async () => {
+    setFetchError(null);
     try {
       const stationParam = selectedStation ? `?station=${selectedStation}` : "";
       const [ordersRes, stationsRes] = await Promise.all([
         fetch(`${API_BASE}/billing/kds/orders${stationParam}`, { headers: authHeaders() }),
         fetch(`${API_BASE}/billing/kds/stations`, { headers: authHeaders() }),
       ]);
-      if (ordersRes.ok) setOrders(await ordersRes.json());
-      if (stationsRes.ok) setStations(await stationsRes.json());
+      if (!ordersRes.ok || !stationsRes.ok) {
+        throw new Error(`KDS request failed: orders=${ordersRes.status} stations=${stationsRes.status}`);
+      }
+      setOrders(await ordersRes.json());
+      setStations(await stationsRes.json());
       setLastRefresh(new Date());
-    } catch {
-      /* swallow */
+    } catch (error) {
+      console.error("Failed to load KDS data", error);
+      setFetchError("Failed to load kitchen display data.");
     } finally {
       setLoading(false);
     }
@@ -128,42 +134,66 @@ export default function KDSPage() {
 
   const markItemReady = async (itemId: number) => {
     try {
-      await fetch(`${API_BASE}/billing/kds/items/${itemId}/ready`, {
+      const response = await fetch(`${API_BASE}/billing/kds/items/${itemId}/ready`, {
         method: "POST",
         headers: authHeaders(),
       });
+      if (!response.ok) {
+        throw new Error(`ready failed with ${response.status}`);
+      }
       fetchData();
-    } catch { }
+    } catch (error) {
+      console.error("Failed to mark KDS item ready", error);
+      setFetchError("Failed to update kitchen item status.");
+    }
   };
 
   const markItemServed = async (itemId: number) => {
     try {
-      await fetch(`${API_BASE}/billing/kds/items/${itemId}/served`, {
+      const response = await fetch(`${API_BASE}/billing/kds/items/${itemId}/served`, {
         method: "POST",
         headers: authHeaders(),
       });
+      if (!response.ok) {
+        throw new Error(`served failed with ${response.status}`);
+      }
       fetchData();
-    } catch { }
+    } catch (error) {
+      console.error("Failed to mark KDS item served", error);
+      setFetchError("Failed to update kitchen item status.");
+    }
   };
 
   const bumpOrder = async (orderId: number) => {
     try {
-      await fetch(`${API_BASE}/billing/kds/orders/${orderId}/bump`, {
+      const response = await fetch(`${API_BASE}/billing/kds/orders/${orderId}/bump`, {
         method: "POST",
         headers: authHeaders(),
       });
+      if (!response.ok) {
+        throw new Error(`bump failed with ${response.status}`);
+      }
       fetchData();
-    } catch { }
+    } catch (error) {
+      console.error("Failed to bump KDS order", error);
+      setFetchError("Failed to update kitchen order.");
+    }
   };
 
   const recallItem = async (itemId: number) => {
     try {
-      await fetch(`${API_BASE}/billing/kds/items/${itemId}/recall`, {
+      const response = await fetch(`${API_BASE}/billing/kds/items/${itemId}/recall`, {
         method: "POST",
         headers: authHeaders(),
       });
+      if (!response.ok) {
+        throw new Error(`recall failed with ${response.status}`);
+      }
       fetchData();
-    } catch { }
+    } catch (error) {
+      console.error("Failed to recall KDS item", error);
+      setFetchError("Failed to update kitchen item status.");
+    }
   };
 
   if (loading) {
@@ -197,6 +227,17 @@ export default function KDSPage() {
           </button>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="mb-4">
+          <ApiError
+            message={fetchError}
+            onRetry={() => {
+              void fetchData();
+            }}
+          />
+        </div>
+      )}
 
       {/* ── Station Tabs ── */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">

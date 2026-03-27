@@ -1,7 +1,8 @@
+import logging
 from datetime import date
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,9 +22,11 @@ from app.reservations.cache import (
     flush_pending_availability_invalidations,
     schedule_hotel_availability_invalidation,
 )
+from app.observability.logging import log_event
 from app.reservations.unified_service import hotel_reservation_to_dict
 
 router = APIRouter()
+logger = logging.getLogger("app.hms.router")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -57,16 +60,29 @@ async def _room_type_for_category(
     return None
 
 
+async def _resolve_property_record(
+    db: AsyncSession,
+    *,
+    property_id: int | None,
+) -> HotelProperty | None:
+    if property_id is not None:
+        property_record = await db.get(HotelProperty, property_id)
+        if property_record is None:
+            raise HTTPException(status_code=404, detail="Hotel property not found")
+        return property_record
+
+    return (await db.execute(select(HotelProperty).limit(1))).scalar_one_or_none()
+
+
 # ── Overview & Rooms ──────────────────────────────────────────────────────────
 
 @router.get("/overview")
 async def get_hms_overview(
+    property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
     user: Any = Depends(get_current_tenant_user),
 ):
-    query = select(HotelProperty).limit(1)
-    result = await db.execute(query)
-    prop = result.scalar_one_or_none()
+    prop = await _resolve_property_record(db, property_id=property_id)
 
     if not prop:
         return {
@@ -97,10 +113,11 @@ async def get_hms_overview(
 
 @router.get("/rooms")
 async def get_hms_rooms(
+    property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
     user: Any = Depends(get_current_tenant_user),
 ):
-    property_record = (await db.execute(select(HotelProperty).limit(1))).scalar_one_or_none()
+    property_record = await _resolve_property_record(db, property_id=property_id)
     query = select(Room)
     if property_record is not None:
         query = query.where(Room.property_id == property_record.id)
@@ -132,13 +149,19 @@ async def get_hms_rooms(
 
 @router.get("/front-desk/stats")
 async def get_front_desk_stats(
+    property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
     user: Any = Depends(get_current_tenant_user),
 ):
     today = date.today()
+    property_record = await _resolve_property_record(db, property_id=property_id)
+    property_filters = []
+    if property_record is not None:
+        property_filters.append(HotelReservation.property_id == property_record.id)
 
     today_arrivals = await db.scalar(
         select(func.count(HotelReservation.id)).where(
+            *property_filters,
             HotelReservation.check_in == today,
             HotelReservation.status.notin_(["cancelled", "checked_out", "checked-out"]),
         )
@@ -146,6 +169,7 @@ async def get_front_desk_stats(
 
     today_departures = await db.scalar(
         select(func.count(HotelReservation.id)).where(
+            *property_filters,
             HotelReservation.check_out == today,
             HotelReservation.status.notin_(["cancelled"]),
         )
@@ -153,13 +177,13 @@ async def get_front_desk_stats(
 
     occupied = await db.scalar(
         select(func.count(HotelReservation.id)).where(
+            *property_filters,
             HotelReservation.status.in_(["checked_in", "checked-in"]),
         )
     ) or 0
 
-    prop = (await db.execute(select(HotelProperty).limit(1))).scalar_one_or_none()
     total_rooms = expected_room_count()
-    if prop:
+    if property_record:
         total_rooms = expected_room_count()
 
     return {
@@ -173,36 +197,38 @@ async def get_front_desk_stats(
 
 @router.get("/front-desk/arrivals")
 async def get_front_desk_arrivals(
+    property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
     user: Any = Depends(get_current_tenant_user),
 ):
     today = date.today()
-    result = await db.execute(
-        select(HotelReservation)
-        .where(
-            HotelReservation.check_in == today,
-            HotelReservation.status.notin_(["cancelled", "checked_out", "checked-out"]),
-        )
-        .order_by(HotelReservation.id)
+    property_record = await _resolve_property_record(db, property_id=property_id)
+    query = select(HotelReservation).where(
+        HotelReservation.check_in == today,
+        HotelReservation.status.notin_(["cancelled", "checked_out", "checked-out"]),
     )
+    if property_record is not None:
+        query = query.where(HotelReservation.property_id == property_record.id)
+    result = await db.execute(query.order_by(HotelReservation.id))
     rows = result.scalars().all()
     return {"items": [_arrival_dict(r) for r in rows]}
 
 
 @router.get("/front-desk/departures")
 async def get_front_desk_departures(
+    property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
     user: Any = Depends(get_current_tenant_user),
 ):
     today = date.today()
-    result = await db.execute(
-        select(HotelReservation)
-        .where(
-            HotelReservation.check_out == today,
-            HotelReservation.status.notin_(["cancelled"]),
-        )
-        .order_by(HotelReservation.id)
+    property_record = await _resolve_property_record(db, property_id=property_id)
+    query = select(HotelReservation).where(
+        HotelReservation.check_out == today,
+        HotelReservation.status.notin_(["cancelled"]),
     )
+    if property_record is not None:
+        query = query.where(HotelReservation.property_id == property_record.id)
+    result = await db.execute(query.order_by(HotelReservation.id))
     rows = result.scalars().all()
     return {"items": [_departure_dict(r) for r in rows]}
 
@@ -226,13 +252,37 @@ class ReservationUpdate(BaseModel):
 
 @router.get("/reservations")
 async def list_reservations(
+    property_id: int | None = Query(default=None, gt=0),
+    status: str | None = Query(default=None),
+    limit: int = Query(default=500, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     user: Any = Depends(get_current_tenant_user),
 ):
+    property_record = await _resolve_property_record(db, property_id=property_id)
+    query = select(HotelReservation)
+    if property_record is not None:
+        query = query.where(HotelReservation.property_id == property_record.id)
+    if status:
+        normalized_status = status.replace("-", "_")
+        query = query.where(HotelReservation.status == normalized_status)
+
     result = await db.execute(
-        select(HotelReservation).order_by(HotelReservation.check_in.desc()).limit(200)
+        query.order_by(
+            HotelReservation.created_at.desc(),
+            HotelReservation.check_in.desc(),
+            HotelReservation.id.desc(),
+        ).limit(limit)
     )
     rows = result.scalars().all()
+    log_event(
+        logger,
+        logging.INFO,
+        "hms_reservations_fetched",
+        property_id=property_record.id if property_record is not None else None,
+        status_filter=status,
+        limit=limit,
+        count=len(rows),
+    )
     return [_res_to_dict(r) for r in rows]
 
 

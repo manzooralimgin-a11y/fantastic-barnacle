@@ -5,13 +5,18 @@ import { useAuthStore } from "@/stores/auth-store";
  * Resolve API base URL with runtime override support.
  * Priority: localStorage override > build-time env > relative path (Replit/dev).
  */
+function normalizeApiBaseUrl(raw: string): string {
+  const trimmed = raw.replace(/\/+$/, "");
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
 export function getApiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
   if (typeof window !== "undefined" && env.NODE_ENV === "development") {
     const override = localStorage.getItem("gestronomy_api_url");
-    if (override) return override.replace(/\/+$/, "") + "/api";
+    if (override) return normalizeApiBaseUrl(override);
   }
   if (env.NEXT_PUBLIC_API_URL) {
-    return `${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "")}/api`;
+    return normalizeApiBaseUrl(env.NEXT_PUBLIC_API_URL);
   }
   return "/api";
 }
@@ -76,6 +81,17 @@ api.interceptors.response.use(
       if (!currentPath.includes("/login")) {
         useAuthStore.getState().clear();
       }
+    }
+
+    const status = error.response?.status;
+    if (!status || status >= 500) {
+      console.error("API request failed", {
+        method: config.method?.toUpperCase() || "GET",
+        url: config.url,
+        baseURL: config.baseURL,
+        status: status ?? "network_error",
+        detail: error.response?.data ?? error.message,
+      });
     }
 
     return Promise.reject(error);

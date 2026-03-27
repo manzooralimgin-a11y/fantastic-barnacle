@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 
 interface Employee {
   id: number;
@@ -25,15 +26,26 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "secondary" | "dest
 };
 
 export default function EmployeesPage() {
-  const { data: employees, isLoading } = useQuery<Employee[]>({
+  const { data: employees, isLoading, isError, refetch } = useQuery<Employee[]>({
     queryKey: ["workforce-employees"],
     queryFn: async () => {
       const { data } = await api.get("/workforce/employees");
       return data;
     },
+    retry: false,
   });
 
   if (isLoading) return <Loading className="py-20" size="lg" />;
+  if (isError) {
+    return (
+      <ApiError
+        message="Failed to load employee directory."
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
 
   const columns = [
     { key: "name", header: "Name" },

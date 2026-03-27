@@ -18,6 +18,29 @@ from app.menu.schemas import (
 )
 
 
+def _serialize_public_menu_item(item: MenuItem, *, category_name: str) -> dict:
+    allergens = []
+    if item.allergens_json and isinstance(item.allergens_json, dict):
+        allergens = item.allergens_json.get("tags", [])
+    dietary = []
+    if item.dietary_tags_json and isinstance(item.dietary_tags_json, dict):
+        dietary = item.dietary_tags_json.get("tags", [])
+
+    return {
+        "id": item.id,
+        "name": item.name,
+        "description": item.description,
+        "price": float(item.price),
+        "category_id": item.category_id,
+        "category_name": category_name,
+        "image_url": item.image_url,
+        "is_available": item.is_available,
+        "prep_time_min": item.prep_time_min,
+        "allergens": allergens,
+        "dietary_tags": dietary,
+    }
+
+
 # ── Categories ──
 
 async def get_categories(db: AsyncSession, restaurant_id: int) -> list[MenuCategory]:
@@ -86,10 +109,62 @@ async def get_items(
         query = query.where(MenuItem.category_id == category_id)
     if available is not None:
         query = query.where(MenuItem.is_available == available)
+        if available:
+            query = query.where(MenuItem.price > 0)
     if search:
         query = query.where(MenuItem.name.ilike(f"%{search}%"))
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_public_menu_catalog(
+    db: AsyncSession,
+    restaurant_id: int | None = None,
+) -> list[dict]:
+    category_query = (
+        select(MenuCategory)
+        .where(MenuCategory.is_active == True)
+        .order_by(MenuCategory.sort_order, MenuCategory.name)
+    )
+    if restaurant_id is not None:
+        category_query = category_query.where(MenuCategory.restaurant_id == restaurant_id)
+    categories = list((await db.execute(category_query)).scalars().all())
+
+    item_query = (
+        select(MenuItem)
+        .join(MenuCategory, MenuCategory.id == MenuItem.category_id)
+        .where(
+            MenuItem.is_available == True,
+            MenuItem.price > 0,
+            MenuCategory.is_active == True,
+        )
+        .order_by(MenuCategory.sort_order, MenuItem.sort_order, MenuItem.name)
+    )
+    if restaurant_id is not None:
+        item_query = item_query.where(
+            MenuItem.restaurant_id == restaurant_id,
+            MenuCategory.restaurant_id == restaurant_id,
+        )
+    items = list((await db.execute(item_query)).scalars().all())
+
+    category_map: dict[int, dict] = {
+        category.id: {
+            "id": category.id,
+            "name": category.name,
+            "items": [],
+        }
+        for category in categories
+    }
+
+    for item in items:
+        category = category_map.get(item.category_id)
+        if category is None:
+            continue
+        category["items"].append(
+            _serialize_public_menu_item(item, category_name=category["name"])
+        )
+
+    return [category for category in category_map.values() if category["items"]]
 
 
 async def get_item_by_id(db: AsyncSession, restaurant_id: int, item_id: int) -> MenuItem:

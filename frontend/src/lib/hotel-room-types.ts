@@ -18,7 +18,13 @@ export type HotelRoomItem = {
   status: "available" | "occupied" | "cleaning" | "maintenance";
 };
 
-export const defaultHotelPropertyId = Number(process.env.NEXT_PUBLIC_HOTEL_PROPERTY_ID || 1);
+const parsedDefaultHotelPropertyId = Number.parseInt(
+  process.env.NEXT_PUBLIC_HOTEL_PROPERTY_ID || "1",
+  10,
+);
+export const defaultHotelPropertyId = Number.isFinite(parsedDefaultHotelPropertyId) && parsedDefaultHotelPropertyId > 0
+  ? parsedDefaultHotelPropertyId
+  : 1;
 
 export async function fetchHotelRoomTypes(propertyId: number = defaultHotelPropertyId): Promise<HotelRoomTypeOption[]> {
   return getJson<HotelRoomTypeOption[]>("/public/hotel/rooms", {
@@ -26,8 +32,12 @@ export async function fetchHotelRoomTypes(propertyId: number = defaultHotelPrope
   });
 }
 
-export async function fetchHotelRooms(): Promise<HotelRoomItem[]> {
-  const payload = await getJson<{ items?: HotelRoomItem[] } | HotelRoomItem[]>("/hms/rooms");
+export async function fetchHotelRooms(
+  propertyId: number = defaultHotelPropertyId,
+): Promise<HotelRoomItem[]> {
+  const payload = await getJson<{ items?: HotelRoomItem[] } | HotelRoomItem[]>("/hms/rooms", {
+    params: { property_id: propertyId },
+  });
   return Array.isArray(payload) ? payload : payload.items || [];
 }
 

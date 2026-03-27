@@ -37,22 +37,50 @@ function buildInjectedScripts() {
     `window.RESTAURANT_ID=${JSON.stringify(restaurantId)};`,
     "</script>",
     "<script src=\"/assets/api-integration.js\"></script>",
+    "<script src=\"/assets/landing-performance.js\" defer></script>",
+    "<script src=\"/assets/sw-register.js\" defer></script>",
   ].join("");
 }
 
 function injectScriptsIntoHtml(html) {
-  if (html.includes("/assets/api-integration.js")) {
-    return html;
+  let result = html;
+
+  if (!result.includes("das-elb-runtime-config")) {
+    result = result.replace(
+      "</head>",
+      [
+        "<script id=\"das-elb-runtime-config\">",
+        `window.API_BASE_URL=${JSON.stringify(apiBaseUrl)};`,
+        `window.HOTEL_PROPERTY_ID=${JSON.stringify(hotelPropertyId)};`,
+        `window.RESTAURANT_ID=${JSON.stringify(restaurantId)};`,
+        "</script>",
+        "</head>",
+      ].join(""),
+    );
   }
 
-  const injectedScripts = buildInjectedScripts();
-  if (html.includes("</head>")) {
-    return html.replace("</head>", `${injectedScripts}</head>`);
+  const scripts = [
+    "<script src=\"/assets/api-integration.js\"></script>",
+    "<script src=\"/assets/landing-performance.js\" defer></script>",
+    "<script src=\"/assets/sw-register.js\" defer></script>",
+  ];
+
+  for (const tag of scripts) {
+    const srcMatch = tag.match(/src="([^"]+)"/);
+    const src = srcMatch ? srcMatch[1] : "";
+    if (src && result.includes(src)) {
+      continue;
+    }
+    if (result.includes("</head>")) {
+      result = result.replace("</head>", `${tag}</head>`);
+    } else if (result.includes("</body>")) {
+      result = result.replace("</body>", `${tag}</body>`);
+    } else {
+      result += tag;
+    }
   }
-  if (html.includes("</body>")) {
-    return html.replace("</body>", `${injectedScripts}</body>`);
-  }
-  return `${html}${injectedScripts}`;
+
+  return result;
 }
 
 function processHtmlFiles(dirPath) {

@@ -148,6 +148,13 @@ ensure_frontend_dependencies() {
   fi
 }
 
+ensure_restaurant_dependencies() {
+  if [[ ! -x "$ROOT_DIR/res-web/node_modules/.bin/vite" ]]; then
+    echo "Installing restaurant app dependencies..."
+    (cd "$ROOT_DIR/res-web" && npm install)
+  fi
+}
+
 start_backend() {
   stop_known_listener 8000 "uvicorn app.main:app"
   ensure_port_available 8000
@@ -178,6 +185,11 @@ resolve_runtime() {
     cd "$ROOT_DIR"
     LOCAL_ADMIN_EMAIL="$LOCAL_DEV_ADMIN_EMAIL" \
       LOCAL_ADMIN_PASSWORD="$LOCAL_DEV_ADMIN_PASSWORD" \
+      LOCAL_BACKEND_URL="http://localhost:8000" \
+      LOCAL_HOTEL_URL="http://localhost:3000" \
+      LOCAL_FRONTEND_URL="http://localhost:3001" \
+      LOCAL_RESTAURANT_URL="http://localhost:3002" \
+      LOCAL_MCP_URL="http://localhost:8000/mcp/voicebooker/" \
       PYTHONPATH="$ROOT_DIR/backend" \
       "$ROOT_DIR/backend/.venv/bin/python" scripts/dev-resolve-ids.py >"$RUNTIME_FILE"
   )
@@ -228,41 +240,54 @@ start_frontend() {
 }
 
 start_restaurant() {
-  stop_known_listener 3002 "http.server 3002" "http.server --bind 0.0.0.0 -d dist"
+  ensure_restaurant_dependencies
+  stop_known_listener 3002 "vite --host 0.0.0.0 --port 3002" "vite --host 0.0.0.0"
   ensure_port_available 3002
   local restaurant_id
   restaurant_id="$(runtime_value restaurant_id)"
   start_detached \
     restaurant \
     "$LOG_DIR/restaurant.log" \
-    "cd '$ROOT_DIR/das-elb-rest' && env DAS_ELB_REST_API_URL=http://localhost:8000/api DAS_ELB_REST_RESTAURANT_ID=$restaurant_id npm run build && exec python3 -m http.server 3002 --bind 0.0.0.0 -d dist"
-  wait_for_url "http://localhost:3002/healthz" 120 1 || {
+    "cd '$ROOT_DIR/res-web' && exec env VITE_PUBLIC_API_BASE_URL=http://localhost:8000/api VITE_RESTAURANT_ID=$restaurant_id NEXT_TELEMETRY_DISABLED=1 npm run dev -- --host 0.0.0.0 --port 3002"
+  wait_for_url "http://localhost:3002/" 120 1 || {
     echo "Restaurant app failed to start. See $LOG_DIR/restaurant.log" >&2
     exit 1
   }
   echo "Restaurant app started on 3002"
 }
 
+monitor_services() {
+  local services=("backend" "hotel" "frontend" "restaurant")
+  local name pid_file crash_flag
+  for name in "${services[@]}"; do
+    pid_file="$PID_DIR/$name.pid"
+    crash_flag="$PID_DIR/$name.crashed"
+    if managed_service_running "$name"; then
+      rm -f "$crash_flag"
+      continue
+    fi
+    if [[ -f "$pid_file" ]]; then
+      if [[ ! -f "$crash_flag" ]]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Service '$name' stopped. Inspect $LOG_DIR/$name.log"
+        touch "$crash_flag"
+      fi
+    fi
+  done
+
+  if command -v redis-cli >/dev/null 2>&1; then
+    if redis-cli -h 127.0.0.1 -p 6379 ping >/dev/null 2>&1; then
+      rm -f "$PID_DIR/redis.crashed"
+    elif [[ ! -f "$PID_DIR/redis.crashed" ]]; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] Service 'redis' is not responding on port 6379. Inspect $LOG_DIR/redis.log"
+      touch "$PID_DIR/redis.crashed"
+    fi
+  fi
+}
+
 start_redis
 start_backend
 seed_backend
 resolve_runtime
-
-python3 - "$RUNTIME_FILE" <<'PY'
-import json
-import sys
-payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
-payload.update(
-    {
-        "backend_url": "http://localhost:8000",
-        "hotel_url": "http://localhost:3000",
-        "frontend_url": "http://localhost:3001",
-        "restaurant_url": "http://localhost:3002",
-        "mcp_url": "http://localhost:8000/mcp/voicebooker/",
-    }
-)
-json.dump(payload, open(sys.argv[1], "w", encoding="utf-8"), indent=2)
-PY
 
 start_hotel
 start_frontend
@@ -271,8 +296,6 @@ start_restaurant
 cleanup() {
   "$ROOT_DIR/scripts/dev-stop.sh" >/dev/null 2>&1 || true
 }
-
-trap cleanup EXIT INT TERM
 
 echo
 echo "Local stack is running:"
@@ -289,8 +312,12 @@ if [[ "$VALIDATE" == "1" ]]; then
 fi
 
 if [[ "$KEEP_ALIVE" == "1" ]]; then
-  echo "Press Ctrl+C to stop the local stack."
+  trap cleanup INT TERM
+  echo "Press Ctrl+C to stop the local stack, or run ./scripts/dev-stop.sh from another shell."
   while true; do
-    sleep 3600
+    monitor_services
+    sleep 5
   done
+else
+  trap cleanup EXIT INT TERM
 fi

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -10,9 +10,12 @@ router = APIRouter()
 # ── Public aliases for menu / table / order ──────────────────────────
 
 @router.get("/menu")
-async def public_restaurant_menu(db: AsyncSession = Depends(get_db)):
+async def public_restaurant_menu(
+    restaurant_id: int | None = Query(default=None, gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     """Get full restaurant menu (public)."""
-    menu = await qr_service.get_public_menu(db)
+    menu = await qr_service.get_public_menu(db, restaurant_id=restaurant_id)
     return {"categories": menu}
 
 

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Clock, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { fetchHotelRooms, type HotelRoomItem } from "@/lib/hotel-room-types";
+import { ApiError } from "@/components/shared/api-error";
 import { cn } from "@/lib/utils";
 
 type Task = { id: string; room: string; type: string; priority: "urgent" | "normal" | "low"; assigned_to: string; status: "pending" | "in-progress" | "done" | "inspecting"; last_cleaned: string };
@@ -46,14 +47,17 @@ function deriveHousekeepingTasks(rooms: HotelRoomItem[]): Task[] {
 export default function HousekeepingPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tab, setTab] = useState("All");
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHotelRooms()
       .then((rooms) => {
+        setFetchError(null);
         setTasks(deriveHousekeepingTasks(rooms));
       })
       .catch((error) => {
         console.error("Failed to load housekeeping rooms", error);
+        setFetchError("Failed to load housekeeping room inventory.");
       });
   }, []);
 
@@ -99,6 +103,8 @@ export default function HousekeepingPage() {
           <button key={t} onClick={() => setTab(t)} className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", tab === t ? "bg-primary text-primary-foreground" : "text-foreground-muted hover:text-foreground")}>{t}</button>
         ))}
       </div>
+
+      {fetchError && <ApiError message={fetchError} dismissible={false} />}
 
       <Card className="bg-card shadow-[var(--shadow-soft)] border-none overflow-hidden">
         <CardContent className="p-0">

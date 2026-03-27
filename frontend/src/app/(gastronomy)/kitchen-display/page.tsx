@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { ApiError } from "@/components/shared/api-error";
 import {
   ChefHat,
   Clock,
@@ -76,10 +77,12 @@ export default function KitchenBoardPage() {
   const [stations, setStations] = useState<KDSStation[]>([]);
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [actionInProgress, setActionInProgress] = useState<Set<number>>(new Set());
 
   const fetchData = useCallback(async () => {
+    setFetchError(null);
     try {
       const stationParam = selectedStation ? `?station=${selectedStation}` : "";
       const [ordersRes, stationsRes] = await Promise.all([
@@ -94,8 +97,9 @@ export default function KitchenBoardPage() {
       setOrders(ordersWithSeconds);
       setStations(stationsRes.data);
       setLastRefresh(new Date());
-    } catch {
-      /* silently handle */
+    } catch (error) {
+      console.error("Failed to load kitchen board data", error);
+      setFetchError("Failed to load kitchen board data.");
     } finally {
       setLoading(false);
     }
@@ -123,7 +127,10 @@ export default function KitchenBoardPage() {
     try {
       await api.post(`/billing/kds/items/${itemId}/ready`);
       await fetchData();
-    } catch { /* handle */ }
+    } catch (error) {
+      console.error("Failed to mark kitchen item ready", error);
+      setFetchError("Failed to update kitchen item status.");
+    }
     setActionInProgress(prev => { const s = new Set(prev); s.delete(itemId); return s; });
   };
 
@@ -132,7 +139,10 @@ export default function KitchenBoardPage() {
     try {
       await api.post(`/billing/kds/items/${itemId}/recall`);
       await fetchData();
-    } catch { /* handle */ }
+    } catch (error) {
+      console.error("Failed to recall kitchen item", error);
+      setFetchError("Failed to update kitchen item status.");
+    }
     setActionInProgress(prev => { const s = new Set(prev); s.delete(itemId); return s; });
   };
 
@@ -140,7 +150,10 @@ export default function KitchenBoardPage() {
     try {
       await api.post(`/billing/kds/orders/${orderId}/bump`);
       await fetchData();
-    } catch { /* handle */ }
+    } catch (error) {
+      console.error("Failed to bump kitchen order", error);
+      setFetchError("Failed to update kitchen order.");
+    }
   };
 
   if (loading) {
@@ -179,6 +192,15 @@ export default function KitchenBoardPage() {
           <RefreshCw className="h-4 w-4" />
         </button>
       </div>
+
+      {fetchError && (
+        <ApiError
+          message={fetchError}
+          onRetry={() => {
+            void fetchData();
+          }}
+        />
+      )}
 
       {/* Station Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">

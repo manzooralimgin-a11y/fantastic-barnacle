@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -41,9 +41,12 @@ async def get_table_info(code: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/menu")
-async def get_general_menu(db: AsyncSession = Depends(get_db)):
+async def get_general_menu(
+    restaurant_id: int | None = Query(default=None, gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     """Get full menu (public, no code required)."""
-    menu = await service.get_public_menu(db)
+    menu = await service.get_public_menu(db, restaurant_id=restaurant_id)
     return {"categories": menu}
 
 

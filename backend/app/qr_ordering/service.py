@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.reservations.models import Table, FloorSection, QRTableCode
-from app.menu.models import MenuCategory, MenuItem
+from app.menu.models import MenuItem
+from app.menu.service import get_public_menu_catalog
 from app.billing.models import TableOrder, OrderItem
 from app.websockets.connection_manager import manager
 
@@ -79,50 +80,7 @@ async def get_table_by_code(db: AsyncSession, code: str):
 
 async def get_public_menu(db: AsyncSession, restaurant_id: int | None = None):
     """Get full menu organized by category (public endpoint)."""
-    cat_query = select(MenuCategory).where(MenuCategory.is_active == True).order_by(MenuCategory.sort_order)
-    if restaurant_id is not None:
-        cat_query = cat_query.where(MenuCategory.restaurant_id == restaurant_id)
-    cat_result = await db.execute(cat_query)
-    categories = list(cat_result.scalars().all())
-
-    item_query = select(MenuItem).where(MenuItem.is_available == True).order_by(MenuItem.sort_order)
-    if restaurant_id is not None:
-        item_query = item_query.where(MenuItem.restaurant_id == restaurant_id)
-    item_result = await db.execute(item_query)
-    items = list(item_result.scalars().all())
-
-    cat_map = {}
-    for cat in categories:
-        cat_map[cat.id] = {
-            "id": cat.id,
-            "name": cat.name,
-            "items": [],
-        }
-
-    for item in items:
-        if item.category_id in cat_map:
-            allergens = []
-            if item.allergens_json and isinstance(item.allergens_json, dict):
-                allergens = item.allergens_json.get("tags", [])
-            dietary = []
-            if item.dietary_tags_json and isinstance(item.dietary_tags_json, dict):
-                dietary = item.dietary_tags_json.get("tags", [])
-
-            cat_map[item.category_id]["items"].append({
-                "id": item.id,
-                "name": item.name,
-                "description": item.description,
-                "price": float(item.price),
-                "category_id": item.category_id,
-                "category_name": cat_map[item.category_id]["name"],
-                "image_url": item.image_url,
-                "is_available": item.is_available,
-                "prep_time_min": item.prep_time_min,
-                "allergens": allergens,
-                "dietary_tags": dietary,
-            })
-
-    return [v for v in cat_map.values() if v["items"]]
+    return await get_public_menu_catalog(db, restaurant_id=restaurant_id)
 
 
 async def get_public_menu_for_code(db: AsyncSession, code: str):
@@ -147,6 +105,7 @@ async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, it
             MenuItem.id.in_(item_ids),
             MenuItem.restaurant_id == table.restaurant_id,
             MenuItem.is_available == True,
+            MenuItem.price > 0,
         )
     )
     menu_items = {mi.id: mi for mi in menu_result.scalars().all()}
@@ -164,7 +123,9 @@ async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, it
         restaurant_id=table.restaurant_id,
         table_id=qr.table_id,
         order_type="dine_in",
-        status="pending",
+        # Guest-originated orders need to enter the standard waiter live-order flow
+        # immediately. Individual items remain pending until explicit kitchen handoff.
+        status="open",
         guest_name=guest_name,
         notes=notes,
         subtotal=total,

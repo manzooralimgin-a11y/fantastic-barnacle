@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/shared/loading";
+import { ApiError } from "@/components/shared/api-error";
 
 interface Candidate {
   id: number;
@@ -33,15 +34,34 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 export default function HiringPage() {
-  const { data: candidates, isLoading } = useQuery<Candidate[]>({
+  const { data: candidates, isLoading, isError, refetch } = useQuery<Candidate[]>({
     queryKey: ["workforce-hiring"],
     queryFn: async () => {
       const { data } = await api.get("/workforce/hiring");
-      return data;
+      return (Array.isArray(data) ? data : []).map((candidate: Record<string, unknown>) => ({
+        id: Number(candidate.id),
+        name: String(candidate.name || ""),
+        position: String(candidate.position || ""),
+        stage: String(candidate.status || "new"),
+        applied_date: candidate.created_at
+          ? new Date(String(candidate.created_at)).toLocaleDateString("de-DE")
+          : "",
+      }));
     },
+    retry: false,
   });
 
   if (isLoading) return <Loading className="py-20" size="lg" />;
+  if (isError) {
+    return (
+      <ApiError
+        message="Failed to load hiring pipeline."
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
 
   const grouped = STAGES.reduce<Record<string, Candidate[]>>((acc, stage) => {
     acc[stage] = (candidates ?? []).filter((c) => c.stage === stage);

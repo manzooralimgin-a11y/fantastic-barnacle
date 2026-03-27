@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard, Bed, Users, TrendingUp } from "lucide-react";
 import api from "@/lib/api";
+import { ApiError } from "@/components/shared/api-error";
 import { cn } from "@/lib/utils";
 
 type HotelOverview = {
@@ -38,9 +39,11 @@ export default function HMSDashboardPage() {
   const [overview, setOverview] = useState<HotelOverview>(fallbackOverview);
   const [rooms, setRooms] = useState<RoomStatus[]>(fallbackRooms);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      setFetchError(null);
       try {
         const [overviewRes, roomsRes] = await Promise.all([
           api.get("/hms/overview"),
@@ -50,6 +53,7 @@ export default function HMSDashboardPage() {
         setRooms(roomsRes.data.items || []);
       } catch (err) {
         console.error("Failed to fetch HMS data", err);
+        setFetchError("Failed to load room inventory.");
       } finally {
         setLoading(false);
       }
@@ -76,6 +80,8 @@ export default function HMSDashboardPage() {
             </Badge>
         </div>
       </div>
+
+      {fetchError && <ApiError message={fetchError} dismissible={false} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard label="Total Inventory" value={overview.total_rooms} icon={Bed} trend="+0% vs LW" />

@@ -72,16 +72,25 @@ async def _ensure_employee_belongs_to_restaurant(
 
 
 async def _ensure_menu_item_belongs_to_restaurant(
-    db: AsyncSession, restaurant_id: int, menu_item_id: int
+    db: AsyncSession,
+    restaurant_id: int,
+    menu_item_id: int,
+    *,
+    require_orderable: bool = False,
 ) -> None:
-    result = await db.execute(
-        select(MenuItem.id).where(
-            MenuItem.id == menu_item_id,
-            MenuItem.restaurant_id == restaurant_id,
-        )
+    query = select(MenuItem.id).where(
+        MenuItem.id == menu_item_id,
+        MenuItem.restaurant_id == restaurant_id,
     )
+    if require_orderable:
+        query = query.where(
+            MenuItem.is_available == True,
+            MenuItem.price > 0,
+        )
+    result = await db.execute(query)
     if result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+        detail = "Menu item not available" if require_orderable else "Menu item not found"
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
 
 # ── Table Orders ──
@@ -198,7 +207,12 @@ async def add_order_item(
     db: AsyncSession, restaurant_id: int, order_id: int, payload: OrderItemCreate
 ) -> OrderItem:
     await get_order_by_id(db, restaurant_id, order_id)
-    await _ensure_menu_item_belongs_to_restaurant(db, restaurant_id, payload.menu_item_id)
+    await _ensure_menu_item_belongs_to_restaurant(
+        db,
+        restaurant_id,
+        payload.menu_item_id,
+        require_orderable=True,
+    )
     item = OrderItem(
         restaurant_id=restaurant_id,
         order_id=order_id,

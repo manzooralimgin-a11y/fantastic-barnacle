@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KeyRound, Activity, ShieldAlert, Camera } from "lucide-react";
 import { fetchHotelRooms, type HotelRoomItem } from "@/lib/hotel-room-types";
+import { ApiError } from "@/components/shared/api-error";
 import { cn } from "@/lib/utils";
 
 type AuditEvent = {
@@ -39,15 +40,18 @@ const statusColors: Record<string, string> = { allowed: "bg-emerald-500/10 text-
 export default function SecurityPage() {
   const [roomCount, setRoomCount] = useState(0);
   const [auditLog, setAuditLog] = useState<AuditEvent[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHotelRooms()
       .then((rooms) => {
+        setFetchError(null);
         setRoomCount(rooms.length);
         setAuditLog(deriveAuditLog(rooms));
       })
       .catch((error) => {
         console.error("Failed to load security room data", error);
+        setFetchError("Failed to load hotel room security data.");
       });
   }, []);
 
@@ -66,6 +70,7 @@ export default function SecurityPage() {
           <Card key={label} className="bg-card shadow-[var(--shadow-soft)] border-none"><CardContent className="p-6"><div className="flex items-center justify-between mb-4"><p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">{label}</p><div className="p-2.5 rounded-xl bg-primary/10 text-primary"><Icon className="w-5 h-5" /></div></div><h3 className="text-4xl font-editorial font-bold text-foreground">{value}</h3></CardContent></Card>
         ))}
       </div>
+      {fetchError && <ApiError message={fetchError} dismissible={false} />}
       <Card className="bg-card shadow-[var(--shadow-soft)] border-none overflow-hidden">
         <CardHeader className="border-b border-foreground/10 bg-foreground/[0.02] px-6 py-5"><CardTitle className="text-lg font-editorial text-foreground">Access Audit Log</CardTitle></CardHeader>
         <CardContent className="p-0">

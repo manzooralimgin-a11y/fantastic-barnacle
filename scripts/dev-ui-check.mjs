@@ -57,55 +57,91 @@ function attachPageLogging(page) {
   });
 }
 
+async function dismissCookieBanner(page) {
+  const acceptAll = page.getByRole("button", { name: /Alle akzeptieren/i });
+  const necessaryOnly = page.getByRole("button", { name: /Nur notwendige/i });
+
+  if (await acceptAll.count()) {
+    await acceptAll.first().click().catch(() => {});
+    return;
+  }
+  if (await necessaryOnly.count()) {
+    await necessaryOnly.first().click().catch(() => {});
+  }
+}
+
 async function submitHotelBooking(page) {
   currentStep = "hotel_booking_open";
   await page.goto(config.hotelUrl, { waitUntil: "networkidle" });
   await page.waitForSelector("body");
+  await dismissCookieBanner(page);
+  await page.getByRole("button", { name: /^Buchen$/ }).first().click();
   await page.waitForSelector("[data-booking-form]");
-  currentStep = "hotel_booking_rooms_wait";
-  await page.waitForFunction((roomTypeId) => {
-    const select = document.querySelector("[data-booking-room-type]");
-    if (!select) {
-      return false;
-    }
-    return Array.from(select.options).some((option) => option.value === roomTypeId);
-  }, config.hotelRoomTypeId);
-  currentStep = "hotel_booking_fill";
-  await page.locator("#booking-room-type").selectOption({ value: config.hotelRoomTypeId });
-  await page.locator("#guest-name").fill(config.hotelName);
-  await page.locator("#guest-email").fill("local-hotel@example.com");
-  await page.locator("#guest-phone").fill("+49 40 555 1200");
-  await page.locator("#booking-adults").fill("2");
+
+  currentStep = "hotel_booking_fill_dates";
   await page.locator("#booking-check-in").fill(config.hotelCheckIn);
-  await page.locator("#booking-check-out").fill(config.hotelCheckOut);
-  await page.locator("#booking-children").fill("0");
-  await page.locator("#booking-notes").fill("Local full-stack validation");
-  await page.locator('[data-booking-form] input[name="accepted_policy"]').check();
+  await page.locator('[data-booking-form] input[type="date"]').nth(1).fill(config.hotelCheckOut);
+  await page.locator("#booking-adults").selectOption("2");
+  await page.locator('[data-booking-form] select').nth(1).selectOption("0");
+  await page.getByRole("button", { name: /Verfügbarkeit prüfen/i }).click();
+
+  currentStep = "hotel_booking_pick_room";
+  await page.getByRole("heading", { name: /Wählen Sie Ihr Apartment/i }).waitFor();
+  const preferredRoomCard = page
+    .locator("div")
+    .filter({ has: page.getByText(config.hotelRoomType, { exact: false }) })
+    .filter({ has: page.getByRole("button", { name: /^Buchen$/ }) })
+    .last();
+  const fallbackRoomCard = page
+    .locator("div")
+    .filter({ has: page.getByRole("button", { name: /^Buchen$/ }) })
+    .last();
+  const roomCard = (await preferredRoomCard.count()) ? preferredRoomCard : fallbackRoomCard;
+  await roomCard.getByRole("button", { name: /^Buchen$/ }).click();
+
+  currentStep = "hotel_booking_fill_guest";
+  await page.getByRole("heading", { name: /Ihre Daten/i }).waitFor();
+  await page.getByLabel(/Vollständiger Name/i).fill(config.hotelName);
+  await page.getByLabel(/E-Mail Adresse/i).fill("local-hotel@example.com");
+  await page.getByLabel(/Telefonnummer/i).fill("+49 40 555 1200");
+  await page.getByLabel(/Straße & Hausnr\./i).fill("Elbufer 12");
+  await page.getByPlaceholder("12345").fill("39104");
+  await page.getByPlaceholder("Magdeburg").fill("Magdeburg");
+  await page.getByRole("button", { name: /Weiter zur Zahlung/i }).click();
+
+  currentStep = "hotel_booking_fill_payment";
+  await page.getByRole("heading", { name: /Zahlung/i }).waitFor();
+  await page.getByPlaceholder("•••• •••• •••• ••••").fill("4242 4242 4242 4242");
+  await page.getByPlaceholder("MM / YY").fill("12 / 30");
+  await page.getByPlaceholder("•••").fill("123");
+  await page.getByRole("button", { name: /Zahlung bestätigen/i }).click();
+
   currentStep = "hotel_booking_submit";
-  await page.getByRole("button", { name: /buchung/i }).click();
+  await page.getByRole("heading", { name: /Bestätigung/i }).waitFor();
+  await page.getByRole("button", { name: /Jetzt Zahlungspflichtig buchen/i }).click();
   currentStep = "hotel_booking_wait_success";
-  await page.waitForFunction(() => {
-    const node = document.querySelector("[data-booking-message]");
-    return node && /Buchungsnummer:/i.test(node.textContent || "");
-  });
-  return page.locator("[data-booking-message]").innerText();
+  await page.getByText(/Vielen Dank!/i).waitFor();
+  return page.getByText(/Vielen Dank!/i).innerText();
 }
 
 async function submitRestaurantReservation(page) {
   currentStep = "restaurant_booking_open";
   await page.goto(config.hotelUrl, { waitUntil: "networkidle" });
+  await dismissCookieBanner(page);
+  await page.getByRole("button", { name: /Tisch reservieren/i }).first().click();
   await page.waitForSelector("[data-restaurant-form]");
+  const form = page.locator("[data-restaurant-form]").first();
   currentStep = "restaurant_booking_fill";
-  await page.locator("#restaurant-guest-name").fill(config.restaurantName);
-  await page.locator("#restaurant-guest-email").fill("local-restaurant@example.com");
-  await page.locator("#restaurant-guest-phone").fill("+49 40 555 1300");
-  await page.locator("#restaurant-party-size").fill("2");
-  await page.locator("#restaurant-date").fill(config.restaurantDate);
-  await page.locator("#restaurant-time").fill(config.restaurantTime);
-  await page.locator("#restaurant-special-requests").fill("Local full-stack validation");
-  await page.locator('[data-restaurant-form] input[name="accepted_policy"]').check();
+  await form.locator("#restaurant-guest-name").fill(config.restaurantName);
+  await form.locator("#restaurant-email").fill("local-restaurant@example.com");
+  await form.locator("#restaurant-phone").fill("+49 40 555 1300");
+  await form.locator("#restaurant-persons").fill("2");
+  await form.locator("#restaurant-date").fill(config.restaurantDate);
+  await form.locator("#restaurant-time").selectOption(config.restaurantTime.slice(0, 5));
+  await form.locator("#restaurant-special-requests").fill("Local full-stack validation");
+  await form.locator('input[type="checkbox"]').check();
   currentStep = "restaurant_booking_submit";
-  await page.getByRole("button", { name: /tisch reservieren/i }).click();
+  await form.getByRole("button", { name: /Tisch reservieren/i }).click();
   currentStep = "restaurant_booking_wait_success";
   await page.waitForFunction(() => {
     const node = document.querySelector("[data-restaurant-message]");
@@ -145,8 +181,16 @@ async function checkRestaurantApp(page) {
   await page.goto(config.restaurantUrl, { waitUntil: "networkidle" });
   await page.waitForSelector("#api-url");
   const apiUrl = (await page.locator("#api-url").innerText()).trim();
+  currentStep = "restaurant_app_menu_open";
+  await page.locator('[data-nav="menu"]').click();
   currentStep = "restaurant_app_menu_wait";
   await page.waitForSelector("[data-menu-item]");
+  await page.waitForSelector('button[data-cart-action="add"]:not([disabled])');
+  await page.locator('button[data-cart-action="add"]:not([disabled])').first().click();
+
+  currentStep = "restaurant_app_order_open";
+  await page.locator('[data-nav="order"]').click();
+  await page.waitForSelector("#guest-name");
 
   currentStep = "restaurant_app_table_fill";
   await page.locator("#guest-name").fill(config.restaurantAppOrderGuest);
@@ -157,9 +201,6 @@ async function checkRestaurantApp(page) {
     return node && /connected/i.test(node.textContent || "");
   });
   const tableSummary = await page.locator("#table-summary").innerText();
-
-  currentStep = "restaurant_app_add_to_cart";
-  await page.locator('button[data-cart-action="add"]:not([disabled])').first().click();
   await page.waitForFunction(() => {
     const button = document.querySelector("#submit-order");
     return button instanceof HTMLButtonElement && button.disabled === false;
@@ -175,25 +216,31 @@ async function checkRestaurantApp(page) {
   const trackerHeading = await page.locator("#order-tracker h3").innerText();
   const orderIdMatch = trackerHeading.match(/#(\d+)/) || orderMessage.match(/#(\d+)/);
 
+  currentStep = "restaurant_app_booking_open";
+  await page.locator('[data-nav="booking"]').click();
+  await page.waitForSelector("#reservation-datetime");
+  await page.locator("#reservation-datetime").fill(
+    `${config.restaurantAppReservationDate}T${config.restaurantAppReservationTime.slice(0, 5)}`,
+  );
+  await page.locator("#reservation-datetime").dispatchEvent("change");
+
   currentStep = "restaurant_app_reservation_fill";
-  await page.locator("#reservation-guest-name").fill(config.restaurantAppReservationName);
-  await page.locator("#reservation-email").fill("local-restaurant-app@example.com");
-  await page.locator("#reservation-phone").fill("+49 40 555 1700");
-  await page.locator("#reservation-party-size").fill("2");
-  await page.locator("#reservation-party-size").dispatchEvent("change");
-  await page.locator("#reservation-date").fill(config.restaurantAppReservationDate);
-  await page.locator("#reservation-date").dispatchEvent("change");
-  await page.locator("#reservation-time").fill(config.restaurantAppReservationTime.slice(0, 5));
-  await page.locator("#reservation-special-requests").fill("Restaurant guest app validation");
   await page.waitForFunction((slotTime) => {
     return Array.from(document.querySelectorAll("[data-slot-time]")).some(
       (node) => node.getAttribute("data-slot-time") === slotTime,
     );
   }, config.restaurantAppReservationTime);
   await page.locator(`[data-slot-time="${config.restaurantAppReservationTime}"]`).click();
+  await page.getByRole("button", { name: /^continue$/i }).click();
+  await page.getByRole("button", { name: /^continue$/i }).click();
+  await page.waitForSelector("#reservation-guest-name");
+  await page.locator("#reservation-guest-name").fill(config.restaurantAppReservationName);
+  await page.locator("#reservation-email").fill("local-restaurant-app@example.com");
+  await page.locator("#reservation-phone").fill("+49 40 555 1700");
+  await page.getByRole("button", { name: /^continue$/i }).click();
 
   currentStep = "restaurant_app_submit_reservation";
-  await page.locator("#submit-reservation").click();
+  await page.getByRole("button", { name: /confirm booking/i }).click();
   await page.waitForFunction(() => {
     const node = document.querySelector("#reservation-message");
     return node && /Reservation #/i.test(node.textContent || "");

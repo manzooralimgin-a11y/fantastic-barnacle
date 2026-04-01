@@ -7,6 +7,16 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(projectRoot, "public");
 const outDir = path.join(projectRoot, "out");
+const assetVersion =
+  process.env.DAS_ELB_ASSET_VERSION ||
+  Math.max(
+    fs.statSync(path.join(publicDir, "overrides.css")).mtimeMs,
+    fs.statSync(path.join(publicDir, "assets", "landing-performance.js")).mtimeMs,
+    fs.statSync(path.join(publicDir, "assets", "sw-register.js")).mtimeMs,
+    fs.statSync(path.join(publicDir, "sw.js")).mtimeMs,
+  )
+    .toString(36)
+    .replace(/\./g, "");
 
 const apiBaseUrl = process.env.PUBLIC_API_BASE_URL || "https://gestronomy-api.onrender.com/api";
 const hotelPropertyId = Number.parseInt(process.env.PUBLIC_HOTEL_PROPERTY_ID || "546", 10) || 546;
@@ -35,10 +45,11 @@ function buildInjectedScripts() {
     `window.API_BASE_URL=${JSON.stringify(apiBaseUrl)};`,
     `window.HOTEL_PROPERTY_ID=${JSON.stringify(hotelPropertyId)};`,
     `window.RESTAURANT_ID=${JSON.stringify(restaurantId)};`,
+    `window.DAS_ELB_ASSET_VERSION=${JSON.stringify(assetVersion)};`,
     "</script>",
-    "<script src=\"/assets/api-integration.js\"></script>",
-    "<script src=\"/assets/landing-performance.js\" defer></script>",
-    "<script src=\"/assets/sw-register.js\" defer></script>",
+    `<script src="/assets/api-integration.js?v=${assetVersion}"></script>`,
+    `<script src="/assets/landing-performance.js?v=${assetVersion}" defer></script>`,
+    `<script src="/assets/sw-register.js?v=${assetVersion}" defer></script>`,
   ].join("");
 }
 
@@ -62,6 +73,13 @@ function stripNextFontFaceBlocks(css) {
 
 function injectScriptsIntoHtml(html) {
   let result = stripNextFontAssetReferences(html);
+  const criticalStyleId = "das-elb-critical-hotfix";
+
+  result = result
+    .replace(/href="\/overrides\.css(?:\?v=[^"]*)?"/g, `href="/overrides.css?v=${assetVersion}"`)
+    .replace(/src="\/assets\/api-integration\.js(?:\?v=[^"]*)?"/g, `src="/assets/api-integration.js?v=${assetVersion}"`)
+    .replace(/src="\/assets\/landing-performance\.js(?:\?v=[^"]*)?"/g, `src="/assets/landing-performance.js?v=${assetVersion}"`)
+    .replace(/src="\/assets\/sw-register\.js(?:\?v=[^"]*)?"/g, `src="/assets/sw-register.js?v=${assetVersion}"`);
 
   if (!result.includes("das-elb-runtime-config")) {
     result = result.replace(
@@ -71,6 +89,7 @@ function injectScriptsIntoHtml(html) {
         `window.API_BASE_URL=${JSON.stringify(apiBaseUrl)};`,
         `window.HOTEL_PROPERTY_ID=${JSON.stringify(hotelPropertyId)};`,
         `window.RESTAURANT_ID=${JSON.stringify(restaurantId)};`,
+        `window.DAS_ELB_ASSET_VERSION=${JSON.stringify(assetVersion)};`,
         "</script>",
         "</head>",
       ].join(""),
@@ -78,9 +97,9 @@ function injectScriptsIntoHtml(html) {
   }
 
   const scripts = [
-    "<script src=\"/assets/api-integration.js\"></script>",
-    "<script src=\"/assets/landing-performance.js\" defer></script>",
-    "<script src=\"/assets/sw-register.js\" defer></script>",
+    `<script src="/assets/api-integration.js?v=${assetVersion}"></script>`,
+    `<script src="/assets/landing-performance.js?v=${assetVersion}" defer></script>`,
+    `<script src="/assets/sw-register.js?v=${assetVersion}" defer></script>`,
   ];
 
   for (const tag of scripts) {
@@ -96,6 +115,23 @@ function injectScriptsIntoHtml(html) {
     } else {
       result += tag;
     }
+  }
+
+  if (!result.includes(criticalStyleId)) {
+    result = result.replace(
+      "</head>",
+      [
+        `<style id="${criticalStyleId}">`,
+        "#tagungen{background:var(--color-bg-alt)!important;}",
+        "#tagungen>.absolute.inset-0{background:none!important;opacity:0!important;}",
+        "#events{background:var(--color-bg-alt)!important;}",
+        "#events>.absolute,#events::before,#events::after{background:none!important;opacity:0!important;}",
+        "#events div.rounded-3xl.overflow-hidden.border.border-earth-300\\/20.shadow-xl.shadow-black\\/10,#events div.relative.rounded-3xl.overflow-hidden.border.border-base-950\\/20.shadow-2xl.shadow-black\\/5{background:rgb(26,47,36)!important;background-image:none!important;}",
+        "#events div.rounded-3xl.overflow-hidden.border.border-earth-300\\/20.shadow-xl.shadow-black\\/10 *,#events div.relative.rounded-3xl.overflow-hidden.border.border-base-950\\/20.shadow-2xl.shadow-black\\/5 *{color:var(--color-text-light)!important;}",
+        "</style>",
+        "</head>",
+      ].join(""),
+    );
   }
 
   return result;

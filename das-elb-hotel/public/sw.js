@@ -1,4 +1,4 @@
-const VERSION = "das-elb-v4";
+const VERSION = "das-elb-v5";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const IMMUTABLE_CACHE = `${VERSION}-immutable`;
@@ -32,6 +32,12 @@ self.addEventListener("activate", (event) => {
       ),
     ).then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 function cacheFirst(request, cacheName) {

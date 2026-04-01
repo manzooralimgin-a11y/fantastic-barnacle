@@ -9,6 +9,16 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const API_BASE_URL = process.env.PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 const HOTEL_PROPERTY_ID = parseInt(process.env.PUBLIC_HOTEL_PROPERTY_ID || "546", 10) || 546;
 const RESTAURANT_ID = parseInt(process.env.PUBLIC_RESTAURANT_ID || "4240", 10) || 4240;
+const ASSET_VERSION =
+  process.env.DAS_ELB_ASSET_VERSION ||
+  Math.max(
+    fs.statSync(path.join(PUBLIC_DIR, "overrides.css")).mtimeMs,
+    fs.statSync(path.join(PUBLIC_DIR, "assets", "landing-performance.js")).mtimeMs,
+    fs.statSync(path.join(PUBLIC_DIR, "assets", "sw-register.js")).mtimeMs,
+    fs.statSync(path.join(PUBLIC_DIR, "sw.js")).mtimeMs,
+  )
+    .toString(36)
+    .replace(/\./g, "");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -83,10 +93,11 @@ function buildInjectedScripts() {
     `window.API_BASE_URL=${JSON.stringify(API_BASE_URL)};`,
     `window.HOTEL_PROPERTY_ID=${JSON.stringify(HOTEL_PROPERTY_ID)};`,
     `window.RESTAURANT_ID=${JSON.stringify(RESTAURANT_ID)};`,
+    `window.DAS_ELB_ASSET_VERSION=${JSON.stringify(ASSET_VERSION)};`,
     "</script>",
-    "<script src=\"/assets/api-integration.js\"></script>",
-    "<script src=\"/assets/landing-performance.js\" defer></script>",
-    "<script src=\"/assets/sw-register.js\" defer></script>",
+    `<script src="/assets/api-integration.js?v=${ASSET_VERSION}"></script>`,
+    `<script src="/assets/landing-performance.js?v=${ASSET_VERSION}" defer></script>`,
+    `<script src="/assets/sw-register.js?v=${ASSET_VERSION}" defer></script>`,
   ].join("");
 }
 
@@ -110,6 +121,13 @@ function stripNextFontFaceBlocks(css) {
 
 function injectClientScripts(html) {
   let result = stripNextFontAssetReferences(html);
+  const criticalStyleId = "das-elb-critical-hotfix";
+
+  result = result
+    .replace(/href="\/overrides\.css(?:\?v=[^"]*)?"/g, `href="/overrides.css?v=${ASSET_VERSION}"`)
+    .replace(/src="\/assets\/api-integration\.js(?:\?v=[^"]*)?"/g, `src="/assets/api-integration.js?v=${ASSET_VERSION}"`)
+    .replace(/src="\/assets\/landing-performance\.js(?:\?v=[^"]*)?"/g, `src="/assets/landing-performance.js?v=${ASSET_VERSION}"`)
+    .replace(/src="\/assets\/sw-register\.js(?:\?v=[^"]*)?"/g, `src="/assets/sw-register.js?v=${ASSET_VERSION}"`);
 
   if (!result.includes("das-elb-runtime-config")) {
     result = result.replace(
@@ -119,6 +137,7 @@ function injectClientScripts(html) {
         `window.API_BASE_URL=${JSON.stringify(API_BASE_URL)};`,
         `window.HOTEL_PROPERTY_ID=${JSON.stringify(HOTEL_PROPERTY_ID)};`,
         `window.RESTAURANT_ID=${JSON.stringify(RESTAURANT_ID)};`,
+        `window.DAS_ELB_ASSET_VERSION=${JSON.stringify(ASSET_VERSION)};`,
         "</script>",
         "</head>",
       ].join(""),
@@ -126,9 +145,9 @@ function injectClientScripts(html) {
   }
 
   const scriptTags = [
-    "<script src=\"/assets/api-integration.js\"></script>",
-    "<script src=\"/assets/landing-performance.js\" defer></script>",
-    "<script src=\"/assets/sw-register.js\" defer></script>",
+    `<script src="/assets/api-integration.js?v=${ASSET_VERSION}"></script>`,
+    `<script src="/assets/landing-performance.js?v=${ASSET_VERSION}" defer></script>`,
+    `<script src="/assets/sw-register.js?v=${ASSET_VERSION}" defer></script>`,
   ];
 
   for (const tag of scriptTags) {
@@ -144,6 +163,23 @@ function injectClientScripts(html) {
     } else {
       result += tag;
     }
+  }
+
+  if (!result.includes(criticalStyleId)) {
+    result = result.replace(
+      "</head>",
+      [
+        `<style id="${criticalStyleId}">`,
+        "#tagungen{background:var(--color-bg-alt)!important;}",
+        "#tagungen>.absolute.inset-0{background:none!important;opacity:0!important;}",
+        "#events{background:var(--color-bg-alt)!important;}",
+        "#events>.absolute,#events::before,#events::after{background:none!important;opacity:0!important;}",
+        "#events div.rounded-3xl.overflow-hidden.border.border-earth-300\\/20.shadow-xl.shadow-black\\/10,#events div.relative.rounded-3xl.overflow-hidden.border.border-base-950\\/20.shadow-2xl.shadow-black\\/5{background:rgb(26,47,36)!important;background-image:none!important;}",
+        "#events div.rounded-3xl.overflow-hidden.border.border-earth-300\\/20.shadow-xl.shadow-black\\/10 *,#events div.relative.rounded-3xl.overflow-hidden.border.border-base-950\\/20.shadow-2xl.shadow-black\\/5 *{color:var(--color-text-light)!important;}",
+        "</style>",
+        "</head>",
+      ].join(""),
+    );
   }
 
   return result;

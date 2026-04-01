@@ -2,7 +2,8 @@ import secrets
 from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, cast, Date, func, select
+from sqlalchemy import Integer, and_, cast, Date, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.billing.models import Bill, CashShift, KDSStationConfig, OrderItem, Payment, TableOrder
@@ -330,14 +331,29 @@ async def send_to_kitchen(db: AsyncSession, restaurant_id: int, order_id: int) -
 
 # ── Bills ──
 
+async def _next_bill_number(db: AsyncSession, restaurant_id: int, *, year: int | None = None) -> str:
+    bill_year = year or datetime.now(timezone.utc).year
+    prefix = f"BILL-{bill_year}-"
+    suffix_start = len(prefix) + 1
+    result = await db.execute(
+        select(
+            func.max(
+                cast(func.substr(Bill.bill_number, suffix_start), Integer)
+            )
+        ).where(
+            Bill.restaurant_id == restaurant_id,
+            Bill.bill_number.like(f"{prefix}%"),
+        )
+    )
+    next_sequence = (result.scalar() or 0) + 1
+    return f"{prefix}{next_sequence:04d}"
+
+
 async def generate_bill(db: AsyncSession, restaurant_id: int, payload: BillCreate) -> Bill:
     order = await get_order_by_id(db, restaurant_id, payload.order_id)
-
-    count_result = await db.execute(
-        select(func.count(Bill.id)).where(Bill.restaurant_id == restaurant_id)
-    )
-    count = (count_result.scalar() or 0) + 1
-    bill_number = f"BILL-{datetime.now().year}-{count:04d}"
+    existing_bill = await get_bill_by_order(db, restaurant_id, payload.order_id)
+    if existing_bill is not None:
+        return existing_bill
 
     subtotal_gross = float(order.subtotal) + float(order.tax_amount)
     total = subtotal_gross + payload.service_charge - float(order.discount_amount) + float(order.tip_amount)
@@ -346,28 +362,45 @@ async def generate_bill(db: AsyncSession, restaurant_id: int, payload: BillCreat
     subtotal_net = total
     payload.tax_rate = 0.00
 
-    receipt_token = secrets.token_urlsafe(32)
+    last_error: IntegrityError | None = None
+    for _ in range(3):
+        bill_number = await _next_bill_number(db, restaurant_id)
+        bill = Bill(
+            restaurant_id=restaurant_id,
+            order_id=payload.order_id,
+            bill_number=bill_number,
+            subtotal=subtotal_net,  # Net value
+            tax_rate=payload.tax_rate,
+            tax_amount=tax_amount,
+            service_charge=payload.service_charge,
+            discount_amount=float(order.discount_amount),
+            tip_amount=float(order.tip_amount),
+            total=total,
+            split_type=payload.split_type,
+            split_count=payload.split_count,
+            tip_suggestions_json={"suggestions": [10, 15, 20]},
+            receipt_email=payload.receipt_email,
+            receipt_phone=payload.receipt_phone,
+            receipt_token=secrets.token_urlsafe(32),
+        )
+        db.add(bill)
+        try:
+            await db.flush()
+        except IntegrityError as exc:
+            last_error = exc
+            await db.rollback()
+            existing_bill = await get_bill_by_order(db, restaurant_id, payload.order_id)
+            if existing_bill is not None:
+                return existing_bill
+            order = await get_order_by_id(db, restaurant_id, payload.order_id)
+            continue
+        break
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Could not generate a unique bill number. Please retry.",
+        ) from last_error
 
-    bill = Bill(
-        restaurant_id=restaurant_id,
-        order_id=payload.order_id,
-        bill_number=bill_number,
-        subtotal=subtotal_net, # Net value
-        tax_rate=payload.tax_rate,
-        tax_amount=tax_amount,
-        service_charge=payload.service_charge,
-        discount_amount=float(order.discount_amount),
-        tip_amount=float(order.tip_amount),
-        total=total,
-        split_type=payload.split_type,
-        split_count=payload.split_count,
-        tip_suggestions_json={"suggestions": [10, 15, 20]},
-        receipt_email=payload.receipt_email,
-        receipt_phone=payload.receipt_phone,
-        receipt_token=receipt_token,
-    )
-    db.add(bill)
-    await db.flush()
     await log_human_action(
         db,
         action="bill_generated",

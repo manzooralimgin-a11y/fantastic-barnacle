@@ -14,6 +14,7 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const setUser = useAuthStore((s) => s.setUser);
   const setToken = useAuthStore((s) => s.setToken);
+  const clearAuth = useAuthStore((s) => s.clear);
   const token = useAuthStore((s) => s.token);
   const activeSection = useAuthStore((s) => s.activeSection);
   const setActiveSection = useAuthStore((s) => s.setActiveSection);
@@ -21,6 +22,7 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
   const initUIFromStorage = useUIStore((s) => s.initFromStorage);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Step 1 — read persisted state from localStorage after hydration.
   useEffect(() => {
@@ -36,23 +38,33 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     if (!token) {
+      setAuthChecked(false);
       router.replace("/login");
       return;
     }
+    let cancelled = false;
     getMe()
       .then((user) => {
+        if (cancelled) return;
         setUser(user);
+        setAuthChecked(true);
         if (!pathname.startsWith("/hms") && activeSection === "management") {
           router.replace("/hms/dashboard");
         }
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error("Auth check failed", err);
+        clearAuth();
+        setAuthChecked(false);
         router.replace("/login");
       });
-  }, [hydrated, token, setUser, router, pathname, activeSection]);
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, token, setUser, clearAuth, router, pathname, activeSection]);
 
-  if (!hydrated || !token) return null;
+  if (!hydrated || !token || !authChecked) return null;
 
   return (
     <div className="atmospheric-bg min-h-screen">

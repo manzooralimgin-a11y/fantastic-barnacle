@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.billing.models import Bill, TableOrder
 from app.hms.models import HotelProperty, HotelReservation, Room, RoomType
 from app.workforce.models import Applicant, Employee, Schedule, TrainingModule, TrainingProgress
 
@@ -194,6 +196,87 @@ async def test_hms_rooms_endpoint_returns_room_inventory_items(
     assert rooms_by_number["203"]["room_type_name"] == "Komfort"
     assert rooms_by_number["203"]["status"] == "available"
     assert rooms_by_number["206"]["room_type_name"] == "Suite"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_billing_bill_generation_is_idempotent_per_order(
+    client: AsyncClient,
+    tenant_seed: Any,
+) -> None:
+    headers = tenant_headers(tenant_seed.restaurant_a_id)
+    payload = {"order_id": tenant_seed.billing_order_a_id, "tax_rate": 0.19}
+
+    first = await client.post("/api/billing/bills", headers=headers, json=payload)
+    second = await client.post("/api/billing/bills", headers=headers, json=payload)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["id"] == first.json()["id"]
+    assert second.json()["bill_number"] == first.json()["bill_number"]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_billing_bill_generation_uses_highest_existing_sequence(
+    client: AsyncClient,
+    tenant_seed: Any,
+    db_session: AsyncSession,
+) -> None:
+    current_year = datetime.now().year
+
+    lower_order = TableOrder(restaurant_id=tenant_seed.restaurant_a_id, guest_name="Lower bill")
+    higher_order = TableOrder(restaurant_id=tenant_seed.restaurant_a_id, guest_name="Higher bill")
+    new_order = TableOrder(restaurant_id=tenant_seed.restaurant_a_id, guest_name="New bill")
+    db_session.add_all([lower_order, higher_order, new_order])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            Bill(
+                restaurant_id=tenant_seed.restaurant_a_id,
+                order_id=lower_order.id,
+                bill_number=f"BILL-{current_year}-0001",
+                subtotal=10.0,
+                tax_rate=0.0,
+                tax_amount=0.0,
+                service_charge=0.0,
+                discount_amount=0.0,
+                tip_amount=0.0,
+                total=10.0,
+                split_type="none",
+                split_count=1,
+                status="open",
+                tip_suggestions_json={"suggestions": [10, 15, 20]},
+                receipt_token=f"receipt-{uuid4().hex}",
+            ),
+            Bill(
+                restaurant_id=tenant_seed.restaurant_a_id,
+                order_id=higher_order.id,
+                bill_number=f"BILL-{current_year}-0004",
+                subtotal=20.0,
+                tax_rate=0.0,
+                tax_amount=0.0,
+                service_charge=0.0,
+                discount_amount=0.0,
+                tip_amount=0.0,
+                total=20.0,
+                split_type="none",
+                split_count=1,
+                status="open",
+                tip_suggestions_json={"suggestions": [10, 15, 20]},
+                receipt_token=f"receipt-{uuid4().hex}",
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    response = await client.post(
+        "/api/billing/bills",
+        headers=tenant_headers(tenant_seed.restaurant_a_id),
+        json={"order_id": new_order.id, "tax_rate": 0.19},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["bill_number"] == f"BILL-{current_year}-0005"
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -42,8 +42,26 @@ function buildInjectedScripts() {
   ].join("");
 }
 
+function stripNextFontAssetReferences(html) {
+  if (!html) {
+    return html;
+  }
+
+  return html
+    .replace(/<link rel="preload" as="font"[^>]+href="\/_next\/static\/media\/[^"]+"[^>]*>/g, "")
+    .replace(/:HL\[[^\]]+\](?:\\n|\n)?/g, "");
+}
+
+function stripNextFontFaceBlocks(css) {
+  if (!css) {
+    return css;
+  }
+
+  return css.replace(/@font-face\{[^}]*src:url\(\/_next\/static\/media\/[^)]+\)[^}]*\}/g, "");
+}
+
 function injectScriptsIntoHtml(html) {
-  let result = html;
+  let result = stripNextFontAssetReferences(html);
 
   if (!result.includes("das-elb-runtime-config")) {
     result = result.replace(
@@ -98,8 +116,24 @@ function processHtmlFiles(dirPath) {
   }
 }
 
+function processCssFiles(dirPath) {
+  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+    const entryPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      processCssFiles(entryPath);
+      continue;
+    }
+    if (path.extname(entry.name).toLowerCase() !== ".css") {
+      continue;
+    }
+    const css = fs.readFileSync(entryPath, "utf8");
+    fs.writeFileSync(entryPath, stripNextFontFaceBlocks(css), "utf8");
+  }
+}
+
 fs.rmSync(outDir, { recursive: true, force: true });
 copyDir(publicDir, outDir);
 processHtmlFiles(outDir);
+processCssFiles(outDir);
 
 console.log(`Built static site in ${outDir}`);

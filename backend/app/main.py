@@ -402,6 +402,14 @@ async def mcp_voicebooker_root_redirect() -> RedirectResponse:
     return RedirectResponse(url="/mcp/voicebooker/", status_code=307)
 
 
+@app.head("/mcp/voicebooker/", include_in_schema=False)
+async def mcp_voicebooker_head_ok() -> Response:
+    # The mounted SSE transport is intended for GET/POST traffic. Handling HEAD
+    # here keeps health checks and manual probes from traversing the streaming
+    # middleware path that Starlette's BaseHTTPMiddleware cannot safely wrap.
+    return Response(status_code=200)
+
+
 app.mount("/mcp/voicebooker", mcp_app)
 app.include_router(
     agents_router,

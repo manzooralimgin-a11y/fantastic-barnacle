@@ -74,7 +74,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               "hover:border-[var(--color-brand-gold)]/30",
               collapsed ? "h-10 w-10" : "h-14 w-14"
             )}>
-              <img src="/das-elb-logo.png" alt="DAS ELB" className="w-full h-auto object-contain brightness-0 invert" />
+              <img
+                src="/das-elb-logo.png"
+                alt="DAS ELB"
+                className={cn(
+                  "w-auto object-contain",
+                  collapsed ? "h-6" : "h-8"
+                )}
+              />
             </div>
 
             <AnimatePresence mode="wait">

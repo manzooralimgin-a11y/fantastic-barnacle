@@ -107,7 +107,6 @@ managed_service_running() {
     if [[ -n "$pid" ]] && pid_is_running "$pid"; then
       return 0
     fi
-    rm -f "$pid_file"
   fi
   return 1
 }
@@ -271,6 +270,7 @@ monitor_services() {
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Service '$name' stopped. Inspect $LOG_DIR/$name.log"
         touch "$crash_flag"
       fi
+      rm -f "$pid_file"
     fi
   done
 
@@ -280,6 +280,7 @@ monitor_services() {
     elif [[ ! -f "$PID_DIR/redis.crashed" ]]; then
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] Service 'redis' is not responding on port 6379. Inspect $LOG_DIR/redis.log"
       touch "$PID_DIR/redis.crashed"
+      rm -f "$PID_DIR/redis.pid"
     fi
   fi
 }

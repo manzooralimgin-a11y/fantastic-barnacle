@@ -37,6 +37,9 @@
   var videoObserver = null;
   var imageObserver = null;
   var roomCardRefreshTimer = 0;
+  var luxuryRevealObserver = null;
+  var luxuryMotionTicking = false;
+  var luxuryParallaxTargets = [];
 
   function sourceHint(node) {
     var childSources = [];
@@ -523,6 +526,54 @@
     }
   }
 
+  function retargetTagungenCta() {
+    var section = document.getElementById("tagungen");
+    if (!section) {
+      return;
+    }
+
+    var cta = section.querySelector(".mt-10 a[href*='restaurant-view']");
+    if (!cta) {
+      return;
+    }
+
+    var targetHref = "/tagungen.html";
+    cta.setAttribute("href", targetHref);
+
+    var labelHost = cta.querySelector("span") || cta;
+    var textUpdated = false;
+    for (var i = 0; i < labelHost.childNodes.length; i++) {
+      var node = labelHost.childNodes[i];
+      if (node.nodeType === Node.TEXT_NODE && (node.textContent || "").trim()) {
+        node.textContent = "Tagung anfragen";
+        textUpdated = true;
+        break;
+      }
+    }
+
+    if (!textUpdated) {
+      labelHost.insertBefore(document.createTextNode("Tagung anfragen"), labelHost.firstChild);
+    }
+
+    if (cta.dataset.tagungenCtaBound === "1") {
+      return;
+    }
+
+    cta.dataset.tagungenCtaBound = "1";
+    cta.addEventListener(
+      "click",
+      function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") {
+          event.stopImmediatePropagation();
+        }
+        window.location.href = targetHref;
+      },
+      true,
+    );
+  }
+
   function stabilizeManagedVideos() {
     var videos = document.querySelectorAll("video");
     for (var i = 0; i < videos.length; i++) {
@@ -547,6 +598,398 @@
     }
   }
 
+  function ensureLuxuryRevealObserver() {
+    if (luxuryRevealObserver || !("IntersectionObserver" in window)) {
+      return;
+    }
+
+    luxuryRevealObserver = new IntersectionObserver(
+      function (entries) {
+        for (var i = 0; i < entries.length; i++) {
+          var entry = entries[i];
+          if (!entry.isIntersecting) {
+            continue;
+          }
+          entry.target.classList.add("luxury-visible");
+          luxuryRevealObserver.unobserve(entry.target);
+        }
+      },
+      {
+        threshold: 0.2,
+        rootMargin: "0px 0px -8% 0px",
+      },
+    );
+  }
+
+  function markLuxuryReveal(node, index, kind) {
+    if (!node || node.nodeType !== 1) {
+      return;
+    }
+
+    ensureLuxuryRevealObserver();
+
+    if (node.dataset.luxuryRevealBound !== "1") {
+      node.dataset.luxuryRevealBound = "1";
+      node.setAttribute("data-luxury-reveal", kind || "fade-up");
+    }
+
+    if (kind) {
+      node.dataset.luxuryKind = kind;
+    }
+
+    node.style.setProperty("--luxury-delay", String((index || 0) * 0.12) + "s");
+    if (luxuryRevealObserver) {
+      luxuryRevealObserver.observe(node);
+    } else {
+      node.classList.add("luxury-visible");
+    }
+  }
+
+  function pushUnique(targets, element) {
+    if (!element || element.nodeType !== 1) {
+      return;
+    }
+    if (targets.indexOf(element) === -1) {
+      targets.push(element);
+    }
+  }
+
+  function isVisibleCandidate(element) {
+    if (!element || !element.getBoundingClientRect) {
+      return false;
+    }
+    var style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden";
+  }
+
+  function enhanceHeroMotion() {
+    var hero = document.getElementById("hero");
+    if (!hero) {
+      return;
+    }
+
+    hero.classList.add("luxury-hero-ready");
+
+    var heroTargets = [];
+    var preferredTargets = hero.querySelectorAll("[data-hero-text], h1, p, a[data-interactive], button[data-interactive], .gold-glow-btn");
+    for (var i = 0; i < preferredTargets.length; i++) {
+      if (isVisibleCandidate(preferredTargets[i])) {
+        pushUnique(heroTargets, preferredTargets[i]);
+      }
+    }
+
+    for (var targetIndex = 0; targetIndex < heroTargets.length; targetIndex++) {
+      heroTargets[targetIndex].classList.add("luxury-hero-text");
+      markLuxuryReveal(heroTargets[targetIndex], targetIndex, "hero");
+    }
+
+    var heroMedia = hero.querySelector("video, img");
+    if (heroMedia) {
+      heroMedia.classList.add("luxury-hero-media");
+      markLuxuryReveal(heroMedia, 0, "hero-media");
+      if (!heroMedia.dataset.luxuryParallax) {
+        heroMedia.dataset.luxuryParallax = "0.08";
+      }
+    }
+
+    var scrollCue = hero.querySelector("a[href='#rooms-view']");
+    if (scrollCue) {
+      scrollCue.setAttribute("data-luxury-float", "1");
+    }
+  }
+
+  function enhanceSectionMotion() {
+    ensureLuxuryRevealObserver();
+
+    var sections = document.querySelectorAll("main section[id]");
+    for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+      var section = sections[sectionIndex];
+      if (!section || section.id === "hero") {
+        continue;
+      }
+
+      section.classList.add("luxury-section");
+      section.dataset.luxurySectionBound = "1";
+
+      var targets = [];
+      var selectors = [
+        "h2",
+        "h3",
+        "p",
+        "[data-room-card]",
+        "[data-tag-card]",
+        "[data-event-card]",
+        "[data-location-card]",
+        "[data-stat-item]",
+        "[data-interactive]",
+        "img",
+        "video",
+        ".rounded-2xl",
+        ".rounded-3xl",
+      ];
+
+      for (var selectorIndex = 0; selectorIndex < selectors.length; selectorIndex++) {
+        var nodes = section.querySelectorAll(selectors[selectorIndex]);
+        for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+          var node = nodes[nodeIndex];
+          if (!isVisibleCandidate(node)) {
+            continue;
+          }
+          if (node.closest("#footer")) {
+            continue;
+          }
+          pushUnique(targets, node);
+        }
+      }
+
+      var limit = Math.min(targets.length, 14);
+      for (var targetIndex = 0; targetIndex < limit; targetIndex++) {
+        var target = targets[targetIndex];
+        var kind = "fade-up";
+        if (target.matches("h2, h3, .font-serif")) {
+          target.classList.add("luxury-heading");
+          kind = "heading";
+        } else if (target.matches("[data-grill-featured], video")) {
+          kind = "cinematic";
+        } else if (target.matches("[data-room-card], [data-tag-card], [data-event-card], [data-location-card], .rounded-2xl, .rounded-3xl")) {
+          kind = "card";
+        }
+        markLuxuryReveal(target, targetIndex, kind);
+      }
+    }
+  }
+
+  function registerLuxuryParallaxTargets() {
+    luxuryParallaxTargets = [];
+    var candidates = document.querySelectorAll("[data-luxury-parallax], #hero video, #hero img, #events [data-grill-featured], [data-about-image]");
+    for (var i = 0; i < candidates.length; i++) {
+      var node = candidates[i];
+      var factor = Number.parseFloat(node.dataset.luxuryParallax || (node.closest("#hero") ? "0.08" : "0.04"));
+      luxuryParallaxTargets.push({
+        node: node,
+        factor: Number.isFinite(factor) ? factor : 0.04,
+      });
+    }
+  }
+
+  function updateLuxuryParallax() {
+    luxuryMotionTicking = false;
+    if (reducedMotion) {
+      return;
+    }
+
+    var viewportHeight = window.innerHeight || 1;
+    for (var i = 0; i < luxuryParallaxTargets.length; i++) {
+      var item = luxuryParallaxTargets[i];
+      if (!item.node || !item.node.isConnected) {
+        continue;
+      }
+      var rect = item.node.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > viewportHeight) {
+        continue;
+      }
+      var offset = (rect.top - viewportHeight * 0.5) * item.factor * -0.1;
+      item.node.style.setProperty("--luxury-parallax-y", offset.toFixed(2) + "px");
+    }
+  }
+
+  function requestLuxuryParallaxUpdate() {
+    if (luxuryMotionTicking) {
+      return;
+    }
+    luxuryMotionTicking = true;
+    window.requestAnimationFrame(updateLuxuryParallax);
+  }
+
+  function bindLuxuryParallax() {
+    if (document.documentElement.dataset.luxuryParallaxBound === "1") {
+      registerLuxuryParallaxTargets();
+      updateLuxuryParallax();
+      return;
+    }
+
+    document.documentElement.dataset.luxuryParallaxBound = "1";
+    registerLuxuryParallaxTargets();
+    updateLuxuryParallax();
+    window.addEventListener("scroll", requestLuxuryParallaxUpdate, { passive: true });
+    window.addEventListener("resize", requestLuxuryParallaxUpdate, { passive: true });
+  }
+
+  function getLuxurySocialMarkup() {
+    var icons = {
+      tiktok:
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.8 3.2c.7 1.8 2.2 3.2 4 3.8v2.8c-1.5-.1-2.9-.6-4-1.5v6.4c0 3-2.4 5.3-5.5 5.3S4 17.8 4 14.8 6.4 9.5 9.3 9.5c.4 0 .8 0 1.2.1v2.9c-.4-.2-.8-.2-1.2-.2-1.4 0-2.4 1-2.4 2.5s1 2.5 2.4 2.5 2.5-1 2.5-2.5V2h3z" fill="currentColor"/></svg>',
+      instagram:
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 2h9A5.5 5.5 0 0 1 22 7.5v9a5.5 5.5 0 0 1-5.5 5.5h-9A5.5 5.5 0 0 1 2 16.5v-9A5.5 5.5 0 0 1 7.5 2zm0 2A3.5 3.5 0 0 0 4 7.5v9A3.5 3.5 0 0 0 7.5 20h9a3.5 3.5 0 0 0 3.5-3.5v-9A3.5 3.5 0 0 0 16.5 4zm9.75 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" fill="currentColor"/></svg>',
+      youtube:
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.2 7.2a2.7 2.7 0 0 0-1.9-1.9C17.5 5 12 5 12 5s-5.5 0-7.3.3A2.7 2.7 0 0 0 2.8 7.2C2.5 9 2.5 12 2.5 12s0 3 .3 4.8a2.7 2.7 0 0 0 1.9 1.9C6.5 19 12 19 12 19s5.5 0 7.3-.3a2.7 2.7 0 0 0 1.9-1.9c.3-1.8.3-4.8.3-4.8s0-3-.3-4.8zM10 15.2V8.8l5.2 3.2z" fill="currentColor"/></svg>',
+    };
+
+    var items = [
+      {
+        label: "TikTok",
+        kind: "tiktok",
+        placeholder: true,
+      },
+      {
+        label: "Instagram",
+        kind: "instagram",
+        href: "https://www.instagram.com/das_elb_hotel/",
+      },
+      {
+        label: "YouTube",
+        kind: "youtube",
+        placeholder: true,
+      },
+    ];
+
+    var markup = [];
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var icon = icons[item.kind];
+      if (item.placeholder) {
+        markup.push(
+          '<button type="button" class="luxury-footer__social" data-luxury-float="1" data-social-placeholder="1" aria-label="' +
+            item.label +
+            '">' +
+            icon +
+            "</button>",
+        );
+      } else {
+        markup.push(
+          '<a class="luxury-footer__social" data-luxury-float="1" aria-label="' +
+            item.label +
+            '" href="' +
+            item.href +
+            '" target="_blank" rel="noopener noreferrer">' +
+            icon +
+            "</a>",
+        );
+      }
+    }
+
+    return markup.join("");
+  }
+
+  function rebuildLuxuryFooter() {
+    var footer = document.getElementById("footer");
+    if (!footer || footer.dataset.luxuryFooter === "1") {
+      return;
+    }
+
+    footer.dataset.luxuryFooter = "1";
+    footer.className = "luxury-footer";
+    footer.innerHTML = [
+      '<div class="luxury-footer__divider" aria-hidden="true"></div>',
+      '<div class="luxury-footer__grain" aria-hidden="true"></div>',
+      '<div class="luxury-footer__shell">',
+      '  <div class="luxury-footer__brand-panel" data-footer-col="brand">',
+      '    <p class="luxury-footer__eyebrow" data-luxury-float="1">Singh Laly präsentiert</p>',
+      '    <h2 class="luxury-footer__hero">LALY DER REISKÖNIG</h2>',
+      '    <p class="luxury-footer__lede">Ein Haus voller Gewürze, Ruhe und Gastgeberkultur: warmes Licht, präzise Aromen und ein Abendgefühl, das noch lange nach dem letzten Gang bleibt.</p>',
+      '    <button type="button" class="luxury-footer__backtop" data-back-to-top="1" data-luxury-float="1" aria-label="Zurück nach oben">',
+      '      <span class="luxury-footer__backtop-icon">↑</span>',
+      '      <span>Nach oben</span>',
+      "    </button>",
+      "  </div>",
+      '  <div class="luxury-footer__grid">',
+      '    <section class="luxury-footer__col" data-footer-col="nav">',
+      '      <p class="luxury-footer__label">Navigation</p>',
+      '      <a href="#hero">Start</a>',
+      '      <a href="#restaurant-view">Kulinarik</a>',
+      '      <a href="#events">Events</a>',
+      '      <a href="#kontakt">Kontakt</a>',
+      "    </section>",
+      '    <section class="luxury-footer__col" data-footer-col="contact">',
+      '      <p class="luxury-footer__label">Kontakt</p>',
+      '      <p>Seilerweg 19<br>39114 Magdeburg</p>',
+      '      <a href="tel:+4939175632660">+49 391 756 326 60</a>',
+      '      <a href="mailto:rezeption@das-elb.de">rezeption@das-elb.de</a>',
+      "    </section>",
+      '    <section class="luxury-footer__col" data-footer-col="social">',
+      '      <p class="luxury-footer__label">Social Media</p>',
+      '      <div class="luxury-footer__social-row">' + getLuxurySocialMarkup() + "</div>",
+      '      <p class="luxury-footer__muted">TikTok und YouTube können bei Bedarf direkt mit den finalen Kanälen verknüpft werden.</p>',
+      "    </section>",
+      '    <section class="luxury-footer__col" data-footer-col="hours">',
+      '      <p class="luxury-footer__label">Öffnungszeiten</p>',
+      '      <div class="luxury-footer__hours">',
+      '        <span>Rezeption</span><strong>07:00 - 21:30</strong>',
+      '        <span>Check-in</span><strong>ab 13:00</strong>',
+      '        <span>Check-out</span><strong>bis 11:00</strong>',
+      "      </div>",
+      "    </section>",
+      "  </div>",
+      '  <div class="luxury-footer__bottom">',
+      '    <p>&copy; <span data-current-year="1"></span> Singh Laly im Das ELB. Alle Rechte vorbehalten.</p>',
+      '    <div class="luxury-footer__legal">',
+      '      <a href="/impressum">Impressum</a>',
+      '      <a href="/impressum?tab=datenschutz">Datenschutz</a>',
+      '      <a href="/impressum?tab=agb">AGB</a>',
+      "    </div>",
+      "  </div>",
+      "</div>",
+    ].join("");
+
+    var year = footer.querySelector("[data-current-year='1']");
+    if (year) {
+      year.textContent = String(new Date().getFullYear());
+    }
+
+    var backToTop = footer.querySelector("[data-back-to-top='1']");
+    if (backToTop && backToTop.dataset.backtopBound !== "1") {
+      backToTop.dataset.backtopBound = "1";
+      backToTop.addEventListener("click", function () {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
+
+    var placeholders = footer.querySelectorAll("[data-social-placeholder='1']");
+    for (var i = 0; i < placeholders.length; i++) {
+      placeholders[i].addEventListener("click", function () {
+        var contact = document.getElementById("kontakt");
+        if (contact) {
+          contact.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    }
+
+    enhanceFooterMotion(footer);
+  }
+
+  function enhanceFooterMotion(footer) {
+    if (!footer) {
+      footer = document.getElementById("footer");
+    }
+    if (!footer) {
+      return;
+    }
+
+    footer.classList.add("luxury-footer-ready");
+    var footerTargets = footer.querySelectorAll(
+      ".luxury-footer__eyebrow, .luxury-footer__hero, .luxury-footer__lede, .luxury-footer__col, .luxury-footer__bottom, .luxury-footer__social, .luxury-footer__backtop",
+    );
+
+    for (var i = 0; i < footerTargets.length; i++) {
+      var kind = "footer";
+      if (footerTargets[i].classList.contains("luxury-footer__social")) {
+        kind = "footer-pop";
+      } else if (footerTargets[i].classList.contains("luxury-footer__hero")) {
+        kind = "heading";
+      }
+      markLuxuryReveal(footerTargets[i], i, kind);
+    }
+  }
+
+  function upgradeLuxuryMotionSystem() {
+    document.documentElement.classList.add("luxury-motion-ready");
+    enhanceHeroMotion();
+    enhanceSectionMotion();
+    rebuildLuxuryFooter();
+    enhanceFooterMotion();
+    bindLuxuryParallax();
+  }
+
   function init() {
     attachVideoObserver();
     attachImageObserver();
@@ -557,14 +1000,20 @@
     stabilizeManagedVideos();
     syncRoomCardStates();
     bindRoomCardInteractions();
+    retargetTagungenCta();
+    upgradeLuxuryMotionSystem();
     window.addEventListener("load", stabilizeManagedVideos, { once: true });
     window.addEventListener("load", syncRoomCardStates, { once: true });
+    window.addEventListener("load", retargetTagungenCta, { once: true });
+    window.addEventListener("load", upgradeLuxuryMotionSystem, { once: true });
     window.addEventListener("resize", queueRoomCardStateSync, { passive: true });
     window.setTimeout(stabilizeManagedVideos, 400);
     window.setTimeout(stabilizeManagedVideos, 1600);
     window.setTimeout(stabilizeManagedVideos, 3200);
     window.setTimeout(syncRoomCardStates, 500);
     window.setTimeout(syncRoomCardStates, 1400);
+    window.setTimeout(retargetTagungenCta, 600);
+    window.setTimeout(upgradeLuxuryMotionSystem, 700);
 
     var observer = new MutationObserver(function (mutations) {
       for (var i = 0; i < mutations.length; i++) {
@@ -580,6 +1029,8 @@
       stabilizeManagedVideos();
       bindRoomCardInteractions();
       queueRoomCardStateSync();
+      retargetTagungenCta();
+      upgradeLuxuryMotionSystem();
     });
 
     observer.observe(document.documentElement, {

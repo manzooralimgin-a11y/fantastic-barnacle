@@ -49,11 +49,18 @@ export const InfoModal = ({ onClose }) => {
             <div className="flex-1 p-8 flex flex-col justify-start pt-12 gap-8 overflow-y-auto">
 
                 {/* Header */}
-                <div>
-                    <h2 className="text-3xl font-serif font-black italic tracking-tighter uppercase mb-2" style={{ color: '#FBF5B7' }}>
-                        DAS ELB MAGDEBURG
-                    </h2>
-                    <p className="text-white/50 text-xs tracking-[0.3em] uppercase">Das Elb Hotel und Restaurant</p>
+                <div className="flex items-start gap-4">
+                    <img
+                        src={LOGO_URL}
+                        alt="Das ELB Logo"
+                        className="h-8 w-auto shrink-0 object-contain"
+                    />
+                    <div className="min-w-0">
+                        <h2 className="text-3xl font-serif font-black italic tracking-tighter uppercase mb-2" style={{ color: '#FBF5B7' }}>
+                            DAS ELB MAGDEBURG
+                        </h2>
+                        <p className="text-white/50 text-xs tracking-[0.3em] uppercase">Das Elb Hotel und Restaurant</p>
+                    </div>
                 </div>
 
                 {/* Info Grid */}

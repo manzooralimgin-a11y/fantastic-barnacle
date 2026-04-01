@@ -90,8 +90,26 @@ function buildInjectedScripts() {
   ].join("");
 }
 
+function stripNextFontAssetReferences(html) {
+  if (!html) {
+    return html;
+  }
+
+  return html
+    .replace(/<link rel="preload" as="font"[^>]+href="\/_next\/static\/media\/[^"]+"[^>]*>/g, "")
+    .replace(/:HL\[[^\]]+\](?:\\n|\n)?/g, "");
+}
+
+function stripNextFontFaceBlocks(css) {
+  if (!css) {
+    return css;
+  }
+
+  return css.replace(/@font-face\{[^}]*src:url\(\/_next\/static\/media\/[^)]+\)[^}]*\}/g, "");
+}
+
 function injectClientScripts(html) {
-  let result = html;
+  let result = stripNextFontAssetReferences(html);
 
   if (!result.includes("das-elb-runtime-config")) {
     result = result.replace(
@@ -230,6 +248,61 @@ const server = http.createServer((req, res) => {
       const html = injectClientScripts(fs.readFileSync(filePath, "utf8"));
       const body = Buffer.from(html, "utf8");
       const etag = `"${body.length.toString(36)}-${(info?.mtime || new Date(0).toUTCString()).length.toString(36)}-html"`;
+
+      if (req.headers["if-none-match"] === etag) {
+        res.writeHead(304, {
+          "ETag": etag,
+          "Cache-Control": cacheControl,
+          "Last-Modified": info?.mtime || new Date(0).toUTCString(),
+        });
+        res.end();
+        return;
+      }
+
+      headers["ETag"] = etag;
+      if (info) {
+        headers["Last-Modified"] = info.mtime;
+      }
+      if (shouldBrotli) {
+        headers["Content-Encoding"] = "br";
+        headers["Vary"] = "Accept-Encoding";
+      } else if (shouldGzip) {
+        headers["Content-Encoding"] = "gzip";
+        headers["Vary"] = "Accept-Encoding";
+      } else {
+        headers["Content-Length"] = String(body.length);
+      }
+
+      res.writeHead(200, headers);
+
+      if (shouldBrotli) {
+        zlib.brotliCompress(body, {
+          params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 },
+        }, (err, compressed) => {
+          if (err) {
+            if (!res.writableEnded) res.end();
+            return;
+          }
+          res.end(compressed);
+        });
+      } else if (shouldGzip) {
+        zlib.gzip(body, { level: 6, memLevel: 8 }, (err, compressed) => {
+          if (err) {
+            if (!res.writableEnded) res.end();
+            return;
+          }
+          res.end(compressed);
+        });
+      } else {
+        res.end(body);
+      }
+      return;
+    }
+
+    if (ext === ".css") {
+      const css = stripNextFontFaceBlocks(fs.readFileSync(filePath, "utf8"));
+      const body = Buffer.from(css, "utf8");
+      const etag = `"${body.length.toString(36)}-${(info?.mtime || new Date(0).toUTCString()).length.toString(36)}-css"`;
 
       if (req.headers["if-none-match"] === etag) {
         res.writeHead(304, {

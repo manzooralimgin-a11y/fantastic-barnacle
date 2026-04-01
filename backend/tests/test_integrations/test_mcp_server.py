@@ -6,6 +6,7 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
 
 import app.integrations.mcp_server as mcp_module
 import app.reservations.idempotency as idempotency_module
@@ -22,6 +23,7 @@ from app.integrations.mcp_server import (
     mcp_server,
     sse,
 )
+from app.main import app
 from app.observability.metrics import api_metrics
 from app.reservations.domain import Reservation as DomainReservation
 from app.reservations.models import FloorSection, Table
@@ -515,6 +517,14 @@ def test_mcp_server_name() -> None:
 
 def test_mcp_transport_uses_relative_message_endpoint() -> None:
     assert sse._endpoint == "/messages"
+
+
+def test_mcp_head_probe_returns_ok_without_touching_stream_transport() -> None:
+    with TestClient(app) as client:
+        response = client.head("/mcp/voicebooker/")
+
+    assert response.status_code == 200
+    assert response.text == ""
 
 
 @pytest.mark.asyncio

@@ -12,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
   const setToken = useAuthStore((s) => s.setToken);
+  const clearAuth = useAuthStore((s) => s.clear);
   const token = useAuthStore((s) => s.token);
   const setActiveSection = useAuthStore((s) => s.setActiveSection);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
@@ -20,6 +21,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Prevents children from rendering (and firing API calls) before we know
   // whether the user is authenticated — avoids the 401 storm on page load.
   const [hydrated, setHydrated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const initUIFromStorage = useUIStore((s) => s.initFromStorage);
 
@@ -41,16 +43,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!hydrated) return;
     if (!token) {
+      setAuthChecked(false);
       router.replace("/login");
       return;
     }
+    let cancelled = false;
     getMe()
-      .then((user) => setUser(user))
-      .catch(() => router.replace("/login"));
-  }, [hydrated, token, setUser, router]);
+      .then((user) => {
+        if (cancelled) return;
+        setUser(user);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearAuth();
+        setAuthChecked(false);
+        router.replace("/login");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, token, setUser, clearAuth, router]);
 
   // Don't render protected content before we know the auth state.
-  if (!hydrated || !token) return null;
+  if (!hydrated || !token || !authChecked) return null;
 
   return (
     <div className="atmospheric-bg min-h-screen">

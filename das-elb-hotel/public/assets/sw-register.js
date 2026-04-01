@@ -8,8 +8,13 @@
   }
 
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/sw.js").catch(function (error) {
-      console.warn("[das-elb] service worker registration failed", error);
-    });
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then(function (registration) {
+        registration.update().catch(function () {});
+      })
+      .catch(function (error) {
+        console.warn("[das-elb] service worker registration failed", error);
+      });
   });
 })();

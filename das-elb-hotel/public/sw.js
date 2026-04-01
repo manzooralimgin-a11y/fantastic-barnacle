@@ -1,4 +1,4 @@
-const VERSION = "das-elb-v3";
+const VERSION = "das-elb-v4";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const IMMUTABLE_CACHE = `${VERSION}-immutable`;
@@ -98,7 +98,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (["script", "style", "font", "image"].includes(request.destination)) {
+  if (["script", "style"].includes(request.destination)) {
+    event.respondWith(networkFirst(request, RUNTIME_CACHE));
+    return;
+  }
+
+  if (["font", "image"].includes(request.destination)) {
     event.respondWith(staleWhileRevalidate(request, RUNTIME_CACHE));
   }
 });

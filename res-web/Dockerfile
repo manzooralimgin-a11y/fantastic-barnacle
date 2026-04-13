@@ -9,7 +9,7 @@ ENV VITE_PUBLIC_API_BASE_URL=$VITE_PUBLIC_API_BASE_URL
 ENV VITE_RESTAURANT_ID=$VITE_RESTAURANT_ID
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY . .
 RUN npm run build

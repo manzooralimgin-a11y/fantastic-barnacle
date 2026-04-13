@@ -13,7 +13,7 @@ from alembic import op
 revision: str = "z003a4b5c6d7"
 down_revision: Union[str, Sequence[str]] = "z002a3b4c5d6"
 branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = "f6a7b8c9d0e1"
 
 
 def upgrade() -> None:

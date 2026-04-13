@@ -34,7 +34,7 @@ services:
       - key: DEBUG
         value: "false"
       - key: CORS_ORIGINS
-        value: https://gestronomy-web.onrender.com,https://das-elb-hotel.onrender.com,https://das-elb-rest.onrender.com
+        value: https://gestronomy-web.onrender.com,https://www.zukunftwebs.com
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: STRIPE_API_KEY
@@ -60,30 +60,6 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://gestronomy-api.onrender.com
-
-  # --- Das Elb Hotel (Landing/Public) ---
-  - type: web
-    name: das-elb-hotel
-    runtime: docker
-    plan: free
-    dockerfilePath: ./das-elb-hotel/Dockerfile
-    dockerContext: ./das-elb-hotel
-    envVars:
-      - key: PUBLIC_API_BASE_URL
-        value: https://gestronomy-api.onrender.com/api
-
-  # --- Das Elb Rest (QR App/Direct Order) ---
-  - type: web
-    name: das-elb-rest
-    runtime: docker
-    plan: free
-    dockerfilePath: ./das-elb-rest/Dockerfile
-    dockerContext: ./das-elb-rest
-    envVars:
-      - key: VITE_API_URL
-        value: https://gestronomy-api.onrender.com
-      - key: VITE_RESTAURANT_ID
-        sync: false
 
   # --- Redis (Shared) ---
   - type: redis

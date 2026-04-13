@@ -1,5 +1,4 @@
-# Render Blueprint — Gestronomy Full Ecosystem
-# https://render.com/docs/blueprint-spec
+# Render Blueprint — one-hotel MG ecosystem
 
 databases:
   - name: gestronomy-db
@@ -9,7 +8,6 @@ databases:
     ipAllowList: []
 
 services:
-  # --- Backend API ---
   - type: web
     name: gestronomy-api
     runtime: docker
@@ -27,18 +25,6 @@ services:
           name: gestronomy-redis
           type: redis
           property: connectionString
-      - key: SECRET_KEY
-        generateValue: true
-      - key: APP_ENV
-        value: production
-      - key: DEBUG
-        value: "false"
-      - key: CORS_ORIGINS
-        value: https://gestronomy-web.onrender.com,https://www.zukunftwebs.com
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: STRIPE_API_KEY
-        sync: false
       - key: CELERY_BROKER_URL
         fromService:
           name: gestronomy-redis
@@ -49,19 +35,174 @@ services:
           name: gestronomy-redis
           type: redis
           property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: RUN_MIGRATIONS
+        value: "1"
+      - key: RUN_MASTER_SEED
+        value: "0"
+      - key: STARTUP_VALIDATION_REQUIRE_MIGRATIONS
+        value: "true"
+      - key: BACKEND_URL
+        value: https://gestronomy-api-5atv.onrender.com
+      - key: FRONTEND_URL
+        value: https://gestronomy-web-ipjw.onrender.com
+      - key: CORS_ORIGINS
+        value: https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com
+      - key: VOICEBOOKER_SECRET
+        sync: false
+      - key: EMAIL_INBOX_INGEST_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
 
-  # --- Main Management Web App ---
+  - type: background_worker
+    name: gestronomy-worker
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: ./start-worker.sh
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gestronomy-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: gestronomy-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: gestronomy-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: gestronomy-redis
+          type: redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: BACKEND_URL
+        value: https://gestronomy-api-5atv.onrender.com
+      - key: FRONTEND_URL
+        value: https://gestronomy-web-ipjw.onrender.com
+      - key: VOICEBOOKER_SECRET
+        sync: false
+      - key: EMAIL_INBOX_INGEST_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  - type: background_worker
+    name: gestronomy-beat
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: ./start-beat.sh
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gestronomy-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: gestronomy-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: gestronomy-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: gestronomy-redis
+          type: redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: BACKEND_URL
+        value: https://gestronomy-api-5atv.onrender.com
+      - key: FRONTEND_URL
+        value: https://gestronomy-web-ipjw.onrender.com
+      - key: VOICEBOOKER_SECRET
+        sync: false
+      - key: EMAIL_INBOX_INGEST_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
   - type: web
     name: gestronomy-web
     runtime: docker
-    plan: free
+    plan: starter
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://gestronomy-api.onrender.com
+        value: https://gestronomy-api-5atv.onrender.com/api
 
-  # --- Redis (Shared) ---
+  - type: web
+    name: gestronomy-guest
+    runtime: docker
+    plan: free
+    dockerfilePath: ./res-web/Dockerfile
+    dockerContext: ./res-web
+    envVars:
+      - key: VITE_PUBLIC_API_BASE_URL
+        value: https://gestronomy-api-5atv.onrender.com/api
+      - key: VITE_RESTAURANT_ID
+        value: "4240"
+
+  - type: web
+    name: das-elb-hotel
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./das-elb-hotel-optimised/Dockerfile
+    dockerContext: ./das-elb-hotel-optimised
+    healthCheckPath: /health
+    envVars:
+      - key: PUBLIC_API_BASE_URL
+        value: https://gestronomy-api-5atv.onrender.com/api
+      - key: PUBLIC_SITE_URL
+        value: https://www.das-elb-hotel.com
+      - key: RESEND_API_KEY
+        sync: false
+
   - type: redis
     name: gestronomy-redis
     plan: free

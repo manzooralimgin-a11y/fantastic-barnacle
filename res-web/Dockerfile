@@ -2,7 +2,7 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-ARG VITE_PUBLIC_API_BASE_URL=https://gestronomy-api.onrender.com/api
+ARG VITE_PUBLIC_API_BASE_URL=https://gestronomy-api-5atv.onrender.com/api
 ARG VITE_RESTAURANT_ID=1
 
 ENV VITE_PUBLIC_API_BASE_URL=$VITE_PUBLIC_API_BASE_URL

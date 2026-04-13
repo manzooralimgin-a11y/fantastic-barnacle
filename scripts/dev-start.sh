@@ -42,6 +42,24 @@ require_cmd lsof
 require_cmd redis-server
 require_cmd npm
 
+resolve_backend_python() {
+  local candidates=(
+    "$ROOT_DIR/backend/.venv/bin/python"
+    "$ROOT_DIR/backend/.venv-local/bin/python"
+  )
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -x "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  echo "No backend Python interpreter found. Expected one of: ${candidates[*]}" >&2
+  exit 1
+}
+
+BACKEND_PYTHON="$(resolve_backend_python)"
+
 wait_for_url() {
   local url="$1"
   local tries="${2:-120}"
@@ -140,6 +158,16 @@ start_redis() {
   exit 1
 }
 
+migrate_backend() {
+  (
+    cd "$ROOT_DIR/backend"
+    "$BACKEND_PYTHON" -m alembic upgrade head >"$LOG_DIR/migrations.log" 2>&1
+  ) || {
+    echo "Backend migrations failed. See $LOG_DIR/migrations.log" >&2
+    exit 1
+  }
+}
+
 ensure_frontend_dependencies() {
   if [[ ! -x "$ROOT_DIR/frontend/node_modules/.bin/next" ]]; then
     echo "Installing frontend dependencies..."
@@ -150,7 +178,7 @@ ensure_frontend_dependencies() {
 ensure_restaurant_dependencies() {
   if [[ ! -x "$ROOT_DIR/res-web/node_modules/.bin/vite" ]]; then
     echo "Installing restaurant app dependencies..."
-    (cd "$ROOT_DIR/res-web" && npm install)
+    (cd "$ROOT_DIR/res-web" && npm install --legacy-peer-deps)
   fi
 }
 
@@ -160,7 +188,7 @@ start_backend() {
   start_detached \
     backend \
     "$LOG_DIR/backend.log" \
-    "cd '$ROOT_DIR/backend' && exec env APP_ENV=development SECRET_KEY=phase12-local-secret BACKEND_URL=http://localhost:8000 FRONTEND_URL=http://localhost:3000 CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002 REDIS_URL=redis://127.0.0.1:6379/0 CELERY_BROKER_URL=redis://127.0.0.1:6379/1 CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/2 STARTUP_VALIDATION_ENFORCED=true STARTUP_VALIDATION_REQUIRE_REDIS=true STARTUP_VALIDATION_REQUIRE_MIGRATIONS=true ./.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    "cd '$ROOT_DIR/backend' && exec env APP_ENV=development SECRET_KEY=phase12-local-secret BACKEND_URL=http://localhost:8000 FRONTEND_URL=http://localhost:3000 CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002 REDIS_URL=redis://127.0.0.1:6379/0 CELERY_BROKER_URL=redis://127.0.0.1:6379/1 CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/2 STARTUP_VALIDATION_ENFORCED=true STARTUP_VALIDATION_REQUIRE_REDIS=true STARTUP_VALIDATION_REQUIRE_MIGRATIONS=true '$BACKEND_PYTHON' -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
   wait_for_url "http://localhost:8000/health" 120 1 || {
     echo "Backend failed to become healthy. See $LOG_DIR/backend.log" >&2
     exit 1
@@ -175,7 +203,7 @@ seed_backend() {
       LOCAL_ADMIN_PASSWORD="$LOCAL_DEV_ADMIN_PASSWORD" \
       LOCAL_ADMIN_FORCE_PASSWORD_RESET="true" \
       PYTHONPATH="$ROOT_DIR/backend" \
-      ./.venv/bin/python scripts/seed.py >"$LOG_DIR/seed.log" 2>&1
+      "$BACKEND_PYTHON" scripts/seed.py >"$LOG_DIR/seed.log" 2>&1
   )
 }
 
@@ -190,7 +218,7 @@ resolve_runtime() {
       LOCAL_RESTAURANT_URL="http://localhost:3002" \
       LOCAL_MCP_URL="http://localhost:8000/mcp/voicebooker/" \
       PYTHONPATH="$ROOT_DIR/backend" \
-      "$ROOT_DIR/backend/.venv/bin/python" scripts/dev-resolve-ids.py >"$RUNTIME_FILE"
+      "$BACKEND_PYTHON" scripts/dev-resolve-ids.py >"$RUNTIME_FILE"
   )
 }
 
@@ -286,6 +314,7 @@ monitor_services() {
 }
 
 start_redis
+migrate_backend
 start_backend
 seed_backend
 resolve_runtime
@@ -309,7 +338,7 @@ echo "  Runtime:    $RUNTIME_FILE"
 echo
 
 if [[ "$VALIDATE" == "1" ]]; then
-  "$ROOT_DIR/backend/.venv/bin/python" "$ROOT_DIR/scripts/dev-validate.py" --runtime "$RUNTIME_FILE"
+  "$BACKEND_PYTHON" "$ROOT_DIR/scripts/dev-validate.py" --runtime "$RUNTIME_FILE"
 fi
 
 if [[ "$KEEP_ALIVE" == "1" ]]; then

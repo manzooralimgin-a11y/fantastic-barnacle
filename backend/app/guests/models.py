@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, Numeric, String
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, JSON, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -15,6 +15,11 @@ class GuestProfile(Base):
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    salutation: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    birthday: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    country_code: Mapped[str | None] = mapped_column(String(10), nullable=True, index=True)
+    country_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    custom_fields_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     dietary_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     flavor_profile_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     clv: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)

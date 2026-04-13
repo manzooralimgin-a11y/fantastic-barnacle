@@ -3,13 +3,12 @@
 import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CalendarPlus, Search, Edit, X, FileText, Receipt, Printer, Building2 } from "lucide-react";
 import api from "@/lib/api";
 import {
   buildRoomRateMap,
   defaultHotelPropertyId,
-  defaultRoomTypeName,
   fetchHotelRoomTypes,
   type HotelRoomTypeOption,
 } from "@/lib/hotel-room-types";
@@ -17,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { useWebSocket } from "@/lib/websocket";
 import Meldeschein, { MeldescheinData, emptyMeldeschein } from "@/components/hms/meldeschein";
 import Rechnung, { RechnungData, RechnungItem, emptyRechnung, ZahlungsMethode, ZahlungsStatus } from "@/components/hms/rechnung";
+import { useRightPanel } from "@/features/hms/pms/components/right-panel/useRightPanel";
+import { PMS_RESERVATIONS_REFRESH_EVENT } from "@/features/hms/pms/api/reservations";
 
 type Reservation = {
   id: string; anrede: string; guest_name: string; email: string; phone: string; room_type: string;
@@ -33,7 +34,6 @@ const statusColors: Record<string, string> = {
 };
 
 const tabs = ["Upcoming", "Today", "Past", "Cancelled"] as const;
-const emptyForm = { anrede: "", guest_name: "", email: "", phone: "", room_type: "", check_in: "", check_out: "", adults: "1", children: "0", special_requests: "", zahlungs_methode: "", zahlungs_status: "offen" };
 
 function buildMeldeschein(r: Reservation): MeldescheinData {
   return { ...emptyMeldeschein, anrede: r.anrede || "", nachname: r.guest_name.split(" ").slice(-1)[0], vorname: r.guest_name.split(" ").slice(0, -1).join(" "), anreise: r.check_in, abreise: r.check_out, reservierung_nr: r.id.replace("R-", ""), zimmer: r.room, email: r.email, telefon: r.phone };
@@ -75,11 +75,8 @@ export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [roomTypes, setRoomTypes] = useState<HotelRoomTypeOption[]>([]);
   const [activeTab, setActiveTab] = useState<string>("Upcoming");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const { openPanel } = useRightPanel();
 
   // Document dialogs
   const [meldescheinOpen, setMeldescheinOpen] = useState(false);
@@ -93,7 +90,7 @@ export default function ReservationsPage() {
   const reservationQueryConfig = { params: { property_id: defaultHotelPropertyId } };
   const normalizedToday = new Date().toISOString().slice(0, 10);
 
-  useEffect(() => {
+  const loadReservations = () =>
     Promise.all([
       api.get("/hms/reservations", reservationQueryConfig),
       fetchHotelRoomTypes(defaultHotelPropertyId),
@@ -105,18 +102,23 @@ export default function ReservationsPage() {
       .catch((error) => {
         console.error("Failed to load hotel reservations", error);
       });
-  }, []);
 
   useEffect(() => {
-    if (!editId && !form.room_type && roomTypes.length > 0) {
-      setForm((current) => ({ ...current, room_type: defaultRoomTypeName(roomTypes) }));
-    }
-  }, [editId, form.room_type, roomTypes]);
+    void loadReservations();
+  }, []);
 
   useWebSocket("NEW_HOTEL_BOOKING", (data) => {
     console.log("New hotel booking:", data);
-    api.get("/hms/reservations", reservationQueryConfig).then(r => setReservations(r.data.items || r.data || [])).catch(() => {});
+    void loadReservations();
   }, defaultHotelPropertyId);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadReservations();
+    };
+    window.addEventListener(PMS_RESERVATIONS_REFRESH_EVENT, refresh);
+    return () => window.removeEventListener(PMS_RESERVATIONS_REFRESH_EVENT, refresh);
+  }, []);
 
   const isUpcomingStatus = (status: Reservation["status"] | string) =>
     status === "confirmed" || status === "pending" || status === "checked-in";
@@ -128,57 +130,6 @@ export default function ReservationsPage() {
     if (activeTab === "Past") return (r.status === "checked-out") && matchesSearch;
     return isUpcomingStatus(r.status) && matchesSearch;
   });
-
-  const openNew = () => {
-    setEditId(null);
-    setForm({ ...emptyForm, room_type: defaultRoomTypeName(roomTypes) });
-    setDialogOpen(true);
-  };
-
-  const openEdit = (r: Reservation) => {
-    setEditId(r.id);
-    setForm({ anrede: r.anrede || "", guest_name: r.guest_name, email: r.email, phone: r.phone, room_type: r.room_type, check_in: r.check_in, check_out: r.check_out, adults: String(r.adults), children: String(r.children), special_requests: r.special_requests, zahlungs_methode: r.zahlungs_methode || "", zahlungs_status: r.zahlungs_status || "offen" });
-    setDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    const nights = Math.max(1, Math.ceil((new Date(form.check_out).getTime() - new Date(form.check_in).getTime()) / 86400000));
-    const payload = { ...form, adults: Number(form.adults), children: Number(form.children), nights, anrede: form.anrede, zahlungs_methode: form.zahlungs_methode, zahlungs_status: form.zahlungs_status };
-    try {
-      if (editId) {
-        const response = await api.put<Reservation>(`/hms/reservations/${editId}`, payload);
-        setReservations(prev => prev.map(r => r.id === editId ? response.data : r));
-      } else {
-        const canonicalPayload = {
-          kind: "hotel",
-          property_id: defaultHotelPropertyId,
-          guest_name: form.guest_name,
-          guest_email: form.email,
-          phone: form.phone,
-          anrede: form.anrede,
-          room_type_label: form.room_type || defaultRoomTypeName(roomTypes),
-          check_in: form.check_in,
-          check_out: form.check_out,
-          adults: Number(form.adults),
-          children: Number(form.children),
-          special_requests: form.special_requests,
-          zahlungs_methode: form.zahlungs_methode,
-          zahlungs_status: form.zahlungs_status || "offen",
-          status: "confirmed",
-          booking_id_prefix: "BK",
-        };
-        const response = await api.post<Reservation>("/reservations", canonicalPayload);
-        setReservations(prev => [response.data, ...prev]);
-      }
-    } catch (error) {
-      console.error("Failed to save hotel reservation", error);
-    } finally {
-      setSaving(false);
-      setDialogOpen(false);
-    }
-  };
 
   const handleCancel = (id: string) => {
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status: "cancelled" as const } : r));
@@ -213,101 +164,18 @@ export default function ReservationsPage() {
           <h1 className="text-4xl font-editorial font-bold text-foreground tracking-tight">Reservations</h1>
           <p className="text-foreground-muted mt-1">Manage hotel room bookings</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <button onClick={openNew} className="bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2 self-start">
-              <CalendarPlus className="w-4 h-4" /> New Reservation
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="font-editorial">{editId ? "Edit Reservation" : "New Reservation"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Anrede / Title</label>
-                  <select value={form.anrede} onChange={e => setForm(f => ({ ...f, anrede: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="">-- Bitte w{"\u00E4"}hlen --</option>
-                    <option value="Herr">Herr</option>
-                    <option value="Frau">Frau</option>
-                    <option value="Herr Dr.">Herr Dr.</option>
-                    <option value="Frau Dr.">Frau Dr.</option>
-                    <option value="Herr Prof.">Herr Prof.</option>
-                    <option value="Frau Prof.">Frau Prof.</option>
-                    <option value="Herr Prof. Dr.">Herr Prof. Dr.</option>
-                    <option value="Frau Prof. Dr.">Frau Prof. Dr.</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Guest Name</label>
-                  <input required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Email</label>
-                  <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Phone</label>
-                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Room Type</label>
-                  <select value={form.room_type} onChange={e => setForm(f => ({ ...f, room_type: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30">
-                    {roomTypes.map((roomType) => (
-                      <option key={roomType.id} value={roomType.name}>{roomType.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Check-in</label>
-                  <input type="date" required value={form.check_in} onChange={e => setForm(f => ({ ...f, check_in: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Check-out</label>
-                  <input type="date" required value={form.check_out} onChange={e => setForm(f => ({ ...f, check_out: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Adults</label>
-                  <input type="number" min="1" max="10" value={form.adults} onChange={e => setForm(f => ({ ...f, adults: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Children</label>
-                  <input type="number" min="0" max="10" value={form.children} onChange={e => setForm(f => ({ ...f, children: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Special Requests</label>
-                  <textarea value={form.special_requests} onChange={e => setForm(f => ({ ...f, special_requests: e.target.value }))} rows={2} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Zahlungsart / Payment</label>
-                  <select value={form.zahlungs_methode} onChange={e => setForm(f => ({ ...f, zahlungs_methode: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="">-- Noch offen --</option>
-                    <option value="bar">Barzahlung</option>
-                    <option value="kartenzahlung">Kartenzahlung (EC/Kreditkarte)</option>
-                    <option value="booking.com">Booking.com</option>
-                    <option value="expedia">Expedia</option>
-                    <option value="ueberweisung">{"\u00DC"}berweisung</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider block mb-1.5">Zahlungsstatus</label>
-                  <select value={form.zahlungs_status} onChange={e => setForm(f => ({ ...f, zahlungs_status: e.target.value }))} className="w-full bg-muted rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="offen">Offen</option>
-                    <option value="bezahlt">Bezahlt</option>
-                    <option value="teilweise">Teilweise bezahlt</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setDialogOpen(false)} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-foreground-muted hover:bg-foreground/5 transition-colors">Cancel</button>
-                <button type="submit" disabled={saving} className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-                  {saving ? "Saving..." : editId ? "Update" : "Create Reservation"}
-                </button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <button
+          onClick={() =>
+            openPanel({
+              type: "reservation.create",
+              data: { propertyId: String(defaultHotelPropertyId) },
+              title: "New Reservation",
+            })
+          }
+          className="bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity flex items-center gap-2 self-start"
+        >
+          <CalendarPlus className="w-4 h-4" /> New Reservation
+        </button>
       </div>
 
       <div className="flex items-center gap-4">
@@ -357,7 +225,19 @@ export default function ReservationsPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => openMeldeschein(r)} className="p-1.5 rounded-lg hover:bg-foreground/5 text-foreground-muted hover:text-foreground transition-colors" title="Meldeschein"><FileText className="w-3.5 h-3.5" /></button>
                         <button onClick={() => openRechnung(r)} className="p-1.5 rounded-lg hover:bg-foreground/5 text-foreground-muted hover:text-foreground transition-colors" title="Rechnung"><Receipt className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => openEdit(r)} className="p-1.5 rounded-lg hover:bg-foreground/5 text-foreground-muted hover:text-foreground transition-colors" title="Edit"><Edit className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() =>
+                            openPanel({
+                              type: "reservation.edit",
+                              data: { reservationId: r.id.replace(/^R-/, "") },
+                              title: "Edit Reservation",
+                            })
+                          }
+                          className="p-1.5 rounded-lg hover:bg-foreground/5 text-foreground-muted hover:text-foreground transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
                         {r.status !== "cancelled" && r.status !== "checked-out" && (
                           <button onClick={() => handleCancel(r.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-foreground-muted hover:text-red-600 transition-colors" title="Cancel"><X className="w-3.5 h-3.5" /></button>
                         )}

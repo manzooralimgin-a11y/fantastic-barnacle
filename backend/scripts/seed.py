@@ -14,6 +14,7 @@ from sqlalchemy import select
 from app.auth.models import Restaurant, User, UserRole
 from app.auth.utils import hash_password
 from app.database import async_session
+from app.hms.rbac import ensure_hotel_rbac_bootstrap
 
 
 RESTAURANT = {
@@ -77,6 +78,8 @@ async def seed() -> None:
             else:
                 print(f"Admin user already exists, preserving password: {user.email}")
 
+        await db.flush()
+        await ensure_hotel_rbac_bootstrap(db)
         await db.commit()
         print("Seed complete.")
         print(f"  Login: {ADMIN['email']} / {ADMIN['password']}")

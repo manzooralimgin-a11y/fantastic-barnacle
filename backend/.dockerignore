@@ -1,4 +1,6 @@
 .venv
+.venv-local
+.uv-cache
 __pycache__
 *.pyc
 .env

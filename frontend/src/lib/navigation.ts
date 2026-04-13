@@ -26,7 +26,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import { hasRoleAccess, type AppRole } from "@/lib/access-control";
+import { hasHotelPermission, hasRoleAccess, type AppRole, type HotelPermission } from "@/lib/access-control";
 import { buildDomainPath, type AppDomain } from "@/lib/domain-config";
 
 export interface NavItem {
@@ -34,6 +34,7 @@ export interface NavItem {
   href: string;
   icon: LucideIcon;
   minRole?: AppRole;
+  hotelPermission?: HotelPermission;
 }
 
 export interface NavSection {
@@ -114,42 +115,47 @@ export const hotelNavSections: NavSection[] = [
   {
     title: "HMS Core",
     items: [
-      { label: "Dashboard", href: hotel("/dashboard"), icon: LayoutDashboard },
-      { label: "Front Desk", href: hotel("/front-desk"), icon: Monitor },
-      { label: "Reservations", href: hotel("/reservations"), icon: CalendarDays },
+      { label: "Dashboard", href: hotel("/dashboard"), icon: LayoutDashboard, hotelPermission: "hotel.dashboard" },
+      { label: "Front Desk", href: hotel("/front-desk"), icon: Monitor, hotelPermission: "hotel.front_desk" },
+      { label: "Reservations", href: hotel("/reservations"), icon: CalendarDays, hotelPermission: "hotel.reservations" },
+      { label: "Occupancy Board", href: hotel("/occupancy"), icon: Building2, hotelPermission: "hotel.front_desk" },
     ],
   },
   {
     title: "Operations",
     items: [
-      { label: "Housekeeping", href: hotel("/housekeeping"), icon: ClipboardList },
-      { label: "Maintenance", href: hotel("/maintenance"), icon: Wrench, minRole: "manager" },
-      { label: "Inventory", href: hotel("/inventory"), icon: Package, minRole: "manager" },
+      { label: "Housekeeping", href: hotel("/housekeeping"), icon: ClipboardList, hotelPermission: "hotel.housekeeping" },
+      { label: "Tasks", href: hotel("/tasks"), icon: ClipboardList, hotelPermission: "hotel.housekeeping" },
+      { label: "Maintenance", href: hotel("/maintenance"), icon: Wrench, minRole: "manager", hotelPermission: "hotel.maintenance" },
+      { label: "Inventory", href: hotel("/inventory"), icon: Package, minRole: "manager", hotelPermission: "hotel.inventory" },
     ],
   },
   {
     title: "Guests",
     items: [
-      { label: "CRM", href: hotel("/crm"), icon: Users, minRole: "manager" },
-      { label: "Marketing", href: hotel("/marketing"), icon: Megaphone, minRole: "manager" },
-      { label: "Email Inbox", href: hotel("/email-inbox"), icon: Bell, minRole: "manager" },
+      { label: "CRM", href: hotel("/crm"), icon: Users, minRole: "manager", hotelPermission: "hotel.crm" },
+      { label: "Documents", href: hotel("/documents"), icon: FileText, hotelPermission: "hotel.documents" },
+      { label: "Marketing", href: hotel("/marketing"), icon: Megaphone, minRole: "manager", hotelPermission: "hotel.marketing" },
+      { label: "Email Inbox", href: hotel("/email-inbox"), icon: Bell, minRole: "manager", hotelPermission: "hotel.email_inbox" },
     ],
   },
   {
     title: "Revenue",
     items: [
-      { label: "Channels", href: hotel("/channels"), icon: Building2, minRole: "manager" },
-      { label: "Rate Manager", href: hotel("/rates"), icon: TrendingUp, minRole: "manager" },
-      { label: "Analytics", href: hotel("/analytics"), icon: Calculator, minRole: "manager" },
+      { label: "Channels", href: hotel("/channels"), icon: Building2, minRole: "manager", hotelPermission: "hotel.channels" },
+      { label: "Reports", href: hotel("/reports"), icon: FileText, minRole: "manager", hotelPermission: "hotel.reports" },
+      { label: "Rate Manager", href: hotel("/rates"), icon: TrendingUp, minRole: "manager", hotelPermission: "hotel.rate_management" },
+      { label: "Analytics", href: hotel("/analytics"), icon: Calculator, minRole: "manager", hotelPermission: "hotel.analytics" },
+      { label: "Cash-Master", href: hotel("/cash-master"), icon: Receipt, hotelPermission: "hotel.folio" },
     ],
   },
   {
     title: "System",
     items: [
-      { label: "AI Agents", href: hotel("/agents"), icon: Bot, minRole: "admin" },
-      { label: "Finance", href: hotel("/finance"), icon: Receipt, minRole: "admin" },
-      { label: "Security", href: hotel("/security"), icon: ShieldCheck, minRole: "admin" },
-      { label: "Settings", href: hotel("/settings"), icon: Settings, minRole: "manager" },
+      { label: "AI Agents", href: hotel("/agents"), icon: Bot, minRole: "admin", hotelPermission: "hotel.agents" },
+      { label: "Finance", href: hotel("/finance"), icon: Receipt, minRole: "admin", hotelPermission: "hotel.finance" },
+      { label: "Security", href: hotel("/security"), icon: ShieldCheck, minRole: "admin", hotelPermission: "hotel.security" },
+      { label: "Settings", href: hotel("/settings"), icon: Settings, minRole: "manager", hotelPermission: "hotel.settings" },
     ],
   },
 ];
@@ -253,4 +259,4 @@ export function getQuickActions(domain: AppDomain): QuickAction[] {
 
 export const quickActions = gastronomyQuickActions;
 
-export { hasRoleAccess };
+export { hasHotelPermission, hasRoleAccess };

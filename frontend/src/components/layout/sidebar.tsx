@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { normalizeDomain } from "@/lib/domain-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { useUIStore } from "@/stores/ui-store";
-import { hasRoleAccess, gastronomyNavSections, hotelNavSections } from "@/lib/navigation";
+import { hasHotelPermission, hasRoleAccess, gastronomyNavSections, hotelNavSections } from "@/lib/navigation";
 import { getDefaultDashboardRoute } from "@/lib/role-routing";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -20,12 +20,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const userRole = useAuthStore((s) => s.user?.role);
   const userName = useAuthStore((s) => s.user?.full_name);
+  const hotelPermissions = useAuthStore((s) => s.user?.hotel_permissions || []);
   const activeSection = useAuthStore((s) => s.activeSection);
   const setActiveSection = useAuthStore((s) => s.setActiveSection);
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
   const sections = activeSection === "management" ? hotelNavSections : gastronomyNavSections;
+  const canSeeHotelSettings = activeSection !== "management" || hasHotelPermission(hotelPermissions, "hotel.settings");
+  const settingsHref = activeSection === "management" ? "/hms/settings" : "/settings";
 
   const initials = userName
     ?.split(" ")
@@ -150,7 +153,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}>
           {sections.map((section, sectionIdx) => {
             const visibleItems = section.items.filter((item) =>
-              hasRoleAccess(userRole, item.minRole)
+              hasRoleAccess(userRole, item.minRole) &&
+              (activeSection !== "management" || hasHotelPermission(hotelPermissions, item.hotelPermission))
             );
             if (visibleItems.length === 0) return null;
 
@@ -243,28 +247,30 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           collapsed ? "px-2" : "px-3"
         )}>
 
-          <Link
-            href="/settings"
-            onClick={onClose}
-            className={cn(
-              "flex items-center rounded-lg text-sm font-body font-medium text-[var(--color-brand-cream)]/60 transition-all duration-200 ease-editorial hover:bg-white/5 hover:text-[var(--color-brand-cream)] mb-2",
-              collapsed ? "justify-center h-10" : "gap-3 px-3 py-2"
-            )}
-          >
-            <Settings className={cn("shrink-0", collapsed ? "h-[18px] w-[18px]" : "h-4 w-4")} />
-            <AnimatePresence mode="wait">
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -6 }}
-                  transition={{ duration: 0.12 }}
-                >
-                  Settings
-                </motion.span>
+          {canSeeHotelSettings && (
+            <Link
+              href={settingsHref}
+              onClick={onClose}
+              className={cn(
+                "flex items-center rounded-lg text-sm font-body font-medium text-[var(--color-brand-cream)]/60 transition-all duration-200 ease-editorial hover:bg-white/5 hover:text-[var(--color-brand-cream)] mb-2",
+                collapsed ? "justify-center h-10" : "gap-3 px-3 py-2"
               )}
-            </AnimatePresence>
-          </Link>
+            >
+              <Settings className={cn("shrink-0", collapsed ? "h-[18px] w-[18px]" : "h-4 w-4")} />
+              <AnimatePresence mode="wait">
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -6 }}
+                    transition={{ duration: 0.12 }}
+                  >
+                    Settings
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Link>
+          )}
 
 
           <div className={cn(

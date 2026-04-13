@@ -28,8 +28,24 @@ class User(Base):
     restaurant_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("restaurants.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    active_property_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("hms_properties.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     restaurant: Mapped["Restaurant | None"] = relationship(back_populates="users")
+    hotel_property_roles: Mapped[list["HotelUserPropertyRole"]] = relationship(
+        "HotelUserPropertyRole",
+        back_populates="user",
+        foreign_keys="HotelUserPropertyRole.user_id",
+        cascade="all, delete-orphan",
+    )
+    active_property: Mapped["HotelProperty | None"] = relationship(
+        "HotelProperty",
+        foreign_keys=[active_property_id],
+    )
 
 
 class Restaurant(Base):
@@ -46,3 +62,7 @@ class Restaurant(Base):
     settings_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     users: Mapped[list["User"]] = relationship(back_populates="restaurant")
+
+
+# Ensure hotel RBAC models are registered before SQLAlchemy configures User mappings.
+from app.hms.models import HotelProperty, HotelUserPropertyRole  # noqa: E402,F401

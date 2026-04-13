@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -10,6 +10,11 @@ class GuestProfileRead(BaseModel):
     name: str | None = None
     email: str | None = None
     phone: str | None = None
+    salutation: str | None = None
+    birthday: date | None = None
+    country_code: str | None = None
+    country_name: str | None = None
+    custom_fields_json: dict | None = None
     dietary_json: dict | None = None
     flavor_profile_json: dict | None = None
     clv: float
@@ -24,6 +29,11 @@ class GuestCreate(BaseModel):
     name: str | None = None
     email: str | None = None
     phone: str | None = None
+    salutation: str | None = None
+    birthday: date | None = None
+    country_code: str | None = None
+    country_name: str | None = None
+    custom_fields_json: dict | None = None
     dietary_json: dict | None = None
     flavor_profile_json: dict | None = None
 

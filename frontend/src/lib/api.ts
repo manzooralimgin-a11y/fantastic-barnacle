@@ -136,4 +136,44 @@ export async function deleteJson<T>(
   return response.data;
 }
 
+export function getApiErrorMessage(error: unknown, fallback = "Request failed.") {
+  if (axios.isAxiosError(error)) {
+    const responseData = error.response?.data;
+    if (typeof responseData === "string" && responseData.trim()) {
+      return responseData;
+    }
+    if (responseData && typeof responseData === "object") {
+      const detail = "detail" in responseData ? responseData.detail : null;
+      if (typeof detail === "string" && detail.trim()) {
+        return detail;
+      }
+      if (Array.isArray(detail) && detail.length > 0) {
+        const firstIssue = detail[0];
+        if (typeof firstIssue === "string" && firstIssue.trim()) {
+          return firstIssue;
+        }
+        if (
+          firstIssue &&
+          typeof firstIssue === "object" &&
+          "msg" in firstIssue &&
+          typeof firstIssue.msg === "string" &&
+          firstIssue.msg.trim()
+        ) {
+          return firstIssue.msg;
+        }
+      }
+      if ("message" in responseData && typeof responseData.message === "string" && responseData.message.trim()) {
+        return responseData.message;
+      }
+    }
+    if (error.message?.trim()) {
+      return error.message;
+    }
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+}
+
 export default api;

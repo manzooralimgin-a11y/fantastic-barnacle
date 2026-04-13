@@ -1,11 +1,23 @@
 import logging
 import os
+from urllib.parse import urlparse
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 _config_logger = logging.getLogger("app.config")
 _DEFAULT_SECRET_KEY = "change-me-to-a-random-secret-key-in-production"
+_DEFAULT_VOICEBOOKER_SECRET = "dev_secret_key"
+_DEFAULT_EMAIL_INGEST_SECRET = "dev-email-inbox-secret"
+_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+
+
+def _points_to_localhost(url: str) -> bool:
+    if not url:
+        return True
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    return hostname in _LOCAL_HOSTNAMES
 
 
 class Settings(BaseSettings):
@@ -34,9 +46,18 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     anthropic_api_key: str = ""
     resend_api_key: str = ""
-    voicebooker_secret: str = "dev_secret_key"
+    voicebooker_secret: str = _DEFAULT_VOICEBOOKER_SECRET
+    aws_region: str = ""
+    s3_bucket_name: str = ""
+    s3_documents_prefix: str = "documents/"
+    s3_uploads_prefix: str = "uploads/"
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
+    celery_log_level: str = "INFO"
+    celery_worker_concurrency: int = 4
+    uvicorn_log_level: str = "info"
+    uvicorn_workers: int = 1
+    uvicorn_forwarded_allow_ips: str = "*"
     slo_api_p95_ms_threshold: int = 800
     slo_api_p95_ms_critical_threshold: int = 1500
     slo_error_rate_pct_threshold: float = 1.0
@@ -54,7 +75,7 @@ class Settings(BaseSettings):
     reservation_idempotency_max_wait_ms: int = 1500
     reservation_reconciliation_lookback_hours: int = 6
     reservation_reconciliation_interval_minutes: int = 30
-    email_inbox_ingest_secret: str = "dev-email-inbox-secret"
+    email_inbox_ingest_secret: str = _DEFAULT_EMAIL_INGEST_SECRET
     email_inbox_ai_model: str = "claude-3-5-sonnet-latest"
     email_inbox_min_confidence: float = 0.65
     email_inbox_reply_mode: str = "generate_only"
@@ -141,6 +162,39 @@ class Settings(BaseSettings):
             and self.secret_key == _DEFAULT_SECRET_KEY
         ):
             raise ValueError("SECRET_KEY must be set to a non-default value in production")
+        if (
+            explicit_production_config
+            and self.app_env.lower() == "production"
+            and self.voicebooker_secret == _DEFAULT_VOICEBOOKER_SECRET
+        ):
+            raise ValueError("VOICEBOOKER_SECRET must be set to a non-default value in production")
+        if (
+            explicit_production_config
+            and self.app_env.lower() == "production"
+            and self.email_inbox_ingest_secret == _DEFAULT_EMAIL_INGEST_SECRET
+        ):
+            raise ValueError(
+                "EMAIL_INBOX_INGEST_SECRET must be set to a non-default value in production"
+            )
+        if explicit_production_config and self.app_env.lower() == "production":
+            if _points_to_localhost(self.database_url):
+                raise ValueError("DATABASE_URL must point to a non-local database in production")
+            if _points_to_localhost(self.redis_url):
+                raise ValueError("REDIS_URL must point to a non-local Redis instance in production")
+            if _points_to_localhost(self.celery_broker_url):
+                raise ValueError("CELERY_BROKER_URL must point to a non-local broker in production")
+            if _points_to_localhost(self.celery_result_backend):
+                raise ValueError(
+                    "CELERY_RESULT_BACKEND must point to a non-local result backend in production"
+                )
+            if _points_to_localhost(self.backend_url):
+                raise ValueError("BACKEND_URL must be set to the production API URL")
+            if _points_to_localhost(self.frontend_url):
+                raise ValueError("FRONTEND_URL must be set to the production frontend URL")
+            if self.stripe_api_key and not self.stripe_webhook_secret:
+                raise ValueError(
+                    "STRIPE_WEBHOOK_SECRET must be set in production when Stripe is enabled"
+                )
         return self
 
     @property

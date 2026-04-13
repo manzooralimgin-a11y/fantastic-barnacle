@@ -28,12 +28,13 @@ export function resolveAuthorizedRoute(
   pathname: string | null | undefined,
   role: string | undefined,
   fallbackDomain: AppDomain = getDefaultDomain(),
+  hotelPermissions?: readonly string[],
 ): string {
   if (!pathname) {
     return getDefaultDashboardRoute(role, fallbackDomain);
   }
 
-  if (canAccessPath(pathname, role)) {
+  if (canAccessPath(pathname, role, hotelPermissions)) {
     return pathname;
   }
 

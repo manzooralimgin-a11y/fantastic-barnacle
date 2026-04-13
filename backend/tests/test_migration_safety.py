@@ -30,7 +30,7 @@ from app.food_safety.models import AllergenAlert, ComplianceScore, HACCPLog, Tem
 from app.forecasting.models import Forecast, ForecastInput  # noqa: F401
 from app.franchise.models import Benchmark, Location, LocationMetric  # noqa: F401
 from app.guests.models import GuestProfile, LoyaltyAccount, Order, Promotion  # noqa: F401
-from app.hms.models import HotelProperty, HotelReservation, Room, RoomType  # noqa: F401
+from app.hms.models import DocumentBlueprint, DocumentTemplate, HotelDocument, HotelFolio, HotelFolioLine, HotelFolioPayment, HotelInvoice, HotelInvoiceDelivery, HotelInvoiceLine, HotelMessageEvent, HotelMessageTemplate, HotelMessageThread, HotelProperty, HotelRatePlan, HotelRatePlanPrice, HotelRateRestriction, HotelRateSeason, HotelReservation, HotelStay, HousekeepingTask, Room, RoomBlocking, RoomDailyNote, RoomStatusHistory, RoomType, StayAssignment  # noqa: F401
 from app.integrations.models import WebhookAudit, WebhookEvent  # noqa: F401
 from app.inventory.models import AutoPurchaseRule, InventoryItem, InventoryMovement, PurchaseOrder, SupplierCatalogItem, TVAReport, Vendor  # noqa: F401
 from app.maintenance.models import EnergyReading, Equipment, IoTReading, MaintenanceTicket  # noqa: F401
@@ -68,6 +68,27 @@ _ALLOWED_DEFAULT_DIFFS = {
     ("tables", "width"),
     ("tables", "height"),
     ("vouchers", "is_gift_card"),
+    ("hms_housekeeping_tasks", "priority"),
+    ("hms_housekeeping_tasks", "status"),
+    ("hms_room_daily_notes", "maintenance_required"),
+    ("hms_rate_plans", "is_active"),
+    ("hms_rate_restrictions", "closed"),
+    ("hms_rate_restrictions", "closed_to_arrival"),
+    ("hms_rate_restrictions", "closed_to_departure"),
+    ("hms_rate_seasons", "is_active"),
+    ("hms_message_templates", "is_default"),
+    ("hms_message_templates", "is_active"),
+    ("hms_room_status_history", "changed_at"),
+    ("hms_room_blockings", "status"),
+    ("hms_stay_assignments", "assignment_type"),
+    ("document_blueprints", "is_system"),
+    ("document_blueprints", "is_active"),
+    ("document_templates", "language"),
+    ("document_templates", "is_default"),
+    ("document_templates", "is_active"),
+    ("documents", "status"),
+    ("hms_invoices", "status"),
+    ("hms_invoice_deliveries", "status"),
 }
 
 
@@ -209,11 +230,74 @@ def test_migrated_schema_matches_models_except_known_server_defaults() -> None:
                 assert {"amount_total", "amount_remaining", "status", "is_gift_card", "purchaser_name"} <= voucher_columns
                 assert {"value", "voucher_type", "uses_count", "is_active"}.isdisjoint(voucher_columns)
 
+                guest_profile_columns = {col["name"] for col in inspector.get_columns("guest_profiles")}
+                assert {"salutation", "birthday", "country_code", "country_name", "custom_fields_json"} <= guest_profile_columns
+
                 reservation_columns = {col["name"] for col in inspector.get_columns("reservations")}
                 assert {"payment_status", "stripe_payment_intent_id"} <= reservation_columns
 
                 hms_reservation_columns = {col["name"] for col in inspector.get_columns("hms_reservations")}
                 assert {"room_type_id", "booking_id", "payment_status", "stripe_payment_intent_id"} <= hms_reservation_columns
+
+                hms_stay_columns = {col["name"] for col in inspector.get_columns("hms_stays")}
+                assert {"property_id", "reservation_id", "status", "planned_check_in", "planned_check_out"} <= hms_stay_columns
+
+                hms_folio_columns = {col["name"] for col in inspector.get_columns("hms_folios")}
+                assert {"stay_id", "reservation_id", "folio_number", "total", "balance_due"} <= hms_folio_columns
+
+                housekeeping_task_columns = {col["name"] for col in inspector.get_columns("hms_housekeeping_tasks")}
+                assert {"property_id", "room_id", "task_type", "priority", "status"} <= housekeeping_task_columns
+
+                room_daily_note_columns = {col["name"] for col in inspector.get_columns("hms_room_daily_notes")}
+                assert {"property_id", "room_id", "note_date", "housekeeping_note", "maintenance_note", "maintenance_required"} <= room_daily_note_columns
+
+                rate_season_columns = {col["name"] for col in inspector.get_columns("hms_rate_seasons")}
+                assert {"property_id", "name", "start_date", "end_date", "is_active"} <= rate_season_columns
+
+                rate_plan_columns = {col["name"] for col in inspector.get_columns("hms_rate_plans")}
+                assert {"property_id", "room_type_id", "code", "name", "currency", "base_price", "is_active"} <= rate_plan_columns
+
+                rate_price_columns = {col["name"] for col in inspector.get_columns("hms_rate_plan_prices")}
+                assert {"rate_plan_id", "rate_date", "season_id", "price"} <= rate_price_columns
+
+                rate_restriction_columns = {col["name"] for col in inspector.get_columns("hms_rate_restrictions")}
+                assert {"rate_plan_id", "restriction_date", "closed", "closed_to_arrival", "closed_to_departure", "min_stay", "max_stay"} <= rate_restriction_columns
+
+                message_template_columns = {col["name"] for col in inspector.get_columns("hms_message_templates")}
+                assert {"property_id", "code", "name", "channel", "category", "body_template", "is_default", "is_active"} <= message_template_columns
+
+                message_thread_columns = {col["name"] for col in inspector.get_columns("hms_message_threads")}
+                assert {"property_id", "reservation_id", "guest_id", "channel", "status", "guest_email", "last_message_at"} <= message_thread_columns
+
+                message_event_columns = {col["name"] for col in inspector.get_columns("hms_message_events")}
+                assert {"property_id", "thread_id", "template_id", "direction", "channel", "body_text", "status", "sent_at"} <= message_event_columns
+
+                room_status_history_columns = {col["name"] for col in inspector.get_columns("hms_room_status_history")}
+                assert {"property_id", "room_id", "new_status", "changed_at"} <= room_status_history_columns
+
+                room_blocking_columns = {col["name"] for col in inspector.get_columns("hms_room_blockings")}
+                assert {"property_id", "room_id", "start_date", "end_date", "status", "reason"} <= room_blocking_columns
+
+                stay_assignment_columns = {col["name"] for col in inspector.get_columns("hms_stay_assignments")}
+                assert {"property_id", "stay_id", "room_id", "assignment_type", "assigned_from", "assigned_to"} <= stay_assignment_columns
+
+                document_blueprint_columns = {col["name"] for col in inspector.get_columns("document_blueprints")}
+                assert {"code", "document_kind", "default_title_template", "default_body_template"} <= document_blueprint_columns
+
+                document_template_columns = {col["name"] for col in inspector.get_columns("document_templates")}
+                assert {"blueprint_id", "code", "title_template", "body_template", "is_active"} <= document_template_columns
+
+                document_columns = {col["name"] for col in inspector.get_columns("documents")}
+                assert {"property_id", "reservation_id", "document_kind", "document_number", "title", "body_text"} <= document_columns
+
+                invoice_columns = {col["name"] for col in inspector.get_columns("hms_invoices")}
+                assert {"property_id", "reservation_id", "folio_id", "invoice_number", "status", "currency"} <= invoice_columns
+
+                invoice_line_columns = {col["name"] for col in inspector.get_columns("hms_invoice_lines")}
+                assert {"invoice_id", "line_number", "description", "tax_rate", "gross_amount"} <= invoice_line_columns
+
+                invoice_delivery_columns = {col["name"] for col in inspector.get_columns("hms_invoice_deliveries")}
+                assert {"invoice_id", "channel", "status", "recipient_email", "sent_at"} <= invoice_delivery_columns
         finally:
             engine.dispose()
 

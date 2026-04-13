@@ -56,12 +56,12 @@ def test_legacy_public_routes_are_removed_from_private_api_namespaces() -> None:
         assert path not in route_map
 
 
-def test_only_canonical_reservation_create_route_remains() -> None:
+def test_canonical_and_hms_reservation_create_routes_are_registered() -> None:
     route_map = _route_map()
 
     assert "POST" in route_map["/api/reservations"]
     assert "POST" in route_map["/api/reservations/"]
-    assert "/api/hms/reservations" not in route_map or "POST" not in route_map["/api/hms/reservations"]
+    assert "POST" in route_map["/api/hms/reservations"]
 
 
 def test_qr_guest_and_qr_admin_routes_are_separated() -> None:

@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getMe } from "@/lib/auth";
-import { getDefaultDashboardRoute } from "@/lib/role-routing";
+import { getDefaultDashboardRoute, resolveAuthorizedRoute } from "@/lib/role-routing";
 import { useAuthStore } from "@/stores/auth-store";
 import { useUIStore } from "@/stores/ui-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { RightPanelHost } from "@/features/hms/pms/components/right-panel/RightPanelHost";
+import { RightPanelProvider } from "@/features/hms/pms/components/right-panel/RightPanelProvider";
+import { ReservierungModal } from "@/features/hms/pms/components/reservierung/ReservierungModal";
 
 export default function HMSLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -48,6 +51,16 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setUser(user);
         setAuthChecked(true);
+        const authorizedPath = resolveAuthorizedRoute(
+          pathname,
+          user.role,
+          "hotel",
+          user.hotel_permissions,
+        );
+        if (authorizedPath !== pathname) {
+          router.replace(authorizedPath);
+          return;
+        }
         if (!pathname.startsWith("/hms") && activeSection === "management") {
           router.replace("/hms/dashboard");
         }
@@ -67,7 +80,8 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
   if (!hydrated || !token || !authChecked) return null;
 
   return (
-    <div className="atmospheric-bg min-h-screen">
+    <RightPanelProvider>
+      <div className="atmospheric-bg min-h-screen">
       {/* Floating orbs — boutique brand colors for glass bleed-through */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
         <div className="absolute top-[10%] left-[15%] w-[400px] h-[400px] rounded-full bg-[rgba(197,160,89,0.08)] blur-[120px] animate-orb-drift" />
@@ -88,6 +102,10 @@ export default function HMSLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-    </div>
+      <RightPanelHost />
+      {/* Global reservation creation modal — opened via useReservierungStore().open() */}
+      <ReservierungModal />
+      </div>
+    </RightPanelProvider>
   );
 }

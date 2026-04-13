@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db, mark_session_commit_managed
-from app.dependencies import get_current_tenant_user
+from app.dependencies import require_hotel_permissions
 from app.email_inbox.schemas import (
     EmailInboxListResponse,
     EmailIngestResponse,
@@ -18,6 +18,7 @@ from app.email_inbox.schemas import (
     NormalizedEmailPayload,
     SendReplyRequest,
 )
+from app.hms.rbac import HOTEL_PERMISSION_EMAIL_INBOX
 from app.email_inbox.service import (
     email_inbox_stats,
     generate_reply_for_thread,
@@ -108,7 +109,7 @@ async def ingest_email_thread(
 async def list_email_threads(
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_tenant_user),
+    _user=Depends(require_hotel_permissions(HOTEL_PERMISSION_EMAIL_INBOX)),
 ):
     return await list_filtered_email_threads(db, limit=limit)
 
@@ -116,7 +117,7 @@ async def list_email_threads(
 @router.get("/stats")
 async def get_email_inbox_stats(
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_tenant_user),
+    _user=Depends(require_hotel_permissions(HOTEL_PERMISSION_EMAIL_INBOX)),
 ):
     return await email_inbox_stats(db)
 
@@ -125,7 +126,7 @@ async def get_email_inbox_stats(
 async def get_email_thread_detail(
     thread_id: int,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_tenant_user),
+    _user=Depends(require_hotel_permissions(HOTEL_PERMISSION_EMAIL_INBOX)),
 ):
     return serialize_email_thread(await get_email_thread(db, thread_id=thread_id))
 
@@ -134,7 +135,7 @@ async def get_email_thread_detail(
 async def generate_reply(
     thread_id: int,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_tenant_user),
+    _user=Depends(require_hotel_permissions(HOTEL_PERMISSION_EMAIL_INBOX)),
 ):
     thread = await generate_reply_for_thread(db, thread_id=thread_id, source="hms_email_inbox")
     return GenerateReplyResponse(thread=serialize_email_thread(thread))
@@ -145,7 +146,7 @@ async def send_reply(
     thread_id: int,
     payload: SendReplyRequest,
     db: AsyncSession = Depends(get_db),
-    user=Depends(get_current_tenant_user),
+    user=Depends(require_hotel_permissions(HOTEL_PERMISSION_EMAIL_INBOX)),
 ):
     thread = await send_reply_for_thread(
         db,
@@ -162,7 +163,7 @@ async def patch_email_thread(
     thread_id: int,
     payload: EmailThreadUpdate,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_current_tenant_user),
+    _user=Depends(require_hotel_permissions(HOTEL_PERMISSION_EMAIL_INBOX)),
 ):
     thread = await update_email_thread(db, thread_id=thread_id, payload=payload)
     return serialize_email_thread(thread)

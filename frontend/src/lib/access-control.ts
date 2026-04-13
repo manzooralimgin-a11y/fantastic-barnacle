@@ -1,10 +1,32 @@
 import { buildDomainPath, resolveDomainFromPath, type AppDomain } from "@/lib/domain-config";
 
 export type AppRole = "admin" | "manager" | "staff";
+export type HotelPermission =
+  | "hotel.dashboard"
+  | "hotel.front_desk"
+  | "hotel.reservations"
+  | "hotel.folio"
+  | "hotel.housekeeping"
+  | "hotel.reports"
+  | "hotel.documents"
+  | "hotel.settings"
+  | "hotel.rate_management"
+  | "hotel.maintenance"
+  | "hotel.inventory"
+  | "hotel.crm"
+  | "hotel.marketing"
+  | "hotel.email_inbox"
+  | "hotel.channels"
+  | "hotel.analytics"
+  | "hotel.finance"
+  | "hotel.security"
+  | "hotel.agents"
+  | "hotel.comms";
 
 type RouteRule = {
   prefix: string;
   minRole?: AppRole;
+  hotelPermission?: HotelPermission;
 };
 
 const roleRank: Record<AppRole, number> = {
@@ -32,19 +54,28 @@ const gastronomyRouteRules: RouteRule[] = [
 ];
 
 const hotelRouteRules: RouteRule[] = [
-  { prefix: buildDomainPath("hotel", "/agents"), minRole: "admin" },
-  { prefix: buildDomainPath("hotel", "/finance"), minRole: "admin" },
-  { prefix: buildDomainPath("hotel", "/security"), minRole: "admin" },
-  { prefix: buildDomainPath("hotel", "/analytics"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/channels"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/comms"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/email-inbox"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/crm"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/inventory"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/maintenance"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/marketing"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/rates"), minRole: "manager" },
-  { prefix: buildDomainPath("hotel", "/settings"), minRole: "manager" },
+  { prefix: buildDomainPath("hotel", "/dashboard"), hotelPermission: "hotel.dashboard" },
+  { prefix: buildDomainPath("hotel", "/front-desk"), hotelPermission: "hotel.front_desk" },
+  { prefix: buildDomainPath("hotel", "/reservations"), hotelPermission: "hotel.reservations" },
+  { prefix: buildDomainPath("hotel", "/occupancy"), hotelPermission: "hotel.front_desk" },
+  { prefix: buildDomainPath("hotel", "/housekeeping"), hotelPermission: "hotel.housekeeping" },
+  { prefix: buildDomainPath("hotel", "/tasks"), hotelPermission: "hotel.housekeeping" },
+  { prefix: buildDomainPath("hotel", "/inventory"), minRole: "manager", hotelPermission: "hotel.inventory" },
+  { prefix: buildDomainPath("hotel", "/maintenance"), minRole: "manager", hotelPermission: "hotel.maintenance" },
+  { prefix: buildDomainPath("hotel", "/crm"), minRole: "manager", hotelPermission: "hotel.crm" },
+  { prefix: buildDomainPath("hotel", "/documents"), hotelPermission: "hotel.documents" },
+  { prefix: buildDomainPath("hotel", "/marketing"), minRole: "manager", hotelPermission: "hotel.marketing" },
+  { prefix: buildDomainPath("hotel", "/email-inbox"), minRole: "manager", hotelPermission: "hotel.email_inbox" },
+  { prefix: buildDomainPath("hotel", "/channels"), minRole: "manager", hotelPermission: "hotel.channels" },
+  { prefix: buildDomainPath("hotel", "/reports"), minRole: "manager", hotelPermission: "hotel.reports" },
+  { prefix: buildDomainPath("hotel", "/rates"), minRole: "manager", hotelPermission: "hotel.rate_management" },
+  { prefix: buildDomainPath("hotel", "/analytics"), minRole: "manager", hotelPermission: "hotel.analytics" },
+  { prefix: buildDomainPath("hotel", "/cash-master"), hotelPermission: "hotel.folio" },
+  { prefix: buildDomainPath("hotel", "/comms"), minRole: "manager", hotelPermission: "hotel.comms" },
+  { prefix: buildDomainPath("hotel", "/agents"), minRole: "admin", hotelPermission: "hotel.agents" },
+  { prefix: buildDomainPath("hotel", "/finance"), minRole: "admin", hotelPermission: "hotel.finance" },
+  { prefix: buildDomainPath("hotel", "/security"), minRole: "admin", hotelPermission: "hotel.security" },
+  { prefix: buildDomainPath("hotel", "/settings"), minRole: "manager", hotelPermission: "hotel.settings" },
 ];
 
 const routePermissionMatrix: Record<AppDomain, RouteRule[]> = {
@@ -95,6 +126,16 @@ export function hasRoleAccess(role: string | undefined, minRole?: AppRole): bool
   return roleRank[normalizeRole(role)] >= roleRank[minRole];
 }
 
+export function hasHotelPermission(
+  permissions: readonly string[] | undefined,
+  requiredPermission?: HotelPermission,
+): boolean {
+  if (!requiredPermission) {
+    return true;
+  }
+  return (permissions || []).includes(requiredPermission);
+}
+
 export function canAccessDomain(domain: AppDomain, role: string | undefined): boolean {
   return hasRoleAccess(role, domain === "hotel" ? "staff" : "staff");
 }
@@ -107,7 +148,19 @@ export function getRequiredRoleForPath(pathname: string): AppRole | undefined {
   return findRouteRule(pathname, domain)?.minRole;
 }
 
-export function canAccessPath(pathname: string, role: string | undefined): boolean {
+export function getRequiredHotelPermissionForPath(pathname: string): HotelPermission | undefined {
+  const domain = resolveDomainFromPath(pathname);
+  if (domain !== "hotel") {
+    return undefined;
+  }
+  return findRouteRule(pathname, domain)?.hotelPermission;
+}
+
+export function canAccessPath(
+  pathname: string,
+  role: string | undefined,
+  hotelPermissions?: readonly string[],
+): boolean {
   const domain = resolveDomainFromPath(pathname);
   if (!domain) {
     return true;
@@ -115,5 +168,12 @@ export function canAccessPath(pathname: string, role: string | undefined): boole
   if (!canAccessDomain(domain, role)) {
     return false;
   }
-  return hasRoleAccess(role, findRouteRule(pathname, domain)?.minRole);
+  const rule = findRouteRule(pathname, domain);
+  if (!hasRoleAccess(role, rule?.minRole)) {
+    return false;
+  }
+  if (domain === "hotel" && !hasHotelPermission(hotelPermissions, rule?.hotelPermission)) {
+    return false;
+  }
+  return true;
 }

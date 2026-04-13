@@ -2,22 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Das Elb Hotel",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["das-elb-hotel/server.js"],
-      "port": 5000
-    },
-    {
-      "name": "Gestronomy Frontend",
+      "name": "Frontend (Next.js · port 5000)",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
       "port": 5000
     },
     {
-      "name": "Gestronomy Backend",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["backend/run_server.py"],
-      "port": 8002
+      "name": "Backend (FastAPI · port 8000)",
+      "runtimeExecutable": "uvicorn",
+      "runtimeArgs": ["app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+      "port": 8000
     }
   ]
 }

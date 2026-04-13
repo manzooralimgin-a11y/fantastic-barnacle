@@ -1,0 +1,50 @@
+{
+  "family": "mg-backend-beat",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/mg-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/mg-ecs-app-role",
+  "containerDefinitions": [
+    {
+      "name": "beat",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<ECR_REPOSITORY>:<IMAGE_TAG>",
+      "essential": true,
+      "command": ["./start-beat.sh"],
+      "environment": [
+        { "name": "APP_ENV", "value": "production" },
+        { "name": "DEBUG", "value": "false" },
+        { "name": "CELERY_LOG_LEVEL", "value": "INFO" },
+        { "name": "AWS_REGION", "value": "<REGION>" },
+        { "name": "S3_DOCUMENTS_PREFIX", "value": "documents/" },
+        { "name": "S3_UPLOADS_PREFIX", "value": "uploads/" }
+      ],
+      "secrets": [
+        { "name": "BACKEND_URL", "valueFrom": "/mg/prod/backend/BACKEND_URL" },
+        { "name": "FRONTEND_URL", "valueFrom": "/mg/prod/backend/FRONTEND_URL" },
+        { "name": "DATABASE_URL", "valueFrom": "/mg/prod/backend/DATABASE_URL" },
+        { "name": "DATABASE_URL_SYNC", "valueFrom": "/mg/prod/backend/DATABASE_URL_SYNC" },
+        { "name": "REDIS_URL", "valueFrom": "/mg/prod/backend/REDIS_URL" },
+        { "name": "CELERY_BROKER_URL", "valueFrom": "/mg/prod/backend/CELERY_BROKER_URL" },
+        { "name": "CELERY_RESULT_BACKEND", "valueFrom": "/mg/prod/backend/CELERY_RESULT_BACKEND" },
+        { "name": "SECRET_KEY", "valueFrom": "/mg/prod/backend/SECRET_KEY" },
+        { "name": "VOICEBOOKER_SECRET", "valueFrom": "/mg/prod/backend/VOICEBOOKER_SECRET" },
+        { "name": "EMAIL_INBOX_INGEST_SECRET", "valueFrom": "/mg/prod/backend/EMAIL_INBOX_INGEST_SECRET" },
+        { "name": "STRIPE_API_KEY", "valueFrom": "/mg/prod/backend/STRIPE_API_KEY" },
+        { "name": "STRIPE_WEBHOOK_SECRET", "valueFrom": "/mg/prod/backend/STRIPE_WEBHOOK_SECRET" },
+        { "name": "RESEND_API_KEY", "valueFrom": "/mg/prod/backend/RESEND_API_KEY" },
+        { "name": "ANTHROPIC_API_KEY", "valueFrom": "/mg/prod/backend/ANTHROPIC_API_KEY" },
+        { "name": "S3_BUCKET_NAME", "valueFrom": "/mg/prod/backend/S3_BUCKET_NAME" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/mg-backend-beat",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

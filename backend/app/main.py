@@ -18,7 +18,7 @@ from starlette.responses import JSONResponse, RedirectResponse, Response
 from app.auth.models import UserRole
 from app.config import settings
 from app.database import AsyncSession, engine, get_db
-from app.dependencies import get_current_tenant_user, require_roles
+from app.dependencies import get_current_tenant_user, get_current_user, require_roles
 from app.hms.room_inventory import RoomInventoryValidationError, expected_room_count, validate_room_inventory
 from app.middleware.request_id import RequestIdMiddleware, get_request_id
 from app.observability.alerts import evaluate_alert_thresholds
@@ -374,7 +374,9 @@ from app.forecasting.router import router as forecasting_router  # noqa: E402
 from app.franchise.router import router as franchise_router  # noqa: E402
 from app.guests.router import router as guests_router  # noqa: E402
 from app.hms.public_router import router as hms_public_router  # noqa: E402
+from app.hms.pms.router import router as hms_pms_router  # noqa: E402
 from app.hms.router import router as hms_router  # noqa: E402
+from app.guest_api.router import router as guest_api_router  # noqa: E402
 from app.integrations.mcp_server import mcp_app  # noqa: E402
 from app.integrations.router import router as integrations_router  # noqa: E402
 from app.inventory.router import router as inventory_router  # noqa: E402
@@ -543,11 +545,18 @@ app.include_router(
     hms_router,
     prefix="/api/hms",
     tags=["HMS"],
-    dependencies=[Depends(get_current_tenant_user)],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    hms_pms_router,
+    prefix="/api/hms/pms",
+    tags=["HMS PMS"],
+    dependencies=[Depends(get_current_user)],
 )
 app.include_router(email_inbox_ingest_router, prefix="/api/email-inbox", tags=["Email Inbox"])
 app.include_router(stripe_router, prefix="/api/webhooks/stripe", tags=["Webhooks"])
 app.include_router(hms_public_router, prefix="/api/public/hotel", tags=["Public Hotel"])
+app.include_router(guest_api_router, prefix="/api/guest", tags=["Guest API"])
 app.include_router(res_public_router, prefix="/api/public/restaurant", tags=["Public Restaurant"])
 app.include_router(ws_router, prefix="/ws")
 app.include_router(integrations_router)

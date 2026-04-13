@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Restaurant, User, UserRole
-from app.auth.schemas import LoginRequest, RegisterRequest, TokenResponse
+from app.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserRead
 from app.auth.utils import (
     create_access_token,
     create_refresh_token,
@@ -11,6 +11,7 @@ from app.auth.utils import (
     hash_password,
     verify_password,
 )
+from app.hms.rbac import get_first_hotel_property_id, get_hotel_access_context, serialize_hotel_access_context
 from app.shared.audit import emit_sensitive_audit
 
 
@@ -54,6 +55,7 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
         full_name=payload.full_name,
         role=UserRole.staff,
         restaurant_id=restaurant_ids[0],
+        active_property_id=await get_first_hotel_property_id(db),
     )
     db.add(user)
     await db.flush()
@@ -111,7 +113,7 @@ async def authenticate_user(db: AsyncSession, payload: LoginRequest) -> TokenRes
         status="success",
         detail="User authenticated",
     )
-    return _issue_tokens(user)
+    return await _issue_tokens(db, user)
 
 
 async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
@@ -170,13 +172,48 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
         status="success",
         detail="Token refreshed",
     )
-    return _issue_tokens(user)
+    return await _issue_tokens(db, user)
 
 
-def _issue_tokens(user: User) -> TokenResponse:
+async def build_user_read(db: AsyncSession, user: User) -> UserRead:
+    hotel_context = await get_hotel_access_context(
+        db,
+        user,
+        preferred_property_id=user.active_property_id,
+        persist_active_property=True,
+    )
+    hotel_payload = serialize_hotel_access_context(hotel_context)
+    return UserRead(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        is_active=user.is_active,
+        restaurant_id=user.restaurant_id,
+        active_property_id=hotel_payload["active_property_id"],
+        hotel_roles=hotel_payload["hotel_roles"],
+        hotel_permissions=hotel_payload["hotel_permissions"],
+        hotel_properties=hotel_payload["hotel_properties"],
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
+
+
+async def _issue_tokens(db: AsyncSession, user: User) -> TokenResponse:
+    hotel_context = await get_hotel_access_context(
+        db,
+        user,
+        preferred_property_id=user.active_property_id,
+        persist_active_property=True,
+    )
     access = create_access_token(
         user.id,
-        extra={"role": user.role.value, "restaurant_id": user.restaurant_id},
+        extra={
+            "role": user.role.value,
+            "restaurant_id": user.restaurant_id,
+            "active_property_id": hotel_context.active_property_id,
+            "hotel_permissions": list(hotel_context.hotel_permissions),
+        },
     )
     refresh = create_refresh_token(user.id)
     return TokenResponse(access_token=access, refresh_token=refresh)

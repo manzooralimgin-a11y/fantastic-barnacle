@@ -19,6 +19,13 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface HotelPropertyAccess {
+  property_id: number;
+  property_name: string;
+  role_codes: string[];
+  permissions: string[];
+}
+
 export interface User {
   id: number;
   email: string;
@@ -26,6 +33,10 @@ export interface User {
   role: string;
   is_active: boolean;
   restaurant_id?: number | null;
+  active_property_id?: number | null;
+  hotel_roles?: string[];
+  hotel_permissions?: string[];
+  hotel_properties?: HotelPropertyAccess[];
   created_at: string;
   updated_at: string;
 }

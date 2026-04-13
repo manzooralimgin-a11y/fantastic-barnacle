@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
-  <rect width="1920" height="1080" fill="#1A2F24"/>
-  <radialGradient id="g" cx="50%" cy="50%" r="50%">
-    <stop offset="0%" stop-color="#247a6e" stop-opacity="0.3"/>
-    <stop offset="100%" stop-color="#1A2F24" stop-opacity="0"/>
-  </radialGradient>
-  <rect width="1920" height="1080" fill="url(#g)"/>
-</svg>

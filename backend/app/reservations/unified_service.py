@@ -14,6 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.hms.crm_service import sync_guest_profile_for_hotel_reservation
+from app.hms.folio_service import ensure_folio_for_reservation_record
 from app.hms.models import HotelProperty, HotelReservation as HotelReservationRecord, RoomType
 from app.hms.room_inventory import (
     normalize_room_category,
@@ -496,6 +498,8 @@ class ReservationService:
 
         await db.flush()
         await db.refresh(persisted_record)
+        await sync_guest_profile_for_hotel_reservation(db, persisted_record)
+        await db.refresh(persisted_record)
         await api_metrics.record_business_timing(
             "reservation.create.persistence_ms",
             max(int((time_module.perf_counter() - persistence_started) * 1000), 0),
@@ -504,6 +508,7 @@ class ReservationService:
             persisted_record,
             source=reservation.source,
         )
+        await ensure_folio_for_reservation_record(db, persisted_record)
         schedule_hotel_availability_invalidation(
             db,
             property_id=property_id,

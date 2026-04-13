@@ -2,6 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -14,7 +19,7 @@ RUN pip install --no-cache-dir .
 
 COPY . .
 
-RUN chmod +x start.sh
+RUN chmod +x start.sh run-migrations.sh start-worker.sh start-beat.sh
 
 # Run as non-root user for security
 RUN groupadd --gid 1001 appuser && \

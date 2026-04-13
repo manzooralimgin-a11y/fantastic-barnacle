@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.auth.models import UserRole
+from app.hms.schemas import HotelPropertyAccessRead
 
 
 # ── Auth request / response ──────────────────────────────────────────
@@ -55,6 +56,10 @@ class UserRead(BaseModel):
     role: UserRole
     is_active: bool
     restaurant_id: int | None = None
+    active_property_id: int | None = None
+    hotel_roles: list[str] = Field(default_factory=list)
+    hotel_permissions: list[str] = Field(default_factory=list)
+    hotel_properties: list[HotelPropertyAccessRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

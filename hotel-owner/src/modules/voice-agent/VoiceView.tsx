@@ -11,11 +11,21 @@ import { VoiceButton } from "./VoiceButton";
 import { VoiceWaveAnimation } from "./VoiceWaveAnimation";
 import { ConversationScreen } from "./ConversationScreen";
 
-// Extend Window type for SpeechRecognition (vendor-prefixed in some browsers)
+// Extend Window type for SpeechRecognition (vendor-prefixed in some browsers).
+// Also declare SpeechRecognitionEvent / SpeechRecognitionErrorEvent which are
+// missing from TypeScript's lib.dom.d.ts in some versions.
 declare global {
   interface Window {
     SpeechRecognition?: typeof SpeechRecognition;
     webkitSpeechRecognition?: typeof SpeechRecognition;
+  }
+  interface SpeechRecognitionEvent extends Event {
+    readonly resultIndex: number;
+    readonly results: SpeechRecognitionResultList;
+  }
+  interface SpeechRecognitionErrorEvent extends Event {
+    readonly error: string;
+    readonly message: string;
   }
 }
 

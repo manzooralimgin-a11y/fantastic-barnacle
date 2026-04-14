@@ -52,7 +52,7 @@ services:
       - key: FRONTEND_URL
         value: https://gestronomy-web-ipjw.onrender.com
       - key: CORS_ORIGINS
-        value: https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com
+        value: https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://hotel-guest.onrender.com,https://hotel-owner.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com,https://das-elb-hotel.onrender.com
       - key: VOICEBOOKER_SECRET
         sync: false
       - key: EMAIL_INBOX_INGEST_SECRET
@@ -202,6 +202,34 @@ services:
         value: https://www.das-elb-hotel.com
       - key: RESEND_API_KEY
         sync: false
+
+  # Hotel Guest App — Vite+React self-service portal for hotel guests
+  - type: web
+    name: hotel-guest
+    runtime: docker
+    plan: free
+    dockerfilePath: ./hotel-guest/Dockerfile
+    dockerContext: ./hotel-guest
+    buildArgs:
+      - key: VITE_API_BASE_URL
+        value: https://gestronomy-api-5atv.onrender.com/api/v1
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://gestronomy-api-5atv.onrender.com/api/v1
+
+  # Hotel Owner App — Next.js analytics & property management dashboard
+  - type: web
+    name: hotel-owner
+    runtime: docker
+    plan: free
+    dockerfilePath: ./hotel-owner/Dockerfile
+    dockerContext: ./hotel-owner
+    buildArgs:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://gestronomy-api-5atv.onrender.com/api
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://gestronomy-api-5atv.onrender.com/api
 
   - type: redis
     name: gestronomy-redis

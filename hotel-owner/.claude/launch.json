@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "owner-app (Next.js dev)",
+      "runtimeExecutable": "/opt/homebrew/Cellar/node/25.6.1_1/bin/node",
+      "runtimeArgs": ["/Users/ali/Desktop/hotel-app/owner-app/node_modules/.bin/next", "dev"],
+      "port": 3000
+    }
+  ]
+}

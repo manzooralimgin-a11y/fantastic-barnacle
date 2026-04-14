@@ -394,6 +394,7 @@ from app.signage.router import router as signage_router  # noqa: E402
 from app.vision.router import router as vision_router  # noqa: E402
 from app.vouchers.router import router as vouchers_router  # noqa: E402
 from app.waiter.router import router as waiter_router  # noqa: E402
+from app.admin_bootstrap import router as bootstrap_router  # noqa: E402
 from app.websockets.router import router as ws_router  # noqa: E402
 from app.workforce.router import router as workforce_router  # noqa: E402
 
@@ -559,6 +560,7 @@ app.include_router(stripe_router, prefix="/api/webhooks/stripe", tags=["Webhooks
 app.include_router(hms_public_router, prefix="/api/public/hotel", tags=["Public Hotel"])
 app.include_router(guest_api_router, prefix="/api/guest", tags=["Guest API"])
 app.include_router(waiter_router, prefix="/api/waiter", tags=["Waiter"])
+app.include_router(bootstrap_router, prefix="/api", tags=["Bootstrap"])
 app.include_router(res_public_router, prefix="/api/public/restaurant", tags=["Public Restaurant"])
 app.include_router(ws_router, prefix="/ws")
 app.include_router(integrations_router)

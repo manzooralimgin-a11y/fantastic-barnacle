@@ -3,7 +3,19 @@ import { useEffect } from "react";
 type MessageHandler = (data: any) => void;
 
 function getWsUrl(): string {
-  if (typeof window === "undefined") return "ws://localhost:8000/ws";
+  // SSR: derive from NEXT_PUBLIC_API_URL when available; otherwise default to localhost
+  if (typeof window === "undefined") {
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      try {
+        const url = new URL(process.env.NEXT_PUBLIC_API_URL);
+        const protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        return `${protocol}//${url.host}/ws`;
+      } catch {
+        // fall through
+      }
+    }
+    return "ws://localhost:8000/ws";
+  }
 
   // Allow a manual override (e.g. for the Tauri desktop app)
   const override = process.env.NODE_ENV === "development"
@@ -30,11 +42,10 @@ function getWsUrl(): string {
     }
   }
 
-  // On Replit the frontend runs on port 5000 and the backend on port 8000.
-  // Derive the WebSocket URL from the current page's hostname but switch port.
+  // Last resort: derive from the current page origin (assumes backend and frontend
+  // share the same hostname, which is true behind a reverse proxy).
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:8000/ws`;
+  return `${protocol}//${window.location.host}/ws`;
 }
 
 class WebSocketClient {

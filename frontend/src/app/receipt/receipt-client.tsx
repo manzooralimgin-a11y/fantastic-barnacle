@@ -22,6 +22,14 @@ interface PaymentInfo {
     paid_at: string | null;
 }
 
+interface RestaurantInfo {
+    name: string | null;
+    address: string | null;
+    city: string | null;
+    zip_code: string | null;
+    phone: string | null;
+}
+
 interface ReceiptData {
     bill_number: string;
     order_id: number;
@@ -36,6 +44,7 @@ interface ReceiptData {
     payments: PaymentInfo[];
     paid_at: string | null;
     receipt_token: string | null;
+    restaurant: RestaurantInfo | null;
 }
 
 export function PublicReceiptClient() {
@@ -181,9 +190,11 @@ export function PublicReceiptClient() {
                     {/* Business Details & Footer */}
                     <div className="text-center pt-6 space-y-3 border-t border-border">
                         <div className="text-[10px] text-muted-foreground leading-relaxed uppercase tracking-widest">
-                            B. Singh Hotel GmbH & Co. KG<br />
-                            Seilerweg 19 · 39114 Magdeburg<br />
-                            Deutschland
+                            {receipt.restaurant?.name ?? "DAS ELB"}<br />
+                            {receipt.restaurant?.address && receipt.restaurant?.zip_code && receipt.restaurant?.city
+                                ? `${receipt.restaurant.address} · ${receipt.restaurant.zip_code} ${receipt.restaurant.city}`
+                                : "Seilerweg 19 · 39114 Magdeburg"}<br />
+                            {receipt.restaurant?.phone ?? ""}
                         </div>
                         <div className="space-y-1">
                             <p className="text-foreground font-medium">Vielen Dank für Ihren Besuch!</p>

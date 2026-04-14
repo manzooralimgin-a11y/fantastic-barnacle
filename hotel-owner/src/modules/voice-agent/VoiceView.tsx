@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -11,13 +11,18 @@ import { VoiceButton } from "./VoiceButton";
 import { VoiceWaveAnimation } from "./VoiceWaveAnimation";
 import { ConversationScreen } from "./ConversationScreen";
 
-const mockQueries = [
-  "How many bookings today?",
-  "What's the revenue?",
-  "Show me occupancy",
-  "Any pending emails?",
-  "What about meetings?",
-];
+// Extend Window type for SpeechRecognition (vendor-prefixed in some browsers)
+declare global {
+  interface Window {
+    SpeechRecognition?: typeof SpeechRecognition;
+    webkitSpeechRecognition?: typeof SpeechRecognition;
+  }
+}
+
+function getSpeechRecognition(): typeof SpeechRecognition | null {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+}
 
 export function VoiceView() {
   const {
@@ -28,25 +33,66 @@ export function VoiceView() {
     sendQuery,
   } = useVoiceStore();
 
-  const queryIndexRef = useRef(0);
+  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.abort();
+    };
+  }, []);
 
   const handleTap = useCallback(() => {
     if (isProcessing) return;
 
+    // If already listening, stop the recognition session
     if (isListening) {
+      recognitionRef.current?.stop();
       stopListening();
       return;
     }
 
-    // Start listening
-    startListening();
+    const SR = getSpeechRecognition();
 
-    // After 2s simulate voice input
-    setTimeout(() => {
-      const query = mockQueries[queryIndexRef.current % mockQueries.length];
-      queryIndexRef.current += 1;
-      sendQuery(query);
-    }, 2000);
+    if (!SR) {
+      // Browser does not support Web Speech API — fall back to typed input
+      const text = window.prompt("Voice input is not supported in this browser.\nType your question:");
+      if (text?.trim()) sendQuery(text.trim());
+      return;
+    }
+
+    const recognition = new SR();
+    recognitionRef.current = recognition;
+
+    recognition.lang = "de-DE";        // German primary; the backend handles both German & English
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+      startListening();
+    };
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      if (transcript) {
+        sendQuery(transcript);
+      }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.warn("[VoiceView] SpeechRecognition error:", event.error);
+      stopListening();
+      if (event.error === "not-allowed") {
+        window.alert("Microphone access was denied. Please allow microphone permissions and try again.");
+      }
+    };
+
+    recognition.onend = () => {
+      stopListening();
+    };
+
+    recognition.start();
   }, [isListening, isProcessing, startListening, stopListening, sendQuery]);
 
   return (

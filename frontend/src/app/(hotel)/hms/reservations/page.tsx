@@ -18,6 +18,7 @@ import Meldeschein, { MeldescheinData, emptyMeldeschein } from "@/components/hms
 import Rechnung, { RechnungData, RechnungItem, emptyRechnung, ZahlungsMethode, ZahlungsStatus } from "@/components/hms/rechnung";
 import { useRightPanel } from "@/features/hms/pms/components/right-panel/useRightPanel";
 import { PMS_RESERVATIONS_REFRESH_EVENT } from "@/features/hms/pms/api/reservations";
+import { fetchPmsReservationInvoices, fetchPmsInvoicePreview } from "@/features/hms/pms/api/billing";
 
 type Reservation = {
   id: string; anrede: string; guest_name: string; email: string; phone: string; room_type: string;
@@ -137,10 +138,58 @@ export default function ReservationsPage() {
   };
 
   const openMeldeschein = (r: Reservation) => { setMeldescheinData(buildMeldeschein(r)); setMeldescheinOpen(true); };
-  const openRechnung = (r: Reservation) => {
-    setRechnungData(buildRechnung(r, roomRates));
+  const openRechnung = async (r: Reservation) => {
     setCompanyBilling(false);
     setCompanyForm({ firma: "", strasse: "", plz_stadt: "", land: "Deutschland", ust_id: "" });
+
+    try {
+      // Prefer backend invoice so amounts reflect real folio data
+      const invoices = await fetchPmsReservationInvoices(r.id);
+      if (invoices && invoices.length > 0) {
+        const preview = await fetchPmsInvoicePreview(invoices[0].id);
+        const pd = preview.preview_data;
+        setRechnungData({
+          rechnungs_nr:      pd.rechnungs_nr,
+          folio:             pd.folio,
+          reservierung_nr:   pd.reservierung_nr,
+          datum:             pd.datum,
+          gast_name:         pd.gast_name,
+          gast_anrede:       pd.gast_anrede,
+          gast_strasse:      pd.gast_strasse,
+          gast_plz_stadt:    pd.gast_plz_stadt,
+          gast_land:         pd.gast_land,
+          firma_name:        pd.firma_name ?? "",
+          firma_strasse:     pd.firma_strasse ?? "",
+          firma_plz_stadt:   pd.firma_plz_stadt ?? "",
+          firma_land:        pd.firma_land ?? "",
+          firma_ust_id:      pd.firma_ust_id ?? "",
+          zimmer:            pd.zimmer,
+          zimmer_typ:        pd.zimmer_typ,
+          anreise:           pd.anreise,
+          abreise:           pd.abreise,
+          items:             pd.items,
+          netto_7:           pd.netto_7,
+          mwst_7:            pd.mwst_7,
+          netto_19:          pd.netto_19,
+          mwst_19:           pd.mwst_19,
+          gesamtsumme:       pd.gesamtsumme,
+          kurtaxe:           pd.kurtaxe,
+          anzahlung:         pd.anzahlung,
+          anzahlung_label:   pd.anzahlung_label,
+          zahlung:           pd.zahlung,
+          zahlungs_methode:  pd.zahlungs_methode,
+          zahlungs_status:   pd.zahlungs_status,
+          zahlungs_datum:    pd.zahlungs_datum,
+        });
+        setRechnungOpen(true);
+        return;
+      }
+    } catch {
+      // Fall through to local calculation
+    }
+
+    // Fallback: calculate from reservation data and room rate catalogue
+    setRechnungData(buildRechnung(r, roomRates));
     setRechnungOpen(true);
   };
 

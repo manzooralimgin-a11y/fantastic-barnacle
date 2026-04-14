@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BookOpen, User, Eye, EyeOff, AlertCircle, CheckCircle2, ChevronRight, Loader2, Copy, Check } from 'lucide-react'
+import { BookOpen, User, Eye, EyeOff, AlertCircle, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ROUTES } from '../constants'
 
@@ -50,28 +50,6 @@ function Field({ label, placeholder, value, onChange, error, type = 'text', icon
   )
 }
 
-// ---------------------------------------------------------------------------
-// Copyable demo credential chip
-// ---------------------------------------------------------------------------
-function CopyChip({ label, value }) {
-  const [copied, setCopied] = useState(false)
-  const copy = () => {
-    navigator.clipboard.writeText(value).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1800)
-  }
-  return (
-    <button
-      type="button"
-      onClick={copy}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-xs font-mono text-white/90 border border-white/10"
-    >
-      {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} className="text-white/50" />}
-      <span className="text-white/50 font-sans">{label}:</span>
-      <span>{value}</span>
-    </button>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Animated success overlay
@@ -150,11 +128,6 @@ export default function LoginScreen() {
     if (success) setLoginSuccess(true)
   }
 
-  const fillDemo = () => {
-    setBookingNumber('BK123456')
-    setLastName('smith')
-    setErrors({})
-  }
 
   return (
     <div className="relative min-h-dvh flex flex-col overflow-hidden bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600">
@@ -266,26 +239,6 @@ export default function LoginScreen() {
               )}
             </button>
           </form>
-        </div>
-
-        {/* Demo credentials */}
-        <div className="mt-5 p-4 rounded-2xl bg-white/8 border border-white/15 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-2.5">
-            <p className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-              Demo Credentials
-            </p>
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="text-xs text-blue-200 hover:text-white transition-colors font-medium underline underline-offset-2"
-            >
-              Fill automatically
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <CopyChip label="Booking" value="BK123456" />
-            <CopyChip label="Last name" value="smith" />
-          </div>
         </div>
 
         {/* Footer */}

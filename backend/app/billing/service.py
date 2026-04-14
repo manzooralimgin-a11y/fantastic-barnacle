@@ -6,6 +6,7 @@ from sqlalchemy import Integer, and_, cast, Date, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.models import Restaurant
 from app.billing.models import Bill, CashShift, KDSStationConfig, OrderItem, Payment, TableOrder
 from app.billing.schemas import (
     BillCreate,
@@ -461,6 +462,15 @@ async def get_receipt_data(db: AsyncSession, restaurant_id: int, bill_id: int) -
     )
     payments = list(payments_result.scalars().all())
 
+    restaurant = await db.get(Restaurant, restaurant_id)
+    restaurant_info = {
+        "name":     restaurant.name     if restaurant else None,
+        "address":  restaurant.address  if restaurant else None,
+        "city":     restaurant.city     if restaurant else None,
+        "zip_code": restaurant.zip_code if restaurant else None,
+        "phone":    restaurant.phone    if restaurant else None,
+    }
+
     return {
         "bill_number": bill.bill_number,
         "order_id": bill.order_id,
@@ -475,6 +485,7 @@ async def get_receipt_data(db: AsyncSession, restaurant_id: int, bill_id: int) -
         "payments": payments,
         "paid_at": bill.paid_at,
         "receipt_token": bill.receipt_token,
+        "restaurant": restaurant_info,
     }
 
 

@@ -19,17 +19,11 @@ import {
   UtensilsCrossed,
   Wine,
 } from "lucide-react";
-import { fetchPmsReservationSummary } from "@/features/hms/pms/api/reservations";
+import { fetchPmsReservationWorkspace } from "@/features/hms/pms/api/reservations";
+import type { PmsFolioLine } from "@/features/hms/pms/schemas/payment";
 import type { PmsCockpitItem } from "@/features/hms/pms/schemas/reservation";
 import { defaultHotelPropertyId } from "@/lib/hotel-room-types";
 import { cn } from "@/lib/utils";
-
-// ── Mock charges ───────────────────────────────────────────────────────────────
-// Shown as placeholder until a dedicated charges endpoint is wired in.
-const MOCK_CHARGES = [
-  { Icon: UtensilsCrossed, name: "L'Atelier Room Service", time: "21:10", amount: 42.0 },
-  { Icon: Wine, name: "Mini Bar Refill", time: "10:30", amount: 18.0 },
-];
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -44,6 +38,14 @@ export type GuestFolioPanelProps = {
 
 function fmtEur(n: number) {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n);
+}
+
+function chargeMeta(line: PmsFolioLine) {
+  const chargeType = String(line.charge_type || "").toLowerCase();
+  if (chargeType.includes("mini") || chargeType.includes("bar")) {
+    return { Icon: Wine, label: line.description || "Mini Bar" };
+  }
+  return { Icon: UtensilsCrossed, label: line.description || "Service Charge" };
 }
 
 function initials(name: string) {
@@ -63,14 +65,16 @@ export function GuestFolioPanel({
   onEditFolio,
   onCheckout,
 }: GuestFolioPanelProps) {
-  const { data: summary } = useQuery({
-    queryKey: ["pms", "reservation-summary", guest.reservation_id],
-    queryFn: () => fetchPmsReservationSummary(guest.reservation_id, defaultHotelPropertyId),
+  const { data: workspace } = useQuery({
+    queryKey: ["pms", "reservation-workspace", guest.reservation_id],
+    queryFn: () => fetchPmsReservationWorkspace(guest.reservation_id, defaultHotelPropertyId),
     enabled: Boolean(guest.reservation_id),
     staleTime: 30_000,
   });
 
-  const folioBalance = summary?.folio_balance_due ?? 0;
+  const folioLines = workspace?.folio_summary?.lines ?? [];
+  const folioBalance =
+    workspace?.folio_summary?.balance_due ?? workspace?.reservation?.folio_balance_due ?? 0;
   const isSettled = folioBalance === 0;
 
   const todayShort = new Date().toLocaleDateString("en-GB", {
@@ -170,25 +174,40 @@ export function GuestFolioPanel({
             </button>
           </div>
           <div className="space-y-2">
-            {MOCK_CHARGES.map((charge, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-xl border border-foreground/[0.07] bg-zinc-50/60 dark:bg-zinc-800/20 px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-foreground/[0.05] flex items-center justify-center flex-shrink-0">
-                    <charge.Icon className="h-4 w-4 text-foreground-muted" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{charge.name}</p>
-                    <p className="text-[10px] text-foreground-muted">
-                      {todayShort} · {charge.time}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm font-semibold text-foreground">{fmtEur(charge.amount)}</p>
+            {folioLines.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-foreground/[0.1] bg-zinc-50/40 dark:bg-zinc-800/10 px-3 py-4 text-sm text-foreground-muted">
+                No folio charges have been posted yet.
               </div>
-            ))}
+            ) : (
+              folioLines.slice(0, 5).map((line) => {
+                const meta = chargeMeta(line);
+                return (
+                  <div
+                    key={line.id}
+                    className="flex items-center justify-between rounded-xl border border-foreground/[0.07] bg-zinc-50/60 dark:bg-zinc-800/20 px-3 py-2.5"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-foreground/[0.05] flex items-center justify-center flex-shrink-0">
+                        <meta.Icon className="h-4 w-4 text-foreground-muted" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{meta.label}</p>
+                        <p className="text-[10px] text-foreground-muted">
+                          {line.service_date
+                            ? new Date(line.service_date).toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : todayShort}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{fmtEur(line.total_price)}</p>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -201,8 +220,7 @@ export function GuestFolioPanel({
             </p>
           </div>
           <p className="text-sm text-amber-900 leading-relaxed">
-            {summary?.special_requests ||
-              "Guest allergic to down feathers. Ensure synthetic pillows are in room. Prefers sparkling water in mini-bar."}
+            {workspace?.reservation?.special_requests || "No guest preferences recorded yet."}
           </p>
         </div>
       </div>

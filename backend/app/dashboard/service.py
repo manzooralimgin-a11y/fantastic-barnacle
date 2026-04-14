@@ -1,8 +1,8 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -19,6 +19,7 @@ from app.dashboard.schemas import (
     SLOBreach,
     SLODashboardResponse,
 )
+from app.hms.models import HotelReservation, HotelStay, HotelFolio, Room
 from app.observability.metrics import api_metrics, get_queue_lag
 from app.shared.audit import log_human_action
 
@@ -169,17 +170,172 @@ async def update_exception_workflow(
     )
 
 
+async def _fetch_hotel_snapshot(db: AsyncSession) -> dict:
+    """Gather live hotel KPIs from the HMS tables for use in NL query answers."""
+    today = date.today()
+
+    # Occupancy: rooms in 'occupied' status
+    room_counts = (
+        await db.execute(
+            select(Room.status, func.count(Room.id)).group_by(Room.status)
+        )
+    ).all()
+    counts_by_status = {s: c for s, c in room_counts}
+    total_rooms = sum(counts_by_status.values()) or 1
+    occupied = counts_by_status.get("occupied", 0)
+    cleaning = counts_by_status.get("cleaning", 0)
+    available = counts_by_status.get("available", total_rooms - occupied - cleaning)
+    occupancy_pct = round(occupied / total_rooms * 100, 1)
+
+    # Today's arrivals / departures / in-house
+    arrivals_today = (
+        await db.execute(
+            select(func.count(HotelReservation.id)).where(
+                HotelReservation.check_in == today,
+                HotelReservation.status.in_(["confirmed", "checked_in"]),
+            )
+        )
+    ).scalar() or 0
+
+    departures_today = (
+        await db.execute(
+            select(func.count(HotelReservation.id)).where(
+                HotelReservation.check_out == today,
+                HotelReservation.status.in_(["confirmed", "checked_in", "checked_out"]),
+            )
+        )
+    ).scalar() or 0
+
+    in_house = (
+        await db.execute(
+            select(func.count(HotelStay.id)).where(
+                HotelStay.status == "checked_in",
+            )
+        )
+    ).scalar() or 0
+
+    # Pending bookings (awaiting confirmation)
+    pending_bookings = (
+        await db.execute(
+            select(func.count(HotelReservation.id)).where(
+                HotelReservation.status == "pending",
+            )
+        )
+    ).scalar() or 0
+
+    # Revenue: sum of all outstanding folio balances
+    revenue_outstanding = (
+        await db.execute(
+            select(func.coalesce(func.sum(HotelFolio.balance_due), 0.0))
+        )
+    ).scalar() or 0.0
+
+    return {
+        "total_rooms": total_rooms,
+        "occupied": occupied,
+        "available": available,
+        "cleaning": cleaning,
+        "occupancy_pct": occupancy_pct,
+        "arrivals_today": arrivals_today,
+        "departures_today": departures_today,
+        "in_house": in_house,
+        "pending_bookings": pending_bookings,
+        "revenue_outstanding": float(revenue_outstanding),
+        "date": today.isoformat(),
+    }
+
+
+def _build_nl_answer(query: str, snapshot: dict) -> tuple[str, dict]:
+    """
+    Rule-based NL answer built from live backend data.
+    Returns (answer_text, structured_data).
+    """
+    q = query.lower()
+
+    occ = snapshot["occupancy_pct"]
+    occupied = snapshot["occupied"]
+    total = snapshot["total_rooms"]
+    arrivals = snapshot["arrivals_today"]
+    departures = snapshot["departures_today"]
+    in_house = snapshot["in_house"]
+    pending = snapshot["pending_bookings"]
+    revenue = snapshot["revenue_outstanding"]
+
+    if any(kw in q for kw in ("buchung", "booking", "ankunft", "arrival", "check-in", "checkin")):
+        answer = (
+            f"Heute: {arrivals} Ankünfte, {departures} Abreisen, {in_house} Gäste im Haus. "
+            f"{pending} Buchungen warten auf Bestätigung."
+        )
+        data = {
+            "type": "stat",
+            "arrivals": arrivals,
+            "departures": departures,
+            "in_house": in_house,
+            "pending": pending,
+        }
+
+    elif any(kw in q for kw in ("revenue", "umsatz", "einnahmen", "geld")):
+        answer = (
+            f"Offene Foliobeträge gesamt: €{revenue:,.2f}. "
+            f"Belegung heute: {occupied}/{total} Zimmer ({occ}%)."
+        )
+        data = {
+            "type": "stat",
+            "revenue_outstanding": revenue,
+            "occupancy_pct": occ,
+        }
+
+    elif any(kw in q for kw in ("occupancy", "belegung", "zimmer", "room", "verfügbar", "available")):
+        available = snapshot["available"]
+        cleaning = snapshot["cleaning"]
+        answer = (
+            f"Belegung: {occupied}/{total} Zimmer ({occ}%). "
+            f"Verfügbar: {available}, Reinigung: {cleaning}."
+        )
+        data = {
+            "type": "stat",
+            "occupied": occupied,
+            "available": available,
+            "cleaning": cleaning,
+            "total": total,
+            "occupancy_pct": occ,
+        }
+
+    elif any(kw in q for kw in ("pending", "ausstehend", "warten", "bestätigung")):
+        answer = f"{pending} Buchungen warten auf Bestätigung. {arrivals} Ankünfte heute."
+        data = {"type": "stat", "pending": pending, "arrivals_today": arrivals}
+
+    else:
+        answer = (
+            f"Stand {snapshot['date']}: {occupied}/{total} Zimmer belegt ({occ}%), "
+            f"{arrivals} Ankünfte heute, {departures} Abreisen, "
+            f"{pending} offene Buchungsanfragen."
+        )
+        data = snapshot
+
+    return answer, data
+
+
 async def process_nl_query(db: AsyncSession, payload: NLQueryRequest) -> NLQueryResponse:
+    try:
+        snapshot = await _fetch_hotel_snapshot(db)
+        answer, data = _build_nl_answer(payload.query, snapshot)
+    except Exception as exc:
+        logger.warning("NL query data fetch failed: %s", exc)
+        answer = "Konnte keine aktuellen Hoteldaten abrufen. Bitte Backend-Verbindung prüfen."
+        data = None
+
     query_record = DashboardQuery(
         query_text=payload.query,
-        ai_response="This is a stub response. LLM integration pending.",
+        ai_response=answer,
     )
     db.add(query_record)
     await db.flush()
+
     return NLQueryResponse(
         query=payload.query,
-        answer="This is a stub response. LLM integration pending.",
-        data=None,
+        answer=answer,
+        data=data,
     )
 
 

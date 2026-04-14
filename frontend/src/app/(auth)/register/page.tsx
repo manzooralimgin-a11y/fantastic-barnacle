@@ -32,7 +32,7 @@ export default function RegisterPage() {
       await register({ full_name: fullName, email, password });
       router.push("/login");
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string | Array<{ msg: string }> } }; code?: string };
+      const axiosErr = err as { response?: { data?: { detail?: string | Array<{ msg: string } | string> } }; code?: string };
       if (!axiosErr.response) {
         setError("Cannot reach server. Please check your internet connection or try again later.");
       } else {
@@ -41,7 +41,18 @@ export default function RegisterPage() {
         if (typeof detail === "string") {
           message = detail;
         } else if (Array.isArray(detail) && detail.length > 0) {
-          message = detail.map((d) => d.msg).join(", ");
+          // Pydantic v2 returns either string items ("body.field: message") or
+          // objects with a .msg key — handle both formats.
+          message = detail
+            .map((d) => {
+              if (typeof d === "string") {
+                // Strip the "body.field_name: " prefix for a cleaner message.
+                const colonIdx = d.indexOf(": ");
+                return colonIdx !== -1 ? d.slice(colonIdx + 2) : d;
+              }
+              return d.msg ?? String(d);
+            })
+            .join(" · ");
         }
         setError(message);
       }
@@ -97,11 +108,13 @@ export default function RegisterPage() {
               id="password"
               name="password"
               type="password"
-              placeholder="Create a password"
+              placeholder="Create a password (min. 12 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              minLength={12}
               required
             />
+            <p className="text-xs text-muted-foreground">Must be at least 12 characters.</p>
           </div>
           <div className="space-y-2">
             <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">

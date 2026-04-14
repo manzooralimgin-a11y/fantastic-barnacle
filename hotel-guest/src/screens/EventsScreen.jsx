@@ -52,7 +52,7 @@ const TAG_STYLES = {
   'Wellness':      'bg-teal-500/15 text-teal-400 border border-teal-500/25',
   'Complimentary': 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
   'Boat':          'bg-blue-500/15 text-blue-400 border border-blue-500/25',
-  'Hamburg':       'bg-blue-500/15 text-blue-400 border border-blue-500/25',
+  'Magdeburg':     'bg-blue-500/15 text-blue-400 border border-blue-500/25',
   'Sightseeing':   'bg-blue-500/15 text-blue-400 border border-blue-500/25',
   'Cocktails':     'bg-pink-500/15 text-pink-400 border border-pink-400/25',
   'Interactive':   'bg-pink-500/15 text-pink-400 border border-pink-400/25',

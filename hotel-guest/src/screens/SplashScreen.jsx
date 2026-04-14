@@ -46,7 +46,7 @@ export default function SplashScreen() {
         </div>
         <div className="text-center">
           <h1 className="text-white text-3xl font-bold tracking-tight">das elb</h1>
-          <p className="text-white/50 text-sm mt-1 tracking-widest uppercase">Hamburg</p>
+          <p className="text-white/50 text-sm mt-1 tracking-widest uppercase">Magdeburg</p>
         </div>
       </div>
 

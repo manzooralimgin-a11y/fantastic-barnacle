@@ -41,7 +41,7 @@ export default function CheckoutScreen() {
       </div>
       <h2 className="text-2xl font-bold text-white">Thank you, {guest?.firstName}!</h2>
       <p className="text-white/60 mt-2 text-sm leading-relaxed">
-        We hope you enjoyed your stay at das elb.<br />See you again soon in Hamburg.
+        We hope you enjoyed your stay at das elb.<br />See you again soon in Magdeburg.
       </p>
       <div className="mt-6 flex gap-1.5">
         {[0, 1, 2].map((i) => (

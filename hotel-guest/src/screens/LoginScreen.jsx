@@ -159,7 +159,7 @@ export default function LoginScreen() {
           </div>
           <div className="text-center">
             <h1 className="text-white text-2xl font-bold tracking-tight">das elb</h1>
-            <p className="text-white/50 text-xs mt-0.5 tracking-widest uppercase">Hamburg · Guest Portal</p>
+            <p className="text-white/50 text-xs mt-0.5 tracking-widest uppercase">Magdeburg · Guest Portal</p>
           </div>
         </div>
 

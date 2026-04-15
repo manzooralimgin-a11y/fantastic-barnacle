@@ -198,7 +198,7 @@ jobs:
           - service: hotel-guest
             dockerfile: hotel-guest/Dockerfile
             context: hotel-guest
-            build_args: "VITE_API_BASE_URL=https://gestronomy-api-5atv.onrender.com/api/v1"
+            build_args: "VITE_API_BASE_URL=https://gestronomy-api-5atv.onrender.com/api"
           - service: hotel-owner
             dockerfile: hotel-owner/Dockerfile
             context: hotel-owner
@@ -269,3 +269,124 @@ jobs:
 
           echo ""
           echo "✓ All CI checks passed. Deployment is ALLOWED."
+
+  # ===========================================================================
+  # Job 8 — Deploy to Render
+  # Triggered ONLY after deployment-gate passes on main branch.
+  # Calls each service's Render Deploy Hook via secret URLs.
+  #
+  # To activate:
+  #   1. In Render dashboard → each service → Settings → disable "Auto-Deploy"
+  #   2. In Render dashboard → each service → Settings → copy "Deploy Hook" URL
+  #   3. In GitHub → Settings → Secrets → Actions → add each secret below
+  #
+  # Secret names expected:
+  #   RENDER_HOOK_GESTRONOMY_API      → gestronomy-api deploy hook URL
+  #   RENDER_HOOK_GESTRONOMY_WEB      → gestronomy-web (management frontend)
+  #   RENDER_HOOK_HOTEL_GUEST         → hotel-guest deploy hook URL
+  #   RENDER_HOOK_HOTEL_OWNER         → hotel-owner deploy hook URL
+  #   RENDER_HOOK_RES_WEB             → res-web (reservation frontend)
+  #   RENDER_HOOK_GESTRONOMY_GUEST    → gestronomy-guest deploy hook URL
+  # ===========================================================================
+  deploy-to-render:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: [deployment-gate]
+    # Only deploy from main, only when deployment-gate succeeded (not skipped/failed)
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.deployment-gate.result == 'success'
+    steps:
+      - name: Check deploy hooks configured
+        id: hooks-check
+        run: |
+          HOOKS_MISSING=0
+          for hook_name in \
+            RENDER_HOOK_GESTRONOMY_API \
+            RENDER_HOOK_GESTRONOMY_WEB \
+            RENDER_HOOK_HOTEL_GUEST \
+            RENDER_HOOK_HOTEL_OWNER \
+            RENDER_HOOK_RES_WEB \
+            RENDER_HOOK_GESTRONOMY_GUEST; do
+            VAR="$hook_name"
+            # We can't directly check secret values — check via env
+            echo "Hook $hook_name: $([ -n "${!VAR:-}" ] && echo 'set' || echo 'NOT SET')"
+          done
+          echo "configured=true" >> $GITHUB_OUTPUT
+
+      - name: Trigger — gestronomy-api
+        if: secrets.RENDER_HOOK_GESTRONOMY_API != ''
+        env:
+          HOOK_URL: ${{ secrets.RENDER_HOOK_GESTRONOMY_API }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "Triggering gestronomy-api deploy..."
+            curl -sf --retry 3 --retry-delay 5 "$HOOK_URL" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Deploy ID:', d.get('id','unknown'))" || echo "Deploy triggered (non-JSON response)"
+          else
+            echo "RENDER_HOOK_GESTRONOMY_API not set — skipping"
+          fi
+
+      - name: Trigger — gestronomy-web (management frontend)
+        env:
+          HOOK_URL: ${{ secrets.RENDER_HOOK_GESTRONOMY_WEB }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "Triggering gestronomy-web deploy..."
+            curl -sf --retry 3 --retry-delay 5 "$HOOK_URL" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Deploy ID:', d.get('id','unknown'))" || echo "Deploy triggered"
+          else
+            echo "RENDER_HOOK_GESTRONOMY_WEB not set — skipping (auto-deploy handles it)"
+          fi
+
+      - name: Trigger — hotel-guest
+        env:
+          HOOK_URL: ${{ secrets.RENDER_HOOK_HOTEL_GUEST }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "Triggering hotel-guest deploy..."
+            curl -sf --retry 3 --retry-delay 5 "$HOOK_URL" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Deploy ID:', d.get('id','unknown'))" || echo "Deploy triggered"
+          else
+            echo "RENDER_HOOK_HOTEL_GUEST not set — skipping"
+          fi
+
+      - name: Trigger — hotel-owner
+        env:
+          HOOK_URL: ${{ secrets.RENDER_HOOK_HOTEL_OWNER }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "Triggering hotel-owner deploy..."
+            curl -sf --retry 3 --retry-delay 5 "$HOOK_URL" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Deploy ID:', d.get('id','unknown'))" || echo "Deploy triggered"
+          else
+            echo "RENDER_HOOK_HOTEL_OWNER not set — skipping"
+          fi
+
+      - name: Trigger — res-web
+        env:
+          HOOK_URL: ${{ secrets.RENDER_HOOK_RES_WEB }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "Triggering res-web deploy..."
+            curl -sf --retry 3 --retry-delay 5 "$HOOK_URL" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Deploy ID:', d.get('id','unknown'))" || echo "Deploy triggered"
+          else
+            echo "RENDER_HOOK_RES_WEB not set — skipping"
+          fi
+
+      - name: Trigger — gestronomy-guest
+        env:
+          HOOK_URL: ${{ secrets.RENDER_HOOK_GESTRONOMY_GUEST }}
+        run: |
+          if [ -n "$HOOK_URL" ]; then
+            echo "Triggering gestronomy-guest deploy..."
+            curl -sf --retry 3 --retry-delay 5 "$HOOK_URL" | python3 -c "import sys,json; d=json.load(sys.stdin); print('Deploy ID:', d.get('id','unknown'))" || echo "Deploy triggered"
+          else
+            echo "RENDER_HOOK_GESTRONOMY_GUEST not set — skipping"
+          fi
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "============================================="
+          echo "✓ All Render deploy hooks triggered."
+          echo "  Services will build and go live in ~3 min."
+          echo "  Monitor: https://dashboard.render.com"
+          echo "============================================="

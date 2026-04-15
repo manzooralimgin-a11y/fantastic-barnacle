@@ -15,7 +15,7 @@
  * No real backend required — tests intercept and validate mock shape conformance.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const API_PATTERN = /localhost|gestronomy-api|127\.0\.0\.1/;
 
@@ -25,7 +25,7 @@ const API_PATTERN = /localhost|gestronomy-api|127\.0\.0\.1/;
 
 /** Resolves when the first request matching urlFragment is made. */
 function captureRequest(
-  page: Parameters<typeof test>[1]["page"],
+  page: Page,
   urlFragment: string
 ): Promise<{ url: string; method: string; body: unknown }> {
   return new Promise((resolve) => {
@@ -45,7 +45,7 @@ function captureRequest(
 
 /** Resolves when the first response matching urlFragment is received. */
 function captureResponse(
-  page: Parameters<typeof test>[1]["page"],
+  page: Page,
   urlFragment: string
 ): Promise<{ status: number; body: unknown }> {
   return new Promise((resolve) => {

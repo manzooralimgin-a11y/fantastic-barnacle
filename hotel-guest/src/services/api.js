@@ -49,7 +49,20 @@ const request = async (path, { method = 'GET', body, auth = true, token, headers
     let message = `Request failed with status ${response.status}`
     try {
       const payload = await response.json()
-      message = payload?.detail || payload?.message || message
+      // Backend canonical error shape: { error: string, detail: string | string[] }
+      // Prefer `error` (human-readable), fall back to `detail`, then generic message.
+      const detail = payload?.detail
+      const detailStr = Array.isArray(detail)
+        ? detail.map((d) => {
+            if (typeof d === 'string') {
+              // Strip Pydantic v2 "body.field_name: " prefix
+              const idx = d.indexOf(': ')
+              return idx !== -1 ? d.slice(idx + 2) : d
+            }
+            return d?.msg ?? String(d)
+          }).join(' · ')
+        : (typeof detail === 'string' ? detail : null)
+      message = payload?.error || detailStr || payload?.message || message
     } catch {
       try {
         const text = await response.text()

@@ -212,10 +212,10 @@ services:
     dockerContext: ./hotel-guest
     buildArgs:
       - key: VITE_API_BASE_URL
-        value: https://gestronomy-api-5atv.onrender.com/api/v1
+        value: https://gestronomy-api-5atv.onrender.com/api
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://gestronomy-api-5atv.onrender.com/api/v1
+        value: https://gestronomy-api-5atv.onrender.com/api
 
   # Hotel Owner App — Next.js analytics & property management dashboard
   - type: web

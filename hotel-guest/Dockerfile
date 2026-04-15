@@ -3,7 +3,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # VITE_API_BASE_URL wires the hotel guest app to the central backend
-ARG VITE_API_BASE_URL=https://gestronomy-api-5atv.onrender.com/api/v1
+ARG VITE_API_BASE_URL=https://gestronomy-api-5atv.onrender.com/api
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 COPY package*.json ./

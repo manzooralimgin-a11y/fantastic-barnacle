@@ -1,6 +1,11 @@
 """
-One-time bootstrap endpoint — creates hotel property, seeds RBAC, upgrades user roles.
-Protected by BOOTSTRAP_SECRET env var. Remove this file after first use.
+Bootstrap endpoints — hotel property setup, RBAC seeding, user role promotion.
+
+/api/admin/first-run  — No secret required. Only works while NO admin exists.
+                        Promotes all registered users to admin and creates the
+                        hotel property. Auto-disables once an admin exists.
+
+/api/admin/bootstrap  — Secret-protected (BOOTSTRAP_SECRET env var). Full setup.
 """
 from __future__ import annotations
 
@@ -28,6 +33,52 @@ def _check_secret(x_bootstrap_secret: str = Header(default="")):
         raise HTTPException(status_code=503, detail="Bootstrap not configured")
     if x_bootstrap_secret != BOOTSTRAP_SECRET:
         raise HTTPException(status_code=401, detail="Invalid bootstrap secret")
+
+
+@router.post("/admin/first-run", tags=["Bootstrap"])
+async def first_run_setup(db: AsyncSession = Depends(get_db)):
+    """
+    Zero-secret first-run endpoint.
+
+    Promotes all registered users to admin and creates the hotel property.
+    Only works while NO admin user exists — auto-disables after first call.
+    Returns 409 if an admin already exists (use /admin/bootstrap with secret instead).
+    """
+    # Guard: refuse if any admin already exists (idempotent safety gate)
+    existing_admin = await db.scalar(
+        select(User.id).where(User.role == UserRole.admin).limit(1)
+    )
+    if existing_admin is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="An admin already exists. This endpoint is disabled. Use /api/admin/bootstrap with the secret for further changes.",
+        )
+
+    log: list[str] = []
+
+    # Promote every registered user to admin
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    for u in users:
+        u.role = UserRole.admin
+        log.append(f"Promoted {u.email} → admin (id={u.id})")
+
+    if not users:
+        log.append("No users found — register an account first, then call this endpoint again.")
+        return {"status": "no_users", "log": log}
+
+    # Bootstrap RBAC for all users
+    await ensure_hotel_rbac_bootstrap(db)
+    log.append("RBAC bootstrapped for all users")
+
+    await db.commit()
+    logger.info("first_run_setup completed", extra={"promoted": len(users)})
+    return {
+        "status": "ok",
+        "promoted_count": len(users),
+        "log": log,
+        "next_step": "Login with your account — you are now admin. This endpoint is now disabled.",
+    }
 
 
 @router.post("/admin/bootstrap", tags=["Bootstrap"])

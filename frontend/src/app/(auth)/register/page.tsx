@@ -30,29 +30,46 @@ export default function RegisterPage() {
 
     try {
       await register({ full_name: fullName, email, password });
-      router.push("/login");
+      router.push("/login?registered=1");
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string | Array<{ msg: string } | string> } }; code?: string };
+      const axiosErr = err as {
+        response?: {
+          status?: number;
+          data?: {
+            error?: string;
+            detail?: string | Array<{ msg: string } | string>;
+          };
+        };
+        code?: string;
+        message?: string;
+      };
+
       if (!axiosErr.response) {
-        setError("Cannot reach server. Please check your internet connection or try again later.");
+        setError("Cannot reach server. Please check your internet connection.");
       } else {
-        const detail = axiosErr.response?.data?.detail;
-        let message = "Registration failed. Please try again.";
-        if (typeof detail === "string") {
+        const data = axiosErr.response?.data ?? {};
+        const detail = data.detail;
+
+        // Build a human-readable message.
+        // Priority: backend `error` field → `detail` string → `detail` array → generic
+        let message: string;
+        if (typeof data.error === "string" && data.error.trim()) {
+          message = data.error;
+        } else if (typeof detail === "string" && detail.trim()) {
           message = detail;
         } else if (Array.isArray(detail) && detail.length > 0) {
-          // Pydantic v2 returns either string items ("body.field: message") or
-          // objects with a .msg key — handle both formats.
+          // Pydantic v2: items are strings like "body.field_name: message"
           message = detail
             .map((d) => {
               if (typeof d === "string") {
-                // Strip the "body.field_name: " prefix for a cleaner message.
                 const colonIdx = d.indexOf(": ");
                 return colonIdx !== -1 ? d.slice(colonIdx + 2) : d;
               }
-              return d.msg ?? String(d);
+              return (d as { msg?: string }).msg ?? String(d);
             })
             .join(" · ");
+        } else {
+          message = "Registration failed. Please try again.";
         }
         setError(message);
       }

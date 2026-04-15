@@ -49,11 +49,19 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
             detail="Self-registration requires exactly one configured restaurant",
         )
 
+    # If no admin exists yet, grant this user admin role so they can access the
+    # full management dashboard without needing a separate bootstrap step.
+    admin_exists_result = await db.execute(
+        select(User.id).where(User.role == UserRole.admin).limit(1)
+    )
+    is_first_admin = admin_exists_result.scalar_one_or_none() is None
+    assigned_role = UserRole.admin if is_first_admin else UserRole.staff
+
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
-        role=UserRole.staff,
+        role=assigned_role,
         restaurant_id=restaurant_ids[0],
         active_property_id=await get_first_hotel_property_id(db),
     )
@@ -67,7 +75,7 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
         agent_id=None,
         status="success",
         detail="User self-registered",
-        metadata={"role": user.role.value},
+        metadata={"role": user.role.value, "first_admin": is_first_admin},
     )
     return user
 

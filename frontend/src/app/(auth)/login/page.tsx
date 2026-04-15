@@ -33,17 +33,42 @@ export default function LoginPage() {
       useAuthStore.getState().setUser(user);
       router.push(getDefaultDashboardRoute(user.role, normalizeDomain(activeSection)));
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string | Array<{ msg: string }> }; status?: number }; code?: string };
+      const axiosErr = err as {
+        response?: {
+          status?: number;
+          data?: {
+            error?: string;
+            detail?: string | Array<{ msg: string } | string>;
+          };
+        };
+        code?: string;
+      };
+
       if (!axiosErr.response) {
-        // Network error — API unreachable
-        setError("Cannot reach server. Please check your internet connection or try again later.");
+        setError("Cannot reach server. Please check your internet connection.");
       } else {
-        const detail = axiosErr.response?.data?.detail;
-        let message = "Invalid email or password";
-        if (typeof detail === "string") {
+        const data = axiosErr.response?.data ?? {};
+        const detail = data.detail;
+
+        // Use backend `error` field first (canonical), then detail, then generic
+        let message: string;
+        if (typeof data.error === "string" && data.error.trim()) {
+          message = data.error;
+        } else if (typeof detail === "string" && detail.trim()) {
           message = detail;
         } else if (Array.isArray(detail) && detail.length > 0) {
-          message = detail.map((d) => d.msg).join(", ");
+          // Pydantic v2: items are strings — objects with .msg are Pydantic v1
+          message = detail
+            .map((d) => {
+              if (typeof d === "string") {
+                const colonIdx = d.indexOf(": ");
+                return colonIdx !== -1 ? d.slice(colonIdx + 2) : d;
+              }
+              return (d as { msg?: string }).msg ?? String(d);
+            })
+            .join(" · ");
+        } else {
+          message = "Invalid email or password. Please try again.";
         }
         setError(message);
       }

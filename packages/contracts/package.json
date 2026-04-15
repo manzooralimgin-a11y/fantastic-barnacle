@@ -1,0 +1,23 @@
+{
+  "name": "@das-elb/contracts",
+  "version": "1.0.0",
+  "description": "Shared API contract schemas for das elb ecosystem — prevents mismatch between frontend and backend",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./errors": "./src/errors.ts",
+    "./auth": "./src/auth.ts",
+    "./api": "./src/api.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test src/*.test.ts"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

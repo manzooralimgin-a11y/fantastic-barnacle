@@ -1,0 +1,292 @@
+name: Deploy Backend to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "infrastructure/aws/ecs-one-hotel/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Deploy latest main build or roll back services
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+      rollback_task_revision:
+        description: Task definition revision number to roll back all backend services to
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-backend-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: mg-backend
+  ECS_SERVICE_API: mg-api
+  ECS_SERVICE_WORKER: mg-worker
+  ECS_SERVICE_BEAT: mg-beat
+
+jobs:
+  deploy:
+    name: Build and Deploy Backend
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate required GitHub variables
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+        run: |
+          set -euo pipefail
+          test -n "$AWS_DEPLOY_ROLE_ARN" || { echo "Missing repository/environment variable AWS_DEPLOY_ROLE_ARN"; exit 1; }
+          test -n "$ECS_CLUSTER" || { echo "Missing repository/environment variable ECS_CLUSTER"; exit 1; }
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: github-actions-mg-backend-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve image metadata
+        id: image
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_uri=${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "latest_image_uri=${ECR_REGISTRY}/${ECR_REPOSITORY}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          LATEST_IMAGE_URI: ${{ steps.image.outputs.latest_image_uri }}
+        run: |
+          set -euo pipefail
+          docker build -t "$IMAGE_URI" backend
+          docker tag "$IMAGE_URI" "$LATEST_IMAGE_URI"
+          echo "Built image: $IMAGE_URI"
+          echo "Also tagging: $LATEST_IMAGE_URI"
+          docker rm -f mg-backend-smoke >/dev/null 2>&1 || true
+          docker run -d --name mg-backend-smoke -p 18000:8000 \
+            -e APP_ENV=development \
+            -e DEBUG=false \
+            -e RUN_MIGRATIONS=0 \
+            -e RUN_MASTER_SEED=0 \
+            -e STARTUP_VALIDATION_ENFORCED=false \
+            -e STARTUP_VALIDATION_REQUIRE_REDIS=false \
+            -e STARTUP_VALIDATION_REQUIRE_MIGRATIONS=false \
+            "$IMAGE_URI"
+          for _ in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:18000/health >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:18000/health >/dev/null || {
+            echo "Smoke test failed. Container logs:"
+            docker logs mg-backend-smoke || true
+            exit 1
+          }
+          docker rm -f mg-backend-smoke >/dev/null 2>&1 || true
+          docker push "$IMAGE_URI"
+          docker push "$LATEST_IMAGE_URI"
+
+      - name: Prepare ECS task definition files
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        env:
+          AWS_ACCOUNT_ID: ${{ steps.image.outputs.account_id }}
+          IMAGE_TAG: ${{ steps.image.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p .aws-task-definitions
+          for name in api worker beat migrate; do
+            sed \
+              -e "s#<ACCOUNT_ID>#${AWS_ACCOUNT_ID}#g" \
+              -e "s#<REGION>#${AWS_REGION}#g" \
+              -e "s#<ECR_REPOSITORY>#${ECR_REPOSITORY}#g" \
+              -e "s#<IMAGE_TAG>#${IMAGE_TAG}#g" \
+              "infrastructure/aws/ecs-one-hotel/task-definitions/${name}-task.json" \
+              > ".aws-task-definitions/${name}-task.json"
+          done
+
+      - name: Discover ECS network configuration
+        id: network
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE_API" \
+            --query 'services[0].networkConfiguration.awsvpcConfiguration' \
+            --output json > network.json
+
+          test "$(jq -r '.subnets | length' network.json)" != "0" || { echo "No subnets found on ${ECS_SERVICE_API}"; exit 1; }
+          test "$(jq -r '.securityGroups | length' network.json)" != "0" || { echo "No security groups found on ${ECS_SERVICE_API}"; exit 1; }
+
+          echo "subnets=$(jq -r '.subnets | join(\",\")' network.json)" >> "$GITHUB_OUTPUT"
+          echo "security_groups=$(jq -r '.securityGroups | join(\",\")' network.json)" >> "$GITHUB_OUTPUT"
+          echo "assign_public_ip=$(jq -r '.assignPublicIp' network.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Print deployment metadata
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+        run: |
+          set -euo pipefail
+          echo "Deploying image: $IMAGE_URI"
+          echo "Cluster: $ECS_CLUSTER"
+          echo "Services: $ECS_SERVICE_API, $ECS_SERVICE_WORKER, $ECS_SERVICE_BEAT"
+
+      - name: Register migration task definition
+        id: migrate-task
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        run: |
+          set -euo pipefail
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://.aws-task-definitions/migrate-task.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task_definition_arn=${TASK_DEF_ARN}" >> "$GITHUB_OUTPUT"
+
+      - name: Run database migrations
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          MIGRATE_TASK_DEFINITION_ARN: ${{ steps.migrate-task.outputs.task_definition_arn }}
+          SUBNETS: ${{ steps.network.outputs.subnets }}
+          SECURITY_GROUPS: ${{ steps.network.outputs.security_groups }}
+          ASSIGN_PUBLIC_IP: ${{ steps.network.outputs.assign_public_ip }}
+        run: |
+          set -euo pipefail
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --launch-type FARGATE \
+            --task-definition "$MIGRATE_TASK_DEFINITION_ARN" \
+            --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUPS}],assignPublicIp=${ASSIGN_PUBLIC_IP}}" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          test "$TASK_ARN" != "None" || { echo "Migration task failed to start"; exit 1; }
+
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "Migration task failed with exit code $EXIT_CODE"
+            aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+            exit 1
+          fi
+
+      - name: Print rollback target
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'rollback' }}
+        run: |
+          set -euo pipefail
+          test -n "${{ inputs.rollback_task_revision }}" || { echo "rollback_task_revision is required for rollback"; exit 1; }
+          echo "Rolling back services to revision: ${{ inputs.rollback_task_revision }}"
+
+      - name: Deploy API service
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: .aws-task-definitions/api-task.json
+          service: ${{ env.ECS_SERVICE_API }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Deploy worker service
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: .aws-task-definitions/worker-task.json
+          service: ${{ env.ECS_SERVICE_WORKER }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Deploy beat service
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: .aws-task-definitions/beat-task.json
+          service: ${{ env.ECS_SERVICE_BEAT }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Roll back API service
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'rollback' }}
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE_API" \
+            --task-definition "mg-backend-api:${{ inputs.rollback_task_revision }}" \
+            --force-new-deployment
+
+      - name: Roll back worker service
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'rollback' }}
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE_WORKER" \
+            --task-definition "mg-backend-worker:${{ inputs.rollback_task_revision }}" \
+            --force-new-deployment
+
+      - name: Roll back beat service
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'rollback' }}
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE_BEAT" \
+            --task-definition "mg-backend-beat:${{ inputs.rollback_task_revision }}" \
+            --force-new-deployment
+
+      - name: Verify production endpoints
+        if: ${{ github.event_name == 'push' || inputs.action == 'deploy' }}
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$API_BASE_URL" || { echo "Missing repository/environment variable API_BASE_URL"; exit 1; }
+          curl --fail --silent "$API_BASE_URL/health" > /dev/null
+          curl --fail --silent "$API_BASE_URL/api/ready" > /dev/null

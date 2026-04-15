@@ -1,0 +1,70 @@
+{
+  "include": [
+    {
+      "app_name": "backend",
+      "app_path": "backend",
+      "runtime": "python",
+      "python_version": "3.12",
+      "lint_command": "ruff check app scripts tests",
+      "typecheck_command": "",
+      "build_command": "python -m compileall -q app",
+      "test_command": "pytest -q tests/",
+      "e2e_command": ""
+    },
+    {
+      "app_name": "frontend",
+      "app_path": "frontend",
+      "runtime": "node",
+      "node_version": "22",
+      "lint_command": "npm run lint",
+      "typecheck_command": "npm run typecheck",
+      "build_command": "npm run build",
+      "test_command": "npm test",
+      "e2e_command": "npm run test:e2e"
+    },
+    {
+      "app_name": "hotel-guest",
+      "app_path": "hotel-guest",
+      "runtime": "node",
+      "node_version": "22",
+      "lint_command": "npm run lint",
+      "typecheck_command": "",
+      "build_command": "npm run build",
+      "test_command": "",
+      "e2e_command": "npx playwright test"
+    },
+    {
+      "app_name": "hotel-owner",
+      "app_path": "hotel-owner",
+      "runtime": "node",
+      "node_version": "22",
+      "lint_command": "npm run lint",
+      "typecheck_command": "npm run typecheck",
+      "build_command": "npm run build",
+      "test_command": "",
+      "e2e_command": "npx playwright test"
+    },
+    {
+      "app_name": "res-web",
+      "app_path": "res-web",
+      "runtime": "node",
+      "node_version": "22",
+      "lint_command": "npm run lint",
+      "typecheck_command": "",
+      "build_command": "npm run build",
+      "test_command": "npm test",
+      "e2e_command": "npx playwright test"
+    },
+    {
+      "app_name": "landing",
+      "app_path": "das-elb-hotel-optimised",
+      "runtime": "node",
+      "node_version": "22",
+      "lint_command": "",
+      "typecheck_command": "",
+      "build_command": "node -e \"require('./server.js')\" --check 2>/dev/null || node --check server.js",
+      "test_command": "",
+      "e2e_command": ""
+    }
+  ]
+}

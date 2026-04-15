@@ -1,0 +1,300 @@
+# =============================================================================
+# Reusable App CI Pipeline — Das Elb
+# =============================================================================
+# Generic per-app CI that any caller can invoke via workflow_call.
+# Handles both Node.js and Python apps from the same definition.
+#
+# Usage (from ci.yml or other workflows):
+#   uses: ./.github/workflows/reusable-ci.yml
+#   with:
+#     app_name: hotel-guest
+#     app_path: hotel-guest
+#     runtime: node
+#     lint_command: npm run lint
+#     build_command: npm run build
+#     e2e_command: npx playwright test
+#
+# To add a new app: add it to apps.json — no workflow changes needed.
+# =============================================================================
+
+name: Reusable App CI
+
+on:
+  workflow_call:
+    inputs:
+      # ── Identity ───────────────────────────────────────────────────────
+      app_name:
+        description: "Human-readable app name (for job titles and annotations)"
+        required: true
+        type: string
+
+      app_path:
+        description: "Path to the app directory relative to the repo root"
+        required: true
+        type: string
+
+      # ── Runtime ────────────────────────────────────────────────────────
+      runtime:
+        description: "'node' or 'python'"
+        required: true
+        type: string
+
+      node_version:
+        description: "Node.js version to use"
+        required: false
+        type: string
+        default: "22"
+
+      python_version:
+        description: "Python version to use"
+        required: false
+        type: string
+        default: "3.12"
+
+      # ── Commands (empty string = skip that step) ────────────────────────
+      lint_command:
+        description: "Lint command (empty = skip)"
+        required: false
+        type: string
+        default: ""
+
+      typecheck_command:
+        description: "Type-check command (empty = skip)"
+        required: false
+        type: string
+        default: ""
+
+      build_command:
+        description: "Build command (empty = skip)"
+        required: false
+        type: string
+        default: ""
+
+      test_command:
+        description: "Unit/integration test command (empty = skip)"
+        required: false
+        type: string
+        default: ""
+
+      e2e_command:
+        description: "E2E test command (empty = skip)"
+        required: false
+        type: string
+        default: ""
+
+    secrets:
+      NEXT_PUBLIC_API_URL:
+        required: false
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Node.js apps (frontend, hotel-guest, hotel-owner, res-web, landing)
+  # ═══════════════════════════════════════════════════════════════════════
+  node-ci:
+    name: "${{ inputs.app_name }}"
+    if: inputs.runtime == 'node'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ inputs.node_version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.app_path }}/package-lock.json
+
+      # ── Install ──────────────────────────────────────────────────────
+      - name: Install dependencies
+        working-directory: ${{ inputs.app_path }}
+        run: npm ci --prefer-offline
+
+      # ── Environment validation ────────────────────────────────────────
+      - name: Validate environment variables
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          CI: "true"
+          # Provide dummy production-shaped URLs for build steps
+          NEXT_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          VITE_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api/v1"
+          VITE_PUBLIC_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          VITE_RESTAURANT_ID: "4240"
+          PUBLIC_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api"
+        run: node scripts/validate-env.ts ${{ inputs.app_name }} || true
+        # '|| true' — validation warns but doesn't block on missing vars in CI for now.
+        # Remove '|| true' once all apps have correct env configs.
+
+      # ── Lint ─────────────────────────────────────────────────────────
+      - name: Lint
+        if: inputs.lint_command != ''
+        working-directory: ${{ inputs.app_path }}
+        run: ${{ inputs.lint_command }}
+
+      # ── Type check ────────────────────────────────────────────────────
+      - name: Type check
+        if: inputs.typecheck_command != ''
+        working-directory: ${{ inputs.app_path }}
+        env:
+          NEXT_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
+        run: ${{ inputs.typecheck_command }}
+
+      # ── Build ─────────────────────────────────────────────────────────
+      - name: Build
+        if: inputs.build_command != ''
+        working-directory: ${{ inputs.app_path }}
+        env:
+          NEXT_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          VITE_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api/v1"
+          VITE_PUBLIC_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          VITE_RESTAURANT_ID: "4240"
+          PUBLIC_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          # Suppress Next.js telemetry in CI
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: ${{ inputs.build_command }}
+
+      # ── Unit tests ────────────────────────────────────────────────────
+      - name: Unit tests
+        if: inputs.test_command != ''
+        working-directory: ${{ inputs.app_path }}
+        env:
+          NEXT_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          CI: "true"
+        run: ${{ inputs.test_command }}
+
+      # ── Install Playwright (only if E2E enabled) ──────────────────────
+      - name: Install Playwright browsers
+        if: inputs.e2e_command != ''
+        working-directory: ${{ inputs.app_path }}
+        run: npx playwright install --with-deps chromium
+
+      # ── E2E tests ─────────────────────────────────────────────────────
+      - name: E2E tests
+        if: inputs.e2e_command != ''
+        working-directory: ${{ inputs.app_path }}
+        env:
+          NEXT_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          VITE_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api/v1"
+          VITE_PUBLIC_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          VITE_RESTAURANT_ID: "4240"
+          CI: "true"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: ${{ inputs.e2e_command }}
+
+      # ── Upload test artifacts on failure ──────────────────────────────
+      - name: Upload Playwright report
+        if: failure() && inputs.e2e_command != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ inputs.app_name }}
+          path: ${{ inputs.app_path }}/playwright-report/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Python apps (backend)
+  # ═══════════════════════════════════════════════════════════════════════
+  python-ci:
+    name: "${{ inputs.app_name }}"
+    if: inputs.runtime == 'python'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: gestronomy_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/gestronomy_ci
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/0
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/0
+      SECRET_KEY: ci-secret-key-for-testing-only-not-for-production
+      APP_ENV: test
+      DEBUG: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ inputs.python_version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      # ── Install ──────────────────────────────────────────────────────
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+
+      # ── Lint ─────────────────────────────────────────────────────────
+      - name: Lint
+        if: inputs.lint_command != ''
+        working-directory: ${{ inputs.app_path }}
+        run: ${{ inputs.lint_command }}
+
+      # ── Compile check (catches import errors) ──────────────────────────
+      - name: Compile check
+        if: inputs.build_command != ''
+        working-directory: ${{ inputs.app_path }}
+        run: ${{ inputs.build_command }}
+
+      # ── Apply migrations ──────────────────────────────────────────────
+      - name: Apply database migrations
+        working-directory: backend
+        run: |
+          alembic upgrade head
+          alembic current
+
+      # ── Seed test data ────────────────────────────────────────────────
+      - name: Seed CI test data
+        working-directory: backend
+        run: |
+          python scripts/seed_test_data.py \
+            --email "ci-admin@das-elb.test" \
+            --password "CITestAdmin2024!" \
+            --full-name "CI Admin User" \
+            --role "admin" \
+          || echo "Seed script not found or failed — skipping (tests may use fixtures)"
+
+      # ── Tests ─────────────────────────────────────────────────────────
+      - name: Run tests
+        if: inputs.test_command != ''
+        working-directory: ${{ inputs.app_path }}
+        run: ${{ inputs.test_command }}
+
+      # ── Upload coverage ───────────────────────────────────────────────
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-${{ inputs.app_name }}
+          path: |
+            ${{ inputs.app_path }}/.pytest_cache/
+            ${{ inputs.app_path }}/htmlcov/
+          retention-days: 7

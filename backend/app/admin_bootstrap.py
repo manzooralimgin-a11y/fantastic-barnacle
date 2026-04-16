@@ -334,7 +334,7 @@ async def _do_seed_reservations(db: AsyncSession):
             created += 1
 
     await db.commit()
-    logger.info("seed_reservations completed", extra={"created": created})
+    logger.info("seed_reservations completed: %d reservations inserted", created)
     return {
         "status": "ok",
         "created": created,

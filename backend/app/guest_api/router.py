@@ -75,6 +75,8 @@ ETA_BY_URGENCY: dict[str, str] = {
     "urgent": "~10 minutes",
 }
 
+INACTIVE_GUEST_AUTH_STATUSES = {"cancelled", "checked_out", "no_show"}
+
 
 # ---------------------------------------------------------------------------
 # Schemas
@@ -273,6 +275,10 @@ def _split_guest_name(full_name: str | None) -> tuple[str, str]:
     return tokens[0], tokens[-1]
 
 
+def _normalize_guest_status(value: str | None, default: str = "booked") -> str:
+    return (value or default).replace("-", "_").lower()
+
+
 def _append_note(existing: str | None, new_line: str) -> str:
     return f"{existing}\n{new_line}".strip() if existing else new_line
 
@@ -389,10 +395,11 @@ async def guest_auth(
     last_name = raw_last_name.strip().lower()
 
     logger.info(
-        "Guest auth request received: raw_booking_id=%r normalized_booking_id=%r raw_last_name=%r",
+        "Guest auth request received: raw_booking_id=%r normalized_booking_id=%r raw_last_name=%r normalized_last_name=%r",
         raw_booking_id,
         booking_id,
         raw_last_name,
+        last_name,
     )
 
     if not booking_id:
@@ -410,9 +417,10 @@ async def guest_auth(
         select(HotelReservation).where(HotelReservation.booking_id == booking_id)
     )
     logger.info(
-        "Guest auth exact lookup: booking_id=%r matched=%s",
+        "Guest auth exact lookup: booking_id=%r matched=%s matched_booking_id=%r",
         booking_id,
         reservation is not None,
+        reservation.booking_id if reservation is not None else None,
     )
 
     matched_case_insensitively = False
@@ -434,17 +442,57 @@ async def guest_auth(
             raw_booking_id,
             booking_id,
         )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Booking not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="booking not found")
 
-    # Validate last name — guest_name field contains full name
-    guest_name_lower = (reservation.guest_name or "").lower()
-    if last_name not in guest_name_lower:
+    _, db_last_name = _split_guest_name(reservation.guest_name)
+    normalized_db_last_name = db_last_name.strip().lower()
+    last_name_matches = normalized_db_last_name == last_name
+    logger.info(
+        "Guest auth last-name comparison: matched_booking_id=%r db_full_name=%r db_last_name=%r normalized_db_last_name=%r input_last_name=%r normalized_input_last_name=%r match=%s",
+        reservation.booking_id,
+        reservation.guest_name,
+        db_last_name,
+        normalized_db_last_name,
+        raw_last_name,
+        last_name,
+        last_name_matches,
+    )
+    if not last_name_matches:
         logger.warning(
-            "Guest auth failed: raw_booking_id=%r matched_booking_id=%r reason=last_name_mismatch",
+            "Guest auth failed: raw_booking_id=%r matched_booking_id=%r db_last_name=%r input_last_name=%r reason=last_name_mismatch",
             raw_booking_id,
             reservation.booking_id,
+            db_last_name,
+            raw_last_name,
         )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Last name does not match booking")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="last name mismatch")
+
+    stay = await db.scalar(
+        select(HotelStay).where(HotelStay.reservation_id == reservation.id)
+    )
+    normalized_reservation_status = _normalize_guest_status(reservation.status, default="confirmed")
+    raw_stay_status = stay.status if stay is not None else None
+    normalized_stay_status = _normalize_guest_status(raw_stay_status, default=reservation.status or "booked")
+    effective_status = normalized_stay_status if stay is not None else normalized_reservation_status
+    booking_is_active = effective_status not in INACTIVE_GUEST_AUTH_STATUSES
+    logger.info(
+        "Guest auth booking activity check: matched_booking_id=%r reservation_status=%r stay_status=%r effective_status=%r active=%s",
+        reservation.booking_id,
+        reservation.status,
+        raw_stay_status,
+        effective_status,
+        booking_is_active,
+    )
+    if not booking_is_active:
+        logger.warning(
+            "Guest auth failed: raw_booking_id=%r matched_booking_id=%r reservation_status=%r stay_status=%r effective_status=%r reason=booking_not_active",
+            raw_booking_id,
+            reservation.booking_id,
+            reservation.status,
+            raw_stay_status,
+            effective_status,
+        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="booking not active")
 
     # Resolve the room record — reservation.room holds room_number as string
     room_number = reservation.room or ""

@@ -16,6 +16,7 @@ async def _seed_guest_auth_reservation(
     booking_id: str,
     guest_name: str,
     room_number: str,
+    reservation_status: str = "confirmed",
 ) -> HotelReservation:
     property_record = HotelProperty(
         name=f"Guest Auth Hotel {booking_id}",
@@ -52,7 +53,7 @@ async def _seed_guest_auth_reservation(
         guest_phone="+49 555 0101",
         check_in=date.today(),
         check_out=date.today() + timedelta(days=2),
-        status="confirmed",
+        status=reservation_status,
         total_amount=258.0,
         currency="EUR",
         room_type_id=room_type.id,
@@ -94,7 +95,11 @@ async def test_guest_auth_accepts_hyphenated_booking_ids(
     assert payload["room_number"] == "301"
     assert "access_token" in payload
     assert "Guest auth request received" in caplog.text
-    assert "Guest auth exact lookup: booking_id='SWED0416-012' matched=True" in caplog.text
+    assert "Guest auth exact lookup: booking_id='SWED0416-012' matched=True matched_booking_id='SWED0416-012'" in caplog.text
+    assert "Guest auth last-name comparison: matched_booking_id='SWED0416-012'" in caplog.text
+    assert "db_last_name='Svensson'" in caplog.text
+    assert "normalized_input_last_name='svensson'" in caplog.text
+    assert "Guest auth booking activity check: matched_booking_id='SWED0416-012' reservation_status='confirmed'" in caplog.text
     assert "Guest auth success: raw_booking_id='SWED0416-012' matched_booking_id='SWED0416-012'" in caplog.text
 
 
@@ -122,7 +127,7 @@ async def test_guest_auth_accepts_bk_style_booking_ids(
     payload = response.json()
     assert payload["booking_id"] == "BK000123"
     assert payload["room_number"] == "302"
-    assert "Guest auth exact lookup: booking_id='BK000123' matched=True" in caplog.text
+    assert "Guest auth exact lookup: booking_id='BK000123' matched=True matched_booking_id='BK000123'" in caplog.text
     assert "Guest auth success: raw_booking_id='BK000123' matched_booking_id='BK000123'" in caplog.text
 
 
@@ -139,6 +144,64 @@ async def test_guest_auth_returns_not_found_for_unknown_booking(
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Booking not found"
-    assert "Guest auth exact lookup: booking_id='DOES-NOT-EXIST' matched=False" in caplog.text
+    assert response.json()["detail"] == "booking not found"
+    assert "Guest auth exact lookup: booking_id='DOES-NOT-EXIST' matched=False matched_booking_id=None" in caplog.text
     assert "Guest auth failed: raw_booking_id='DOES-NOT-EXIST' normalized_booking_id='DOES-NOT-EXIST' reason=booking_not_found" in caplog.text
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_guest_auth_returns_last_name_mismatch_with_exact_values(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    await _seed_guest_auth_reservation(
+        db_session,
+        booking_id="SWED0416-099",
+        guest_name="Anna Svensson",
+        room_number="303",
+    )
+
+    caplog.set_level(logging.INFO)
+
+    response = await client.post(
+        "/api/guest/auth",
+        json={"booking_id": "SWED0416-099", "last_name": "Andersson"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "last name mismatch"
+    assert "Guest auth last-name comparison: matched_booking_id='SWED0416-099'" in caplog.text
+    assert "db_last_name='Svensson'" in caplog.text
+    assert "input_last_name='Andersson'" in caplog.text
+    assert "match=False" in caplog.text
+    assert "reason=last_name_mismatch" in caplog.text
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_guest_auth_returns_booking_not_active_with_status_values(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    await _seed_guest_auth_reservation(
+        db_session,
+        booking_id="BK000999",
+        guest_name="Chris Guest",
+        room_number="304",
+        reservation_status="checked_out",
+    )
+
+    caplog.set_level(logging.INFO)
+
+    response = await client.post(
+        "/api/guest/auth",
+        json={"booking_id": "BK000999", "last_name": "Guest"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "booking not active"
+    assert "Guest auth booking activity check: matched_booking_id='BK000999' reservation_status='checked_out'" in caplog.text
+    assert "effective_status='checked_out'" in caplog.text
+    assert "active=False" in caplog.text
+    assert "reason=booking_not_active" in caplog.text

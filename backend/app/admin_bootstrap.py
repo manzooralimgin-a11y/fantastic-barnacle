@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.auth.models import User, UserRole, Restaurant
 from app.auth.utils import hash_password
-from app.hms.models import HotelProperty, RoomType, Room
+from app.hms.models import HotelProperty, RoomType, Room, HotelReservation
 from app.hms.rbac import ensure_hotel_rbac_bootstrap
 from app.menu.models import MenuCategory, MenuItem
 from app.reservations.models import Reservation
@@ -341,4 +341,115 @@ async def _do_seed_reservations(db: AsyncSession):
         "today": str(today),
         "tomorrow": str(tomorrow),
         "restaurant_id": restaurant.id,
+    }
+
+
+@router.post("/admin/seed-hotel-bookings", tags=["Bootstrap"])
+async def seed_hotel_bookings(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_check_secret),
+):
+    """
+    Seed 15 hotel room bookings checking in today and 15 checking in tomorrow.
+    Idempotent — clears previous seed rows (notes='__seed__') first.
+    """
+    import traceback as _tb
+    try:
+        return await _do_seed_hotel_bookings(db)
+    except Exception as exc:
+        logger.exception("seed_hotel_bookings failed")
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}\n{_tb.format_exc()[-800:]}")
+
+
+async def _do_seed_hotel_bookings(db: AsyncSession):
+    # Get hotel property
+    prop_result = await db.execute(select(HotelProperty).order_by(HotelProperty.id).limit(1))
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="No hotel property — run /api/admin/bootstrap first")
+
+    # Get room types
+    rt_result = await db.execute(select(RoomType).where(RoomType.property_id == prop.id))
+    room_types = rt_result.scalars().all()
+    if not room_types:
+        raise HTTPException(status_code=404, detail="No room types found — run /api/admin/bootstrap first")
+
+    # Clear previous seed bookings
+    await db.execute(
+        delete(HotelReservation).where(
+            HotelReservation.property_id == prop.id,
+            HotelReservation.notes == "__seed__",
+        )
+    )
+
+    GUEST_NAMES = [
+        ("Herr", "Klaus Bergmann"), ("Frau", "Sabine Müller"), ("Herr", "Marco Richter"),
+        ("Frau", "Julia Hoffmann"), ("Herr", "Stefan Weber"), ("Frau", "Anna Fischer"),
+        ("Herr", "Felix Braun"), ("Frau", "Maria Schäfer"), ("Herr", "Lukas Zimmermann"),
+        ("Frau", "Laura Neumann"), ("Herr", "Tobias Keller"), ("Frau", "Christina Wolf"),
+        ("Herr", "Daniel Lange"), ("Frau", "Katharina Groß"), ("Herr", "Patrick Schulz"),
+        ("Frau", "Emma Koch"), ("Herr", "Jonas Huber"), ("Frau", "Sophie Bauer"),
+        ("Herr", "Maximilian Lorenz"), ("Frau", "Hannah Meyer"),
+    ]
+
+    STATUSES = ["confirmed"] * 10 + ["pending"] * 3 + ["confirmed"] * 2
+    SOURCES = ["Booking.com"] * 5 + ["Phone"] * 5 + ["Walk-In"] * 3 + ["Direct"] * 2
+
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    created = 0
+    idx = 0
+
+    rt_cycle = room_types  # cycle through available room types
+
+    for check_in_date in (today, tomorrow):
+        for i in range(15):
+            anrede, name = GUEST_NAMES[idx % len(GUEST_NAMES)]
+            rt = rt_cycle[idx % len(rt_cycle)]
+            nights = random.randint(1, 5)
+            check_out_date = check_in_date + timedelta(days=nights)
+            adults = random.randint(1, min(2, rt.max_occupancy))
+            children = random.randint(0, max(0, rt.max_occupancy - adults - 1))
+            nightly = rt.base_price
+            total = round(nightly * nights, 2)
+            status = STATUSES[i % len(STATUSES)]
+            source = SOURCES[i % len(SOURCES)]
+            first = name.split()[0].lower()
+            last = name.split()[-1].lower()
+            booking_id = f"SEED-{check_in_date.strftime('%m%d')}-{idx:03d}"
+
+            r = HotelReservation(
+                property_id=prop.id,
+                guest_name=name,
+                guest_email=f"{first}.{last}@example.com",
+                guest_phone=f"+49 {random.randint(150,179)} {random.randint(1000000,9999999)}",
+                check_in=check_in_date,
+                check_out=check_out_date,
+                status=status,
+                total_amount=total,
+                currency=prop.currency or "EUR",
+                notes="__seed__",
+                room_type_id=rt.id,
+                room_type_label=rt.name,
+                payment_status="pending" if status == "pending" else "paid",
+                booking_id=booking_id,
+                anrede=anrede,
+                adults=adults,
+                children=children,
+                booking_source=source,
+                zahlungs_methode="Kreditkarte" if source != "Walk-In" else "Bar",
+                zahlungs_status="bezahlt" if status == "confirmed" else "offen",
+            )
+            db.add(r)
+            created += 1
+            idx += 1
+
+    await db.commit()
+    logger.info("seed_hotel_bookings completed: %d bookings inserted", created)
+    return {
+        "status": "ok",
+        "created": created,
+        "check_in_today": str(today),
+        "check_in_tomorrow": str(tomorrow),
+        "property_id": prop.id,
     }

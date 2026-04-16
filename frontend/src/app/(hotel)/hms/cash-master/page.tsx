@@ -90,7 +90,7 @@ export default function CashMasterPage() {
         </div>
       </div>
 
-      <div className="sticky top-4 z-20 grid grid-cols-1 gap-4 lg:grid-cols-[1.8fr_1fr]">
+      <div className="sticky top-4 z-30 grid grid-cols-1 gap-4 lg:grid-cols-[1.8fr_1fr]">
         <Card className="border-none bg-card shadow-[var(--shadow-soft)]">
           <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
             <label className="relative xl:col-span-2">
@@ -268,7 +268,7 @@ export default function CashMasterPage() {
                       <td className="px-5 py-4 font-mono text-sm font-semibold text-foreground">{formatCurrency(row.balance_due)}</td>
                       <td className="px-5 py-4 text-sm text-foreground">{row.payment_method || "Not set"}</td>
                       <td className="px-5 py-4">
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex flex-nowrap justify-end gap-1">
                           <button
                             type="button"
                             onClick={() =>

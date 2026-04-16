@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 import time
 import traceback
@@ -166,15 +167,7 @@ _cors_origin_regex = (
     r"|^https://(?:www\.)?zukunftwebs\.com$"
     r"|^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_origin_regex=_cors_origin_regex,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors_origin_pattern = re.compile(_cors_origin_regex)
 
 app.add_middleware(RequestIdMiddleware)
 
@@ -212,6 +205,37 @@ def _error_content(
     return content
 
 
+def _cors_error_headers(request: Request) -> dict[str, str]:
+    origin = (request.headers.get("origin") or "").strip()
+    if not origin:
+        return {}
+    if origin not in _cors_origins and _cors_origin_pattern.fullmatch(origin) is None:
+        return {}
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+        "Vary": "Origin",
+    }
+
+
+def _json_error_response(
+    request: Request,
+    *,
+    status_code: int,
+    error: str,
+    detail=None,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
+    response_headers = _cors_error_headers(request)
+    if headers:
+        response_headers.update(headers)
+    return JSONResponse(
+        status_code=status_code,
+        content=_error_content(request, status_code, error, detail),
+        headers=response_headers or None,
+    )
+
+
 def _business_metric_name(request: Request, status_code: int) -> str | None:
     if request.method != "POST" or status_code >= 400:
         return None
@@ -239,9 +263,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         detail=detail,
     )
-    return JSONResponse(
+    return _json_error_response(
+        request,
         status_code=exc.status_code,
-        content=_error_content(request, exc.status_code, error, detail),
+        error=error,
+        detail=detail,
         headers=exc.headers,
     )
 
@@ -250,9 +276,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException):
     detail = exc.detail
     error = detail if isinstance(detail, str) else "Request failed"
-    return JSONResponse(
+    return _json_error_response(
+        request,
         status_code=exc.status_code,
-        content=_error_content(request, exc.status_code, error, detail),
+        error=error,
+        detail=detail,
         headers=exc.headers,
     )
 
@@ -273,9 +301,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         detail=messages,
     )
-    return JSONResponse(
+    return _json_error_response(
+        request,
         status_code=422,
-        content=_error_content(request, 422, "Validation error", messages),
+        error="Validation error",
+        detail=messages,
     )
 
 
@@ -290,13 +320,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         error=str(exc),
         traceback=traceback.format_exc()[-2000:],
     )
-    return JSONResponse(
+    return _json_error_response(
+        request,
         status_code=500,
-        content=_error_content(
-            request,
-            500,
-            "An unexpected error occurred. Please try again later.",
-        ),
+        error="An unexpected error occurred. Please try again later.",
     )
 
 
@@ -305,16 +332,20 @@ async def add_security_headers(request: Request, call_next):
     content_length = request.headers.get("content-length")
     if content_length and content_length.isdigit():
         if int(content_length) > settings.max_request_size_bytes:
-            return JSONResponse(
+            return _json_error_response(
+                request,
                 status_code=413,
-                content=_error_content(request, 413, "Payload too large", "Payload too large"),
+                error="Payload too large",
+                detail="Payload too large",
             )
 
     allowed, retry_after = await enforce_rate_limit(request)
     if not allowed:
-        return JSONResponse(
+        return _json_error_response(
+            request,
             status_code=429,
-            content=_error_content(request, 429, "Too many requests", "Too many requests"),
+            error="Too many requests",
+            detail="Too many requests",
             headers={"Retry-After": str(retry_after)},
         )
 
@@ -371,6 +402,16 @@ async def add_security_headers(request: Request, call_next):
         )
 
     return response
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_origin_regex=_cors_origin_regex,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 from app.accounting.router import router as accounting_router  # noqa: E402
 from app.auth.router import router as auth_router  # noqa: E402

@@ -12,6 +12,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -538,15 +539,84 @@ async def get_guest_stay(
     guest: dict = Depends(_get_guest_context),
     db: AsyncSession = Depends(get_db),
 ):
-    reservation, stay, room_record = await _load_guest_stay(db, guest["booking_id"])
-    folio = reservation.folio
-    folio_balance_due = float(folio.balance_due or 0) if folio is not None else 0
-    return _serialize_guest_stay(
-        reservation=reservation,
-        stay=stay,
-        room_record=room_record,
-        folio_balance_due=folio_balance_due,
+    guest_id = guest.get("sub")
+    booking_id = guest.get("booking_id", "")
+    logger.info(
+        "Guest stay request received: guest_id=%r booking_id=%r property_id=%r room_id=%r room_number=%r",
+        guest_id,
+        booking_id,
+        guest.get("property_id"),
+        guest.get("room_id"),
+        guest.get("room_number"),
     )
+
+    try:
+        reservation, stay, room_record = await _load_guest_stay(db, booking_id)
+        logger.info(
+            "Guest stay lookup: guest_id=%r booking_id=%r reservation_id=%s reservation_found=%s stay_id=%s stay_found=%s stay_status=%r room_record_id=%s room_found=%s room_number=%r",
+            guest_id,
+            booking_id,
+            reservation.id,
+            reservation is not None,
+            stay.id if stay is not None else None,
+            stay is not None,
+            stay.status if stay is not None else None,
+            room_record.id if room_record is not None else None,
+            room_record is not None,
+            room_record.room_number if room_record is not None else reservation.room,
+        )
+
+        folio = await db.scalar(
+            select(HotelFolio).where(HotelFolio.reservation_id == reservation.id)
+        )
+        logger.info(
+            "Guest stay folio lookup: guest_id=%r booking_id=%r reservation_id=%s folio_id=%s folio_found=%s balance_due=%s",
+            guest_id,
+            booking_id,
+            reservation.id,
+            folio.id if folio is not None else None,
+            folio is not None,
+            float(folio.balance_due or 0) if folio is not None else 0,
+        )
+
+        folio_balance_due = float(folio.balance_due or 0) if folio is not None else 0
+        response = _serialize_guest_stay(
+            reservation=reservation,
+            stay=stay,
+            room_record=room_record,
+            folio_balance_due=folio_balance_due,
+        )
+        logger.info(
+            "Guest stay response ready: guest_id=%r booking_id=%r stay_status=%r room_number=%r folio_balance_due=%s",
+            guest_id,
+            booking_id,
+            response.stay_status,
+            response.booking.room_number,
+            response.folio_balance_due,
+        )
+        return response
+    except HTTPException:
+        logger.warning(
+            "Guest stay request failed with HTTPException: guest_id=%r booking_id=%r",
+            guest_id,
+            booking_id,
+        )
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Guest stay request failed unexpectedly: guest_id=%r booking_id=%r error=%s",
+            guest_id,
+            booking_id,
+            exc,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Failed to load guest stay",
+                "detail": str(exc),
+                "booking_id": booking_id,
+            },
+        )
 
 
 @router.post("/id-verifications", response_model=GuestIDVerificationResponse, summary="Submit guest ID evidence")

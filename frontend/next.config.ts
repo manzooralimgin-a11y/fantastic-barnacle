@@ -25,21 +25,35 @@ function buildAllowedDevOrigins(): string[] {
   return origins;
 }
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function resolveBackendApiUrl(): string {
+  const configuredUrl =
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://gestronomy-api-5atv.onrender.com/api";
+  const normalized = trimTrailingSlash(configuredUrl);
+  return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
+}
+
 const nextConfig: NextConfig = {
   // Static export disabled — Replit preview requires the Next.js dev server
   // (static export breaks routing and returns 404 for all pages in dev mode)
   allowedDevOrigins: buildAllowedDevOrigins(),
 
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+    const backendApiUrl = resolveBackendApiUrl();
+    const backendOrigin = backendApiUrl.replace(/\/api$/, "");
     return [
       {
         source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
+        destination: `${backendApiUrl}/:path*`,
       },
       {
         source: "/ws/:path*",
-        destination: `${backendUrl}/ws/:path*`,
+        destination: `${backendOrigin}/ws/:path*`,
       },
     ];
   },

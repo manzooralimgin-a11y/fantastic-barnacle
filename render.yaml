@@ -172,9 +172,14 @@ services:
     plan: starter
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
+    buildArgs:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://gestronomy-api-5atv.onrender.com/api
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://gestronomy-api-5atv.onrender.com/api
+      - key: BACKEND_URL
+        value: https://gestronomy-api-5atv.onrender.com
 
   - type: web
     name: gestronomy-guest

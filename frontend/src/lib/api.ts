@@ -1,6 +1,8 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/stores/auth-store";
 
+const DEFAULT_RENDER_API_URL = "https://gestronomy-api-5atv.onrender.com/api";
+
 /**
  * Resolve API base URL with runtime override support.
  * Priority: localStorage override > build-time env > relative path (Replit/dev).
@@ -33,7 +35,10 @@ export function getApiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
   if (env.NEXT_PUBLIC_API_URL) {
     return normalizeApiBaseUrl(env.NEXT_PUBLIC_API_URL);
   }
-  return "/api";
+  if (env.BACKEND_URL) {
+    return normalizeApiBaseUrl(env.BACKEND_URL);
+  }
+  return DEFAULT_RENDER_API_URL;
 }
 
 export function resolveApiRequestUrl(

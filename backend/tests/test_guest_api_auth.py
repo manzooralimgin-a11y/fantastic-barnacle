@@ -7,6 +7,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.guest_api import router as guest_router
 from app.hms.models import HotelProperty, HotelReservation, Room, RoomType
 
 
@@ -205,3 +206,83 @@ async def test_guest_auth_returns_booking_not_active_with_status_values(
     assert "effective_status='checked_out'" in caplog.text
     assert "active=False" in caplog.text
     assert "reason=booking_not_active" in caplog.text
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_guest_stay_returns_serialized_context_after_guest_auth(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    await _seed_guest_auth_reservation(
+        db_session,
+        booking_id="STAY-200",
+        guest_name="Ava Lang",
+        room_number="305",
+    )
+
+    caplog.set_level(logging.INFO)
+
+    auth_response = await client.post(
+        "/api/guest/auth",
+        json={"booking_id": "STAY-200", "last_name": "Lang"},
+    )
+    assert auth_response.status_code == 200
+    access_token = auth_response.json()["access_token"]
+
+    stay_response = await client.get(
+        "/api/guest/stay",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert stay_response.status_code == 200
+    payload = stay_response.json()
+    assert payload["guest"]["booking_number"] == "STAY-200"
+    assert payload["guest"]["last_name"] == "Lang"
+    assert payload["booking"]["room_number"] == "305"
+    assert payload["stay_status"] == "confirmed"
+    assert payload["folio_balance_due"] == 0
+    assert "Guest stay request received: guest_id='guest:STAY-200' booking_id='STAY-200'" in caplog.text
+    assert "Guest stay lookup: guest_id='guest:STAY-200' booking_id='STAY-200'" in caplog.text
+    assert "Guest stay folio lookup: guest_id='guest:STAY-200' booking_id='STAY-200'" in caplog.text
+    assert "Guest stay response ready: guest_id='guest:STAY-200' booking_id='STAY-200'" in caplog.text
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_guest_stay_unexpected_errors_return_json_with_cors_headers(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _seed_guest_auth_reservation(
+        db_session,
+        booking_id="STAY-500",
+        guest_name="Nina Error",
+        room_number="306",
+    )
+
+    auth_response = await client.post(
+        "/api/guest/auth",
+        json={"booking_id": "STAY-500", "last_name": "Error"},
+    )
+    assert auth_response.status_code == 200
+    access_token = auth_response.json()["access_token"]
+
+    async def explode(*_args, **_kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(guest_router, "_load_guest_stay", explode)
+
+    response = await client.get(
+        "/api/guest/stay",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Origin": "https://hotel-guest.onrender.com",
+        },
+    )
+
+    assert response.status_code == 500
+    assert response.headers["access-control-allow-origin"] == "https://hotel-guest.onrender.com"
+    assert response.headers["access-control-allow-credentials"] == "true"
+    assert response.json()["error"] == "Failed to load guest stay"
+    assert response.json()["detail"] == "boom"

@@ -52,7 +52,7 @@ services:
       - key: FRONTEND_URL
         value: https://gestronomy-web-ipjw.onrender.com
       - key: CORS_ORIGINS
-        value: https://gestronomy-web.onrender.com,https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://hotel-guest.onrender.com,https://hotel-owner.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com,https://das-elb-hotel.onrender.com,http://localhost:3000,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:5173
+        value: https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://hotel-guest.onrender.com,https://hotel-owner.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com,https://das-elb-hotel.onrender.com,http://localhost:3000,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:5173
       - key: VOICEBOOKER_SECRET
         sync: false
       - key: EMAIL_INBOX_INGEST_SECRET

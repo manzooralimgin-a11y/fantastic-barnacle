@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     debug: bool = False
     backend_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:3000"
-    cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:5173,https://gestronomy-web.onrender.com,https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://das-elb-hotel.onrender.com,https://das-elb-rest.onrender.com,https://hotel-guest.onrender.com,https://hotel-owner.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com"
+    cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:5173,https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://das-elb-hotel.onrender.com,https://das-elb-rest.onrender.com,https://hotel-guest.onrender.com,https://hotel-owner.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com"
     database_url: str = "postgresql+asyncpg://gestronomy:gestronomy@localhost:5432/gestronomy"
     database_url_sync: str = "postgresql://gestronomy:gestronomy@localhost:5432/gestronomy"
     redis_url: str = "redis://localhost:6379/0"

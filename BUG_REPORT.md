@@ -5,7 +5,7 @@ Generated: 2026-03-15 | Last updated: 2026-03-16
 - Total issues found: **136**
 - Critical: **20** | High: **32** | Medium: **48** | Low: **36**
 - Live testing bugs found: **12**
-- Audit method: Code-level static analysis (5 parallel agents) + live browser testing of https://gestronomy-web.onrender.com
+- Audit method: Code-level static analysis (5 parallel agents) + live browser testing of https://gestronomy-web-ipjw.onrender.com
 
 ## Fix Status (2026-03-16)
 - **Issues fixed: ~120 / 136**
@@ -62,7 +62,7 @@ Generated: 2026-03-15 | Last updated: 2026-03-16
 
 # PART A — LIVE TESTING FINDINGS
 
-Tested on: https://gestronomy-web.onrender.com (frontend) / https://gestronomy-api.onrender.com (backend)
+Tested on: https://gestronomy-web-ipjw.onrender.com (frontend) / https://gestronomy-api.onrender.com (backend)
 Browser: Chrome, Desktop (1280x800) + Mobile (375x812)
 
 ---

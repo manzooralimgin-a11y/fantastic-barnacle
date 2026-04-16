@@ -106,7 +106,8 @@ from app.hms.pms.services.reservations_service import (
     get_reservation_workspace,
 )
 from app.hms.crm_service import sync_guest_profile_for_hotel_reservation
-from app.hms.models import HotelReservation
+from app.hms.models import HotelReservation, Room
+from app.hms.room_inventory import normalize_room_number, room_category_for_room, room_category_display_label
 from app.hms.pms.services.inventory_service import (
     check_availability,
     create_hotel_extra,
@@ -248,6 +249,31 @@ async def sync_pms_reservation_guest(
         "phone": guest.phone,
         "salutation": guest.salutation,
     }
+
+
+@router.get("/rooms", tags=["PMS"])
+async def list_pms_rooms(
+    property_id: int | None = Query(default=None, gt=0),
+    db: AsyncSession = Depends(get_db),
+    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FRONT_DESK)),
+):
+    """List all rooms for the hotel — used by the Change Room picker on the Front Desk."""
+    resolved_property_id = await _resolve_property_id(db, hotel_access=hotel_access, property_id=property_id)
+    result = await db.execute(
+        select(Room).where(Room.property_id == resolved_property_id).limit(100)
+    )
+    rooms = result.scalars().all()
+    items = []
+    for room in rooms:
+        category_key = room_category_for_room(room.room_number)
+        items.append({
+            "id": str(room.id),
+            "number": normalize_room_number(room.room_number),
+            "room_type_name": room_category_display_label(category_key) if category_key else room.room_number,
+            "status": room.status,
+        })
+    items.sort(key=lambda r: r["number"])
+    return {"items": items}
 
 
 @router.get("/contacts", response_model=list[PmsContactRead])

@@ -149,8 +149,8 @@ export function GuestQuickActionsDrawer({
   });
 
   const { data: roomsData } = useQuery({
-    queryKey: ["hms", "rooms", defaultHotelPropertyId],
-    queryFn: () => getJson<{ items: RoomItem[] }>("/hms/rooms", {
+    queryKey: ["hms", "pms", "rooms", defaultHotelPropertyId],
+    queryFn: () => getJson<{ items: RoomItem[] }>("/hms/pms/rooms", {
       params: { property_id: defaultHotelPropertyId },
     }),
     enabled: roomPickerOpen,

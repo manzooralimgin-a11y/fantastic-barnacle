@@ -13,11 +13,19 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarPlus, Loader2, Search, UserPlus, BedDouble } from "lucide-react";
+import { CalendarPlus, Loader2, LogIn, Search, UserPlus, BedDouble } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/components/shared/api-error";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FrontDeskGuestCard } from "@/features/hms/pms/components/front-desk/FrontDeskGuestCard";
 import { GuestFolioPanel } from "@/features/hms/pms/components/front-desk/GuestFolioPanel";
 import { GuestQuickActionsDrawer } from "@/features/hms/pms/components/front-desk/GuestQuickActionsDrawer";
@@ -89,6 +97,7 @@ export default function FrontDeskPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [addOnsGuest, setAddOnsGuest] = useState<PmsCockpitItem | null>(null);
   const [addOnsOpen, setAddOnsOpen] = useState(false);
+  const [checkInConfirmGuest, setCheckInConfirmGuest] = useState<PmsCockpitItem | null>(null);
 
   // ── Data ────────────────────────────────────────────────────────────────
   const cockpitQuery = useQuery({
@@ -107,6 +116,7 @@ export default function FrontDeskPage() {
     mutationFn: (reservationId: number) => checkInHotelReservation(reservationId),
     onSuccess: async (summary) => {
       setSelectedReservationId(String(summary.reservation_id));
+      setCheckInConfirmGuest(null);
       await cockpitQuery.refetch();
       toast.success(
         `${summary.guest_name} checked in${summary.room ? ` to room ${summary.room}` : ""}.`,
@@ -116,6 +126,11 @@ export default function FrontDeskPage() {
       toast.error("Failed to complete check-in. Please try again.");
     },
   });
+
+  function confirmCheckIn() {
+    if (!checkInConfirmGuest) return;
+    checkInMutation.mutate(checkInConfirmGuest.reservation_id);
+  }
 
   // ── Filtered + sorted lists ─────────────────────────────────────────────
   const arrivals = useMemo(
@@ -345,7 +360,7 @@ export default function FrontDeskPage() {
                     variant="arrival"
                     onOpen={() => openFolio(guest)}
                     onOpenPayments={() => openPayments(guest.reservation_id)}
-                    onPrimaryAction={() => checkInMutation.mutate(guest.reservation_id)}
+                    onPrimaryAction={() => setCheckInConfirmGuest(guest)}
                     onManage={() => openDrawer(guest)}
                     actionPending={
                       checkInMutation.isPending &&
@@ -392,6 +407,57 @@ export default function FrontDeskPage() {
         open={addOnsOpen}
         onClose={() => setAddOnsOpen(false)}
       />
+
+      {/* ── Check-In confirmation dialog ─────────────────────────────────── */}
+      <Dialog
+        open={Boolean(checkInConfirmGuest)}
+        onOpenChange={(v) => {
+          if (!v && !checkInMutation.isPending) setCheckInConfirmGuest(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogIn className="h-5 w-5 text-emerald-600" />
+              Confirm Check-In
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              {checkInConfirmGuest ? (
+                <>
+                  Check in <strong className="text-foreground">{checkInConfirmGuest.guest_name}</strong>
+                  {checkInConfirmGuest.room ? (
+                    <> to room <strong className="text-foreground">{checkInConfirmGuest.room}</strong></>
+                  ) : null}
+                  ? The guest will be moved from Arrivals to the In-House list.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => setCheckInConfirmGuest(null)}
+              disabled={checkInMutation.isPending}
+              className="inline-flex items-center justify-center rounded-xl border border-foreground/10 bg-white dark:bg-zinc-900 px-4 py-2 text-sm font-semibold text-foreground hover:bg-foreground/[0.04] transition-colors disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmCheckIn}
+              disabled={checkInMutation.isPending}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
+            >
+              {checkInMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LogIn className="h-4 w-4" />
+              )}
+              {checkInMutation.isPending ? "Checking In…" : "Confirm Check-In"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

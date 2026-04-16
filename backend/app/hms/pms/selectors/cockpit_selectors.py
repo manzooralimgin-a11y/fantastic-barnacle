@@ -39,13 +39,24 @@ def build_cockpit(
         if reservation.status == "cancelled":
             continue
         item = _to_item(reservation)
-        if reservation.check_in == focus_date:
+        is_checked_in = reservation.status == "checked_in"
+
+        # Arrivals vs In-House are mutually exclusive:
+        #  • A reservation is an arrival while status != checked_in.
+        #  • Once checked in (and still within the stay window), it's in-house.
+        if reservation.check_in == focus_date and not is_checked_in:
             arrivals.append(item)
+        elif (
+            is_checked_in
+            and reservation.check_in <= focus_date < reservation.check_out
+        ):
+            in_house.append(item)
+
         if reservation.check_out == focus_date:
             departures.append(item)
-        if reservation.check_in <= focus_date < reservation.check_out:
-            in_house.append(item)
-        if reservation.check_in >= focus_date:
+        # Future reservations = strictly after today (today's arrivals already
+        # live in `arrivals`, so avoid double-counting them here).
+        if reservation.check_in > focus_date:
             future_reservations.append(item)
 
     return PmsCockpitRead(

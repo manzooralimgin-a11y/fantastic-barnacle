@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  X,
   Car,
   UtensilsCrossed,
   PawPrint,
@@ -237,7 +236,8 @@ export function GuestQuickActionsDrawer({
       <DialogContent className="max-w-sm w-full max-h-[90vh] overflow-hidden flex flex-col p-0 rounded-2xl border border-foreground/10 gap-0 ml-auto mr-4 mt-4 bg-white dark:bg-zinc-900">
 
         {/* ── Header ───────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 border-b border-foreground/10 px-6 py-5 flex-shrink-0">
+        {/* Note: DialogContent renders its own close (×) in the top-right. */}
+        <div className="flex items-start justify-between gap-4 border-b border-foreground/10 px-6 py-5 pr-12 flex-shrink-0">
           <div className="min-w-0">
             <DialogTitle className="font-bold text-xl text-foreground truncate">
               {guest.guest_name}
@@ -246,14 +246,6 @@ export function GuestQuickActionsDrawer({
               Reservation #{guest.booking_id}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-foreground-muted hover:text-foreground hover:bg-foreground/[0.06] transition-colors flex-shrink-0 mt-0.5"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         {/* ── Scrollable body ──────────────────────────────────────────── */}

@@ -105,6 +105,8 @@ from app.hms.pms.services.reservations_service import (
     get_reservation_summary,
     get_reservation_workspace,
 )
+from app.hms.crm_service import sync_guest_profile_for_hotel_reservation
+from app.hms.models import HotelReservation
 from app.hms.pms.services.inventory_service import (
     check_availability,
     create_hotel_extra,
@@ -222,6 +224,30 @@ async def get_pms_reservation_workspace(
         reservation_id=reservation_id,
         hotel_access=hotel_access,
     )
+
+
+@router.post("/reservations/{reservation_id}/sync-guest", tags=["PMS"])
+async def sync_pms_reservation_guest(
+    reservation_id: int,
+    property_id: int | None = Query(default=None, gt=0),
+    db: AsyncSession = Depends(get_db),
+    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FRONT_DESK)),
+):
+    """Create or link a GuestProfile for a reservation that has guest_name/email/phone
+    but no guest_id yet. Returns the guest_id so the frontend can open the edit panel."""
+    resolved_property_id = await _resolve_property_id(db, hotel_access=hotel_access, property_id=property_id)
+    reservation = await db.get(HotelReservation, reservation_id)
+    if reservation is None or reservation.property_id != resolved_property_id:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    guest = await sync_guest_profile_for_hotel_reservation(db, reservation)
+    await db.commit()
+    return {
+        "guest_id": guest.id,
+        "name": guest.name,
+        "email": guest.email,
+        "phone": guest.phone,
+        "salutation": guest.salutation,
+    }
 
 
 @router.get("/contacts", response_model=list[PmsContactRead])

@@ -117,3 +117,15 @@ export async function patchHotelReservation(
 export async function checkInHotelReservation(reservationId: number | string) {
   return patchHotelReservation(reservationId, { status: "checked_in" });
 }
+
+export async function syncPmsReservationGuest(
+  reservationId: number | string,
+  propertyId: number = defaultHotelPropertyId,
+): Promise<{ guest_id: number; name: string | null; email: string | null; phone: string | null; salutation: string | null }> {
+  const response = await api.post(
+    `/hms/pms/reservations/${reservationId}/sync-guest`,
+    null,
+    { params: { property_id: propertyId } },
+  );
+  return response.data as { guest_id: number; name: string | null; email: string | null; phone: string | null; salutation: string | null };
+}

@@ -27,7 +27,7 @@ import {
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { createPmsReservationCharge } from "@/features/hms/pms/api/billing";
-import { fetchPmsReservationSummary } from "@/features/hms/pms/api/reservations";
+import { fetchPmsReservationSummary, syncPmsReservationGuest } from "@/features/hms/pms/api/reservations";
 import { useRightPanel } from "@/features/hms/pms/components/right-panel/useRightPanel";
 import type { PmsCockpitItem } from "@/features/hms/pms/schemas/reservation";
 import { defaultHotelPropertyId } from "@/lib/hotel-room-types";
@@ -121,6 +121,7 @@ export function GuestQuickActionsDrawer({
   });
   const [billToCompany, setBillToCompany] = useState(false);
   const [companyName, setCompanyName] = useState("");
+  const [syncingGuest, setSyncingGuest] = useState(false);
 
   const { data: summary } = useQuery({
     queryKey: ["pms", "reservation-summary", guest?.reservation_id],
@@ -169,11 +170,20 @@ export function GuestQuickActionsDrawer({
     }
   }
 
-  function openEditDetails() {
-    const contactId = summary?.guest_id;
+  async function openEditDetails() {
+    let contactId = summary?.guest_id;
     if (!contactId) {
-      toast.info("No guest contact linked to this reservation.");
-      return;
+      // No GuestProfile linked yet — create/sync one from reservation data
+      try {
+        setSyncingGuest(true);
+        const synced = await syncPmsReservationGuest(guest.reservation_id);
+        contactId = synced.guest_id;
+      } catch {
+        toast.error("Could not load guest profile. Try again.");
+        return;
+      } finally {
+        setSyncingGuest(false);
+      }
     }
     onClose();
     openPanel({
@@ -294,9 +304,11 @@ export function GuestQuickActionsDrawer({
               </p>
               <button
                 type="button"
-                onClick={openEditDetails}
-                className="text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+                onClick={() => void openEditDetails()}
+                disabled={syncingGuest}
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:opacity-80 transition-opacity disabled:opacity-60"
               >
+                {syncingGuest && <Loader2 className="h-3 w-3 animate-spin" />}
                 Edit All
               </button>
             </div>

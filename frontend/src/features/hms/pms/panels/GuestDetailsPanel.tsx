@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, User, Mail, Phone, CalendarDays, Globe, Tag } from "lucide-react";
+import { Loader2, User, Mail, Phone, CalendarDays, Globe, Tag, MapPin, Hash } from "lucide-react";
 import { ApiError } from "@/components/shared/api-error";
 import { fetchPmsContact, updatePmsContact } from "@/features/hms/pms/api/contacts";
 import { useRightPanel } from "@/features/hms/pms/components/right-panel/useRightPanel";
@@ -18,7 +18,8 @@ type FormState = {
   phone: string;
   salutation: string;
   birthday: string;
-  country_code: string;
+  street: string;
+  postal_code: string;
   country_name: string;
 };
 
@@ -42,8 +43,6 @@ function FieldGroup({
   );
 }
 
-// Dark-green panel palette
-const panelBg = "bg-[#15302200]"; // applied at wrapper level via className
 const cardCls = "rounded-2xl border border-[#3a6b4a]/40 bg-[#1a3d2b] p-4 space-y-4";
 const labelCls = "text-[10px] font-bold uppercase tracking-widest text-[#8ab89a]";
 const inputCls =
@@ -63,7 +62,8 @@ export function GuestDetailsPanel({ panel }: Props) {
     phone: "",
     salutation: "",
     birthday: "",
-    country_code: "",
+    street: "",
+    postal_code: "",
     country_name: "",
   });
   const [saving, setSaving] = useState(false);
@@ -72,13 +72,15 @@ export function GuestDetailsPanel({ panel }: Props) {
 
   useEffect(() => {
     if (!query.data) return;
+    const custom = (query.data.custom_fields_json ?? {}) as Record<string, string>;
     const next: FormState = {
       name: query.data.name || "",
       email: query.data.email || "",
       phone: query.data.phone || "",
       salutation: query.data.salutation || "",
       birthday: query.data.birthday || "",
-      country_code: query.data.country_code || "",
+      street: custom.street || "",
+      postal_code: custom.postal_code || "",
       country_name: query.data.country_name || "",
     };
     setForm(next);
@@ -101,14 +103,23 @@ export function GuestDetailsPanel({ panel }: Props) {
     try {
       setSaving(true);
       setError(null);
+
+      // Merge street/postal into custom_fields_json, preserve any existing keys
+      const existingCustom = (query.data?.custom_fields_json ?? {}) as Record<string, unknown>;
+      const updatedCustom = {
+        ...existingCustom,
+        street: form.street || null,
+        postal_code: form.postal_code || null,
+      };
+
       await updatePmsContact(panel.data.contactId, {
         name: form.name || null,
         email: form.email || null,
         phone: form.phone || null,
         salutation: form.salutation || null,
         birthday: form.birthday || null,
-        country_code: form.country_code || null,
         country_name: form.country_name || null,
+        custom_fields_json: updatedCustom,
       });
       closePanel(panel.id);
       return true;
@@ -143,12 +154,17 @@ export function GuestDetailsPanel({ panel }: Props) {
         </div>
       ) : (
         <div className="space-y-5">
+
           {/* Identity */}
           <div className={cardCls}>
             <p className={labelCls}>Identity</p>
 
             <FieldGroup icon={Tag} label="Salutation">
-              <select value={form.salutation} onChange={set("salutation")} className={`${inputCls} [&>option]:bg-[#122a1d] [&>option]:text-[#f0e8d4]`}>
+              <select
+                value={form.salutation}
+                onChange={set("salutation")}
+                className={`${inputCls} [&>option]:bg-[#122a1d] [&>option]:text-[#f0e8d4]`}
+              >
                 <option value="">— Select —</option>
                 <option value="Herr">Herr</option>
                 <option value="Frau">Frau</option>
@@ -206,13 +222,22 @@ export function GuestDetailsPanel({ panel }: Props) {
           <div className={cardCls}>
             <p className={labelCls}>Location</p>
 
-            <div className="grid grid-cols-[100px_1fr] gap-3">
-              <FieldGroup icon={Globe} label="Code">
+            <FieldGroup icon={MapPin} label="Street Address">
+              <input
+                value={form.street}
+                onChange={set("street")}
+                placeholder="Elbchaussee 42"
+                className={inputCls}
+              />
+            </FieldGroup>
+
+            <div className="grid grid-cols-[120px_1fr] gap-3">
+              <FieldGroup icon={Hash} label="Postal Code">
                 <input
-                  value={form.country_code}
-                  onChange={set("country_code")}
-                  placeholder="DE"
-                  maxLength={3}
+                  value={form.postal_code}
+                  onChange={set("postal_code")}
+                  placeholder="20459"
+                  maxLength={10}
                   className={inputCls}
                 />
               </FieldGroup>
@@ -227,7 +252,7 @@ export function GuestDetailsPanel({ panel }: Props) {
             </div>
           </div>
 
-          {/* Read-only stats */}
+          {/* Stay History (read-only) */}
           {query.data && (
             <div className={cardCls}>
               <p className={labelCls}>Stay History</p>

@@ -16,7 +16,7 @@ from app.shared.audit import emit_sensitive_audit
 
 
 async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
-    result = await db.execute(select(User).where(func.lower(User.email) == payload.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == payload.email.lower()))
     if result.scalar_one_or_none() is not None:
         emit_sensitive_audit(
             action="auth_register",
@@ -81,7 +81,7 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
 
 
 async def authenticate_user(db: AsyncSession, payload: LoginRequest) -> TokenResponse:
-    result = await db.execute(select(User).where(func.lower(User.email) == payload.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == payload.email.lower()))
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(payload.password, user.password_hash):

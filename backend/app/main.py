@@ -155,9 +155,15 @@ app = FastAPI(
     redirect_slashes=False,
 )
 
+_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+# Always include the configured FRONTEND_URL so that a fresh deployment only
+# requires FRONTEND_URL to be updated — CORS_ORIGINS need not be kept in sync.
+if settings.frontend_url and settings.frontend_url not in _cors_origins:
+    _cors_origins.append(settings.frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

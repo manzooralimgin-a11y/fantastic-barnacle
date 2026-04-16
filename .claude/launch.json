@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "Frontend (Next.js · port 5000)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "NEXT_PUBLIC_API_URL=https://gestronomy-api-5atv.onrender.com/api npm run dev --prefix frontend"],
       "port": 5000
     },
     {

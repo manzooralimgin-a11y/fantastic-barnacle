@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getMe, login } from "@/lib/auth";
-import { getApiBaseUrl, getApiErrorMessage, resolveApiRequestUrl } from "@/lib/api";
+import { getApiBaseUrl, getApiErrorMessage, summarizeApiError } from "@/lib/api";
 import { normalizeDomain } from "@/lib/domain-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { getDefaultDashboardRoute } from "@/lib/role-routing";
@@ -35,8 +35,6 @@ export default function LoginPage() {
       router.push(getDefaultDashboardRoute(user.role, normalizeDomain(activeSection)));
     } catch (err: unknown) {
       const apiBaseUrl = getApiBaseUrl();
-      const loginRequestUrl = resolveApiRequestUrl({ baseURL: apiBaseUrl, url: "/auth/login" });
-      const meRequestUrl = resolveApiRequestUrl({ baseURL: apiBaseUrl, url: "/auth/me" });
       const axiosErr = err as {
         response?: {
           status?: number;
@@ -48,22 +46,20 @@ export default function LoginPage() {
         code?: string;
         message?: string;
       };
-
-      console.error("Login failed", {
-        origin: typeof window !== "undefined" ? window.location.origin : null,
-        apiBaseUrl,
-        loginRequestUrl,
-        meRequestUrl,
-        status: axiosErr.response?.status ?? "network_error",
-        code: axiosErr.code ?? null,
-        message: axiosErr.message ?? null,
+      const loginSummary = summarizeApiError(err, {
+        baseURL: apiBaseUrl,
+        url: "/auth/login",
+        method: "POST",
       });
-      console.error(axiosErr.response?.data);
-      console.error(axiosErr.message);
-      console.error(err);
+
+      if (!axiosErr.response || (axiosErr.response.status ?? 500) >= 500) {
+        console.error("Login failed", loginSummary);
+      } else {
+        console.warn("Login rejected", loginSummary);
+      }
 
       if (!axiosErr.response) {
-        setError(`Cannot reach server at ${loginRequestUrl}. This is usually a network or CORS issue.`);
+        setError(`Cannot reach server at ${loginSummary.requestUrl}. This is usually a network or CORS issue.`);
         return;
       }
 

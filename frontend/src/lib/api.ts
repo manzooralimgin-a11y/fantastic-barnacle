@@ -58,6 +58,36 @@ export interface ApiClientLike {
   delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<{ data: T }>;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function getApiErrorData(error: unknown): unknown | null {
+  return axios.isAxiosError(error) ? error.response?.data ?? null : null;
+}
+
+export function summarizeApiError(
+  error: unknown,
+  config?: Pick<AxiosRequestConfig, "baseURL" | "url" | "method">,
+) {
+  const axiosError = axios.isAxiosError(error) ? error : null;
+  const requestConfig = config ?? axiosError?.config;
+
+  return {
+    method: requestConfig?.method?.toUpperCase() || "GET",
+    url: requestConfig?.url ?? null,
+    requestUrl: requestConfig ? resolveApiRequestUrl(requestConfig) : null,
+    baseURL: requestConfig?.baseURL || getApiBaseUrl(),
+    origin: typeof window !== "undefined" ? window.location.origin : null,
+    status: axiosError?.response?.status ?? null,
+    code: axiosError?.code ?? null,
+    message:
+      axiosError?.message ??
+      (error instanceof Error && error.message ? error.message : null),
+    detail: getApiErrorData(error),
+  };
+}
+
 const api = axios.create({
   baseURL: getApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
@@ -131,22 +161,14 @@ api.interceptors.response.use(
       error.message === "canceled";
 
     const status = error.response?.status;
-    if (!isCanceled && (!status || status >= 500 || config.url?.includes("/auth/"))) {
-      const requestUrl = resolveApiRequestUrl(config);
-      console.error("API request failed", {
-        method: config.method?.toUpperCase() || "GET",
-        url: config.url,
-        requestUrl,
-        baseURL: config.baseURL || getApiBaseUrl(),
-        origin: typeof window !== "undefined" ? window.location.origin : null,
-        status: status ?? "network_error",
-        code: error.code ?? null,
-        message: error.message,
-        detail: error.response?.data ?? null,
-      });
-      console.error(error.response?.data);
-      console.error(error.message);
-      console.error(error);
+    const isAuthRequest = Boolean(config.url?.includes("/auth/"));
+    if (!isCanceled && (!status || status >= 500 || isAuthRequest)) {
+      const summary = summarizeApiError(error, config);
+      if (isAuthRequest && status && status < 500) {
+        console.warn("API auth rejected", summary);
+      } else {
+        console.error("API request failed", summary);
+      }
     }
 
     return Promise.reject(error);
@@ -197,7 +219,10 @@ export function getApiErrorMessage(error: unknown, fallback = "Request failed.")
     if (typeof responseData === "string" && responseData.trim()) {
       return responseData;
     }
-    if (responseData && typeof responseData === "object") {
+    if (isRecord(responseData)) {
+      if (typeof responseData.error === "string" && responseData.error.trim()) {
+        return responseData.error;
+      }
       const detail = "detail" in responseData ? responseData.detail : null;
       if (typeof detail === "string" && detail.trim()) {
         return detail;

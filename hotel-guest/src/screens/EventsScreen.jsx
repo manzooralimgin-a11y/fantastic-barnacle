@@ -18,7 +18,7 @@ const CATEGORY_CONFIG = {
   Dining:        { from: 'from-amber-950',   ring: 'bg-amber-900/30',   chip: 'bg-amber-500/15 text-amber-400 border border-amber-500/25'    },
   Wellness:      { from: 'from-teal-950',    ring: 'bg-teal-900/30',    chip: 'bg-teal-500/15 text-teal-400 border border-teal-500/25'      },
   Entertainment: { from: 'from-violet-950',  ring: 'bg-violet-900/30',  chip: 'bg-violet-500/15 text-violet-400 border border-violet-500/25' },
-  Activity:      { from: 'from-blue-950',    ring: 'bg-blue-900/30',    chip: 'bg-blue-500/15 text-blue-400 border border-blue-500/25'      },
+  Activity:      { from: 'from-emerald-950',    ring: 'bg-emerald-900/30',    chip: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'      },
 }
 const DEFAULT_CAT = { from: 'from-zinc-900', ring: 'bg-zinc-800/40', chip: 'bg-stone-700/40 text-stone-400 border border-stone-600/30' }
 
@@ -51,9 +51,9 @@ const TAG_STYLES = {
   'Yoga':          'bg-teal-500/15 text-teal-400 border border-teal-500/25',
   'Wellness':      'bg-teal-500/15 text-teal-400 border border-teal-500/25',
   'Complimentary': 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
-  'Boat':          'bg-blue-500/15 text-blue-400 border border-blue-500/25',
-  'Magdeburg':     'bg-blue-500/15 text-blue-400 border border-blue-500/25',
-  'Sightseeing':   'bg-blue-500/15 text-blue-400 border border-blue-500/25',
+  'Boat':          'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
+  'Magdeburg':     'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
+  'Sightseeing':   'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
   'Cocktails':     'bg-pink-500/15 text-pink-400 border border-pink-400/25',
   'Interactive':   'bg-pink-500/15 text-pink-400 border border-pink-400/25',
   'Exclusive':     'bg-[#c9a84c]/20 text-[#c9a84c] border border-[#c9a84c]/40',
@@ -62,7 +62,7 @@ const TAG_STYLES = {
   'Spa':           'bg-teal-500/15 text-teal-400 border border-teal-500/25',
   'Nordic':        'bg-teal-500/15 text-teal-400 border border-teal-500/25',
   'Sunset':        'bg-amber-500/15 text-amber-400 border border-amber-500/25',
-  'Cruise':        'bg-blue-500/15 text-blue-400 border border-blue-500/25',
+  'Cruise':        'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
   'Champagne':     'bg-amber-500/15 text-amber-400 border border-amber-500/25',
 }
 
@@ -208,8 +208,8 @@ export default function EventsScreen() {
             <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
               <CheckCircle2 size={32} className="text-emerald-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white text-center mb-1">You're confirmed!</h1>
-            <p className="text-white/40 text-sm text-center">Your reservation has been added to your room folio.</p>
+            <h1 className="text-2xl font-bold text-white text-center mb-1">Request sent!</h1>
+            <p className="text-white/40 text-sm text-center">Your reservation request has been sent to the hotel team.</p>
           </div>
           <div className="h-7 bg-stone-50 dark:bg-stone-950 rounded-t-[28px]" />
         </div>
@@ -245,7 +245,7 @@ export default function EventsScreen() {
             </div>
             {selectedEvent.price > 0 && (
               <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-                <span className="text-sm text-stone-500 dark:text-stone-400">Total charged</span>
+                <span className="text-sm text-stone-500 dark:text-stone-400">Estimated total</span>
                 <span className="text-sm font-bold text-[#c9a84c]">
                   {formatPrice(selectedEvent.price * confirmation.guestCount)}
                 </span>
@@ -260,7 +260,7 @@ export default function EventsScreen() {
           )}
 
           <p className="text-center text-[11px] text-stone-400 dark:text-stone-600 pb-2">
-            Details added to your room key · Dress code: {selectedEvent.dressCode}
+            Details shared with guest services · Dress code: {selectedEvent.dressCode}
           </p>
 
           <Button fullWidth variant="primary" onClick={() => { setView('list'); setCategoryFilter('All') }}>
@@ -348,7 +348,7 @@ export default function EventsScreen() {
                 </span>
               </div>
               {selectedEvent.price > 0 && (
-                <p className="text-[11px] text-stone-400 dark:text-stone-600">Charged to room folio · includes VAT</p>
+                <p className="text-[11px] text-stone-400 dark:text-stone-600">Sent to guest services for confirmation · includes VAT</p>
               )}
             </div>
           </InfoCard>
@@ -495,7 +495,7 @@ export default function EventsScreen() {
           )}
 
           <p className="text-center text-[11px] text-stone-400 dark:text-stone-600 pb-2">
-            Charged to room folio · {ev.venue}
+            Requested via guest services · {ev.venue}
           </p>
         </main>
 
@@ -533,7 +533,7 @@ export default function EventsScreen() {
             Events & Activities
           </h1>
           <p className="text-sm text-white/35 mt-1.5">
-            Reserve your spot · Charged to room
+            Reserve your spot with reception
           </p>
         </div>
 
@@ -625,7 +625,7 @@ export default function EventsScreen() {
         </div>
 
         <p className="text-center text-xs text-stone-800 mt-6 mb-2 px-6">
-          All bookings charged to your room folio · Prices include VAT
+          All bookings are sent to guest services for confirmation · Prices include VAT
         </p>
       </main>
 

@@ -7,6 +7,135 @@ const FALLBACK_ROOM_AMENITIES = [
   { id: 'minibar', label: 'Minibar', icon: 'wine', available: true },
   { id: 'coffee', label: 'Coffee Machine', icon: 'coffee', available: true },
 ]
+const FALLBACK_HOUSEKEEPING_AMENITIES = [
+  { id: 'towels', name: 'Extra Towels', category: 'linens' },
+  { id: 'pillows', name: 'Extra Pillows', category: 'linens' },
+  { id: 'robe', name: 'Bathrobe', category: 'linens' },
+  { id: 'toothbrush', name: 'Toothbrush Kit', category: 'toiletries' },
+  { id: 'shaving', name: 'Shaving Kit', category: 'toiletries' },
+  { id: 'water', name: 'Still Water', category: 'beverages' },
+]
+const FALLBACK_SPA_SERVICES = [
+  {
+    id: 'spa-signature-massage',
+    name: 'Signature Massage',
+    description: 'A relaxing full-body massage tailored to your stay.',
+    duration: 60,
+    price: 95,
+    category: 'massage',
+  },
+  {
+    id: 'spa-facial-reset',
+    name: 'Facial Reset',
+    description: 'A hydrating facial treatment designed for travel recovery.',
+    duration: 45,
+    price: 79,
+    category: 'facial',
+  },
+  {
+    id: 'spa-sauna-ritual',
+    name: 'Sauna & Wellness Ritual',
+    description: 'A guided wellness slot with sauna access and recovery tea.',
+    duration: 90,
+    price: 49,
+    category: 'wellness',
+  },
+]
+const FALLBACK_SPA_SLOTS = ['09:00', '11:00', '14:00', '16:00', '18:00']
+const isoDateFromToday = (daysAhead) => {
+  const date = new Date()
+  date.setHours(12, 0, 0, 0)
+  date.setDate(date.getDate() + daysAhead)
+  return date.toISOString().slice(0, 10)
+}
+const FALLBACK_EVENTS = [
+  {
+    id: 'evt-sunset-cruise',
+    title: 'Sunset Cruise',
+    shortDescription: 'An evening river cruise with welcome drinks.',
+    description: 'Enjoy a relaxed Elbe cruise with sunset views, a welcome drink, and live lounge music.',
+    category: 'Activity',
+    emoji: '🚤',
+    date: isoDateFromToday(1),
+    time: '18:30',
+    durationMinutes: 120,
+    venue: 'Hotel Pier',
+    price: 32,
+    priceNote: 'per guest',
+    spotsLeft: 8,
+    available: true,
+    tags: ['Sunset', 'Cruise', 'Magdeburg'],
+    dressCode: 'Smart casual',
+    highlights: ['Welcome drink', 'Reserved seating', 'River views at sunset'],
+    menu: [{ title: 'Included', items: ['Welcome drink', 'Light snacks'] }],
+  },
+  {
+    id: 'evt-chef-table',
+    title: 'Chef Table Dinner',
+    shortDescription: 'A seasonal tasting menu hosted by our kitchen team.',
+    description: 'Experience a seasonal multi-course tasting in an intimate chef table setting.',
+    category: 'Dining',
+    emoji: '🍷',
+    date: isoDateFromToday(2),
+    time: '19:00',
+    durationMinutes: 150,
+    venue: 'Wintergarten',
+    price: 68,
+    priceNote: 'per guest',
+    spotsLeft: 6,
+    available: true,
+    tags: ['Chef Special', 'Wine', 'Exclusive'],
+    dressCode: 'Evening smart',
+    highlights: ['Seasonal tasting menu', 'Hosted by the chef', 'Wine pairing available'],
+    menu: [{ title: 'Sample menu', items: ['Amuse bouche', 'Seasonal main course', 'Dessert'] }],
+  },
+  {
+    id: 'evt-morning-yoga',
+    title: 'Morning Yoga',
+    shortDescription: 'A complimentary guided wellness session for hotel guests.',
+    description: 'Start the day with a gentle yoga session overlooking the river.',
+    category: 'Wellness',
+    emoji: '🧘',
+    date: isoDateFromToday(2),
+    time: '07:30',
+    durationMinutes: 45,
+    venue: 'Wellness Lounge',
+    price: 0,
+    priceNote: 'complimentary',
+    spotsLeft: 10,
+    available: true,
+    tags: ['Yoga', 'Wellness', 'Complimentary'],
+    dressCode: 'Comfortable activewear',
+    highlights: ['Complimentary for in-house guests', 'Yoga mats provided', 'Open to all levels'],
+    menu: [],
+  },
+]
+const FALLBACK_CONCIERGE_RECOMMENDATIONS = [
+  {
+    id: 'rec-cathedral',
+    name: 'Magdeburg Cathedral',
+    description: 'A short trip from the hotel with iconic city views and history.',
+    rating: '4.8',
+    distance: '12 min',
+    category: 'culture',
+  },
+  {
+    id: 'rec-riverwalk',
+    name: 'Elbe River Walk',
+    description: 'A scenic route for an easy walk or morning jog.',
+    rating: '4.7',
+    distance: '5 min',
+    category: 'activity',
+  },
+  {
+    id: 'rec-dining',
+    name: 'Old Town Bistro',
+    description: 'A reliable nearby dinner recommendation from reception.',
+    rating: '4.6',
+    distance: '9 min',
+    category: 'dining',
+  },
+]
 
 const localState = {
   get(key, fallback = null) {
@@ -281,6 +410,14 @@ const formatRoomServiceRequest = (order) => {
   }
 }
 
+const formatAmenityRequestItems = (items) =>
+  (items || [])
+    .filter((item) => item?.name && Number(item.quantity || 0) > 0)
+    .map((item) => `${item.quantity}x ${item.name}`)
+    .join(', ')
+
+const findFallbackEvent = (eventId) => FALLBACK_EVENTS.find((event) => event.id === eventId)
+
 export const authApi = {
   login: async ({ bookingNumber, lastName }) => {
     const payload = await request('/guest/auth', {
@@ -456,12 +593,15 @@ export const housekeepingApi = {
   },
 
   requestAmenities: async (items) => {
+    const amenitySummary = formatAmenityRequestItems(items)
     const response = await request('/guest/requests', {
       method: 'POST',
       body: {
         title: 'Amenity Request',
         category: 'Housekeeping',
-        description: `Requested amenities: ${(items || []).join(', ')}`,
+        description: amenitySummary
+          ? `Requested amenities: ${amenitySummary}`
+          : 'Requested amenities submitted from the guest portal.',
         urgency: 'normal',
       },
     })
@@ -474,17 +614,32 @@ export const housekeepingApi = {
     return { doNotDisturb: setDndState(roomNumber, active) }
   },
 
-  getAmenityList: async () => [],
+  getAmenityList: async () => FALLBACK_HOUSEKEEPING_AMENITIES,
 }
 
 export const spaApi = {
-  getServices: async () => [],
-  getAvailableSlots: async () => [],
-  book: async (booking) => ({
-    bookingId: `SPA-${Date.now()}`,
-    ...booking,
-    status: 'requested',
-  }),
+  getServices: async () => FALLBACK_SPA_SERVICES,
+  getAvailableSlots: async () => FALLBACK_SPA_SLOTS,
+  book: async (booking) => {
+    const response = await request('/guest/requests', {
+      method: 'POST',
+      body: {
+        title: 'Spa Booking',
+        category: 'Reception',
+        description: [
+          booking?.serviceName && `Service: ${booking.serviceName}`,
+          booking?.date && `Date: ${new Date(booking.date).toISOString().slice(0, 10)}`,
+          booking?.time && `Time: ${booking.time}`,
+        ].filter(Boolean).join('\n'),
+        urgency: 'normal',
+      },
+    })
+    return {
+      bookingId: response.ticket_id,
+      ...booking,
+      status: 'requested',
+    }
+  },
 }
 
 export const conciergeApi = {
@@ -505,7 +660,7 @@ export const conciergeApi = {
     }
   },
 
-  getRecommendations: async () => [],
+  getRecommendations: async () => FALLBACK_CONCIERGE_RECOMMENDATIONS,
 
   bookTaxi: async (details) => {
     const response = await request('/guest/requests', {
@@ -520,8 +675,8 @@ export const conciergeApi = {
     return {
       bookingId: response.ticket_id,
       estimatedArrival: response.estimated_time || 'Pending confirmation',
-      driver: null,
-      plate: null,
+      driver: 'Reception dispatch',
+      plate: 'Assigned on arrival',
     }
   },
 
@@ -632,20 +787,25 @@ export const diningApi = {
 }
 
 export const eventsApi = {
-  getEvents: async () => [],
+  getEvents: async () => FALLBACK_EVENTS,
 
   reserveEvent: async ({ eventId, guestCount = 1, specialRequests = '' }) => {
-    await request('/guest/requests', {
+    const event = findFallbackEvent(eventId)
+    const response = await request('/guest/requests', {
       method: 'POST',
       body: {
         title: 'Event Reservation',
         category: 'Reception',
-        description: `Event ${eventId} for ${guestCount} guest(s). ${specialRequests}`.trim(),
+        description: [
+          event?.title ? `Event: ${event.title}` : `Event: ${eventId}`,
+          `Guests: ${guestCount}`,
+          specialRequests && `Notes: ${specialRequests}`,
+        ].filter(Boolean).join('\n'),
         urgency: 'normal',
       },
     })
     return {
-      confirmationNumber: `EVT-${Date.now()}`,
+      confirmationNumber: response.ticket_id,
       guestCount,
       specialRequests,
     }

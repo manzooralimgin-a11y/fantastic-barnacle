@@ -208,6 +208,9 @@ export default function RoomServiceScreen() {
         <p className="text-sm text-stone-500 mt-3">
           Total: <strong>{formatPrice(orderSuccess.totalAmount)}</strong>
         </p>
+        <p className="text-xs text-stone-400 mt-1">
+          Your order has been sent to the hotel team and appears in Management immediately.
+        </p>
         <Button className="mt-8" onClick={() => { setOrderSuccess(null); setView('categories') }}>
           Back to Menu
         </Button>
@@ -614,7 +617,9 @@ export default function RoomServiceScreen() {
                 <span>Total</span>
                 <span>{formatPrice(cartTotal)}</span>
               </div>
-              <p className="text-xs text-stone-400 mt-1">Charged to your room folio.</p>
+              <p className="text-xs text-stone-400 mt-1">
+                Sent as a room-service request. Billing is confirmed by the hotel team at checkout where applicable.
+              </p>
             </div>
 
             {orderError && (

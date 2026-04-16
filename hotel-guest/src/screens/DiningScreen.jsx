@@ -14,7 +14,7 @@ import { formatPrice } from '../utils'
 // ─── Tag badge ────────────────────────────────────────────────────────────────
 const TAG_STYLES = {
   'Chef Special':       'bg-[#c9a84c]/20 text-[#c9a84c] border border-[#c9a84c]/40',
-  'Popular':            'bg-blue-500/15 text-blue-300 border border-blue-500/25',
+  'Popular':            'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25',
   "Today's Highlight":  'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
   'Limited Time':       'bg-red-500/15 text-red-400 border border-red-400/25',
   'New':                'bg-violet-500/15 text-violet-400 border border-violet-400/25',
@@ -33,7 +33,7 @@ function TagBadge({ label }) {
 
 // ─── Static gradient themes (safe from Tailwind purge) ────────────────────────
 const THEMES = [
-  { from: 'from-blue-950',    to: 'to-stone-950',    ring: 'bg-blue-900/30'    },
+  { from: 'from-emerald-950',    to: 'to-stone-950',    ring: 'bg-emerald-900/30'    },
   { from: 'from-red-950',     to: 'to-stone-950',    ring: 'bg-red-900/30'     },
   { from: 'from-amber-950',   to: 'to-stone-950',    ring: 'bg-amber-900/30'   },
   { from: 'from-zinc-900',    to: 'to-stone-950',    ring: 'bg-zinc-800/40'    },
@@ -165,7 +165,7 @@ export default function DiningScreen() {
             <p className="text-3xl font-bold text-[#c9a84c] mt-4">
               {formatPrice(dish.price)}
             </p>
-            <p className="text-xs text-white/25 mt-1">per person · charged to room folio</p>
+            <p className="text-xs text-white/25 mt-1">per person · available for room-service requests</p>
           </div>
 
           {/* Curved edge */}
@@ -356,7 +356,7 @@ export default function DiningScreen() {
         </div>
 
         <p className="text-center text-xs text-stone-800 dark:text-stone-800 mt-6 mb-2 px-6">
-          All dishes charged to your room folio · Prices include VAT
+          All dishes can be requested from the hotel team · Prices include VAT
         </p>
       </main>
 

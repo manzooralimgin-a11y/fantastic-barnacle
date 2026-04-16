@@ -37,8 +37,8 @@ function buildCards({ booking, idVerified, roomKey, unreadCount }) {
     {
       id:       'room',
       icon:     BedDouble,
-      iconBg:   'bg-blue-50 dark:bg-blue-900/20',
-      iconColor:'text-blue-600 dark:text-blue-400',
+      iconBg:   'bg-emerald-50 dark:bg-emerald-900/20',
+      iconColor:'text-emerald-600 dark:text-emerald-400',
       title:    'My Room',
       subtitle: booking ? `${booking.roomType} · Floor ${booking.floor}` : 'View room details',
       badge:    booking?.paymentStatus
@@ -92,15 +92,15 @@ function buildCards({ booking, idVerified, roomKey, unreadCount }) {
       iconBg:   'bg-teal-50 dark:bg-teal-900/20',
       iconColor:'text-teal-600 dark:text-teal-400',
       title:    'Events & Activities',
-      subtitle: 'Hotel events & reservations',
-      badge:    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400">3 today</span>,
+      subtitle: 'Reserve guest activities with reception',
+      badge:    null,
       route:    ROUTES.EVENTS,
     },
     {
       id:       'bills',
       icon:     Receipt,
-      iconBg:   'bg-indigo-50 dark:bg-indigo-900/20',
-      iconColor:'text-indigo-600 dark:text-indigo-400',
+      iconBg:   'bg-emerald-50 dark:bg-emerald-900/20',
+      iconColor:'text-emerald-600 dark:text-emerald-400',
       title:    'Bills & Invoices',
       subtitle: 'View charges & download invoice',
       badge:    null,
@@ -179,7 +179,7 @@ function CheckinStrip({ idVerified, roomKey, navigate }) {
         className={[
           'shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-colors',
           roomKey
-            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400'
+            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
             : 'bg-stone-100 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400',
         ].join(' ')}
       >
@@ -221,7 +221,7 @@ export default function HomeScreen() {
         {/* Ambient glows */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-emerald-600/10 blur-3xl" />
-          <div className="absolute bottom-0 -left-10 w-48 h-48 rounded-full bg-blue-600/8 blur-2xl" />
+          <div className="absolute bottom-0 -left-10 w-48 h-48 rounded-full bg-emerald-600/8 blur-2xl" />
         </div>
 
         {/* Safe area top */}

@@ -98,7 +98,7 @@ export default function SpaScreen() {
         <div className="w-20 h-20 rounded-3xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mb-5 text-4xl">
           ✨
         </div>
-        <h2 className="text-xl font-bold text-stone-900 dark:text-stone-100">Booking Confirmed!</h2>
+        <h2 className="text-xl font-bold text-stone-900 dark:text-stone-100">Booking Request Sent!</h2>
         <p className="text-stone-500 dark:text-stone-400 mt-2 text-sm">
           {booking.serviceName}
         </p>
@@ -108,7 +108,9 @@ export default function SpaScreen() {
             <strong>{formatDate(booking.date)}</strong> at <strong>{booking.time}</strong>
           </p>
         </div>
-        <p className="text-xs text-stone-400 mt-3">Confirmation sent to your room profile.</p>
+        <p className="text-xs text-stone-400 mt-3">
+          Request {booking.bookingId} has been sent to the spa team in Management.
+        </p>
         <Button className="mt-8" onClick={() => setBooking(null)}>Back to Spa</Button>
       </div>
       <BottomNav />

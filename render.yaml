@@ -52,7 +52,7 @@ services:
       - key: FRONTEND_URL
         value: https://gestronomy-web-ipjw.onrender.com
       - key: CORS_ORIGINS
-        value: https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://hotel-guest.onrender.com,https://hotel-owner.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com,https://das-elb-hotel.onrender.com,http://localhost:3000,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:5173
+        value: https://gestronomy-web-ipjw.onrender.com,https://gestronomy-guest.onrender.com,https://hotel-guest.onrender.com,https://hotel-owner.onrender.com,https://waiter-web.onrender.com,https://www.zukunftwebs.com,https://zukunftwebs.com,https://das-elb-hotel.onrender.com,http://localhost:3000,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:5173
       - key: VOICEBOOKER_SECRET
         sync: false
       - key: EMAIL_INBOX_INGEST_SECRET
@@ -234,6 +234,21 @@ services:
         value: https://gestronomy-api-5atv.onrender.com/api
     envVars:
       - key: NEXT_PUBLIC_API_URL
+        value: https://gestronomy-api-5atv.onrender.com/api
+
+  # Waiter Web — Vite+React restaurant waiter console (replaces SwiftUI
+  # WaiterApp for browser-based production testing).
+  - type: web
+    name: waiter-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./waiter-web/Dockerfile
+    dockerContext: ./waiter-web
+    buildArgs:
+      - key: VITE_API_BASE_URL
+        value: https://gestronomy-api-5atv.onrender.com/api
+    envVars:
+      - key: VITE_API_BASE_URL
         value: https://gestronomy-api-5atv.onrender.com/api
 
   - type: redis

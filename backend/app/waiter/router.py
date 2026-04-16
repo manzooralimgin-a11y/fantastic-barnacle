@@ -514,7 +514,9 @@ async def waiter_create_order(
                 unit_price=float(menu_item.price or 0),
                 total_price=line_total,
                 modifiers_json={},
-                status="sent",
+                # "preparing" matches KDS filter in get_kds_orders(); "sent" was a
+                # dead status that never surfaced on the kitchen screen.
+                status="preparing",
                 notes=item_request.notes,
                 sent_to_kitchen_at=datetime.now(timezone.utc),
                 station=(menu_item.name.split(" ", 1)[0] or "kitchen").lower(),

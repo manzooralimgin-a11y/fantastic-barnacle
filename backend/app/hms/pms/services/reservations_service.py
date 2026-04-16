@@ -19,7 +19,8 @@ from app.hms.pms.schemas.reservations import (
 )
 from app.hms.pms.selectors.cockpit_selectors import build_cockpit
 from app.hms.pms.selectors.reservation_summary_selectors import build_reservation_summary
-from app.hms.schemas import HotelDocumentRead, HotelStayRead
+from app.hms.pms.schemas.tasks import PmsTaskRead
+from app.hms.schemas import HotelDocumentRead, HotelFolioRead, HotelStayRead
 
 
 def _serialize_read_model(value):
@@ -105,19 +106,20 @@ async def get_reservation_workspace(
         reservation_id=reservation.id,
     )
     folio_summary_payload = (
-        _serialize_read_model(reservation_folios[0])
+        HotelFolioRead.model_validate(reservation_folios[0]).model_dump(mode="json")
         if reservation_folios
         else {}
     )
 
     related_tasks = []
     if reservation.stay is not None and reservation.stay.room_id is not None:
-        related_tasks = await list_pms_tasks(
+        raw_tasks = await list_pms_tasks(
             db,
             property_id=property_id,
             status=None,
             room_id=reservation.stay.room_id,
         )
+        related_tasks = [PmsTaskRead.model_validate(t).model_dump(mode="json") for t in raw_tasks]
 
     related_documents = [
         HotelDocumentRead.model_validate(document).model_dump(mode="json")

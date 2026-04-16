@@ -24,9 +24,9 @@ import { cn } from "@/lib/utils";
 
 // ── Rates ──────────────────────────────────────────────────────────────────────
 
-const PARKING_RATE = 15;
-const BREAKFAST_RATE = 25;
-const PETS_FEE = 40;
+const PARKING_RATE = 10;
+const BREAKFAST_RATE = 24.90;
+const PETS_FEE = 15;
 const CITY_TAX = 18;
 const TAX_RATE = 0.1;
 
@@ -131,19 +131,19 @@ export function GuestAddOnsModal({ guest, open, onClose }: GuestAddOnsModalProps
       key: "parking" as const,
       Icon: Car,
       label: "Car Parking",
-      sub: `+€${PARKING_RATE} per night`,
+      sub: `+€${PARKING_RATE.toFixed(2)} per night`,
     },
     {
       key: "breakfast" as const,
       Icon: UtensilsCrossed,
       label: "Breakfast",
-      sub: `+€${BREAKFAST_RATE} per night`,
+      sub: `+€${BREAKFAST_RATE.toFixed(2)} per night`,
     },
     {
       key: "pets" as const,
       Icon: PawPrint,
       label: "Pets",
-      sub: `+€${PETS_FEE} flat fee`,
+      sub: `+€${PETS_FEE.toFixed(2)} flat fee`,
     },
   ];
 

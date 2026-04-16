@@ -1,19 +1,7 @@
 "use client";
 
-/**
- * GuestQuickActionsDrawer — Screenshot 2
- *
- * Right-side drawer that opens when "Manage Guest" is clicked.
- * Shows:
- *  • Quick Add Services (Parking / Breakfast / Pet Fee) icon toggles
- *  • Room Management with Change Room button
- *  • Guest Details (name / email / phone)
- *  • Billing & Company toggle + company field
- *  • Total balance + Open Payment CTA (red)
- */
-
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   X,
   Car,
@@ -23,19 +11,36 @@ import {
   AlertCircle,
   BedDouble,
   Loader2,
+  Check,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { createPmsReservationCharge } from "@/features/hms/pms/api/billing";
-import { fetchPmsReservationSummary, syncPmsReservationGuest } from "@/features/hms/pms/api/reservations";
+import {
+  fetchPmsReservationSummary,
+  patchHotelReservation,
+  syncPmsReservationGuest,
+} from "@/features/hms/pms/api/reservations";
 import { useRightPanel } from "@/features/hms/pms/components/right-panel/useRightPanel";
 import type { PmsCockpitItem } from "@/features/hms/pms/schemas/reservation";
 import { defaultHotelPropertyId } from "@/lib/hotel-room-types";
+import { getJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
-type AddOns = { parking: boolean; breakfast: boolean; pet: boolean };
+const ADDON_PRICES = {
+  parking:   { label: "Car Parking", price: 10,    chargeType: "parking"   },
+  breakfast: { label: "Breakfast",   price: 24.90, chargeType: "breakfast" },
+  pet:       { label: "Pet Fee",     price: 15,    chargeType: "pet_fee"   },
+} as const;
+
+type AddOnKey = keyof typeof ADDON_PRICES;
+type AddOns = Record<AddOnKey, boolean>;
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 export type GuestQuickActionsDrawerProps = {
   guest: PmsCockpitItem | null;
@@ -44,15 +49,11 @@ export type GuestQuickActionsDrawerProps = {
   onOpenPayment: () => void;
 };
 
+type RoomItem = { id: string; number: string; room_type_name: string; status: string };
+
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
@@ -77,30 +78,46 @@ function Toggle({
 function ServiceButton({
   icon: Icon,
   label,
-  shortLabel,
+  price,
   active,
+  pending,
   onClick,
 }: {
   icon: React.ElementType;
   label: string;
-  shortLabel?: string;
+  price: number;
   active: boolean;
+  pending: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={pending}
       aria-pressed={active}
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 transition-all duration-150",
+        "relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3 transition-all duration-150",
         active
-          ? "border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm"
-          : "border-foreground/10 bg-zinc-50 dark:bg-zinc-800/40 text-foreground-muted hover:text-foreground hover:border-foreground/20",
+          ? "border-emerald-400 bg-emerald-500/[0.12] text-emerald-700 dark:text-emerald-400 shadow-sm"
+          : "border-foreground/10 bg-foreground/[0.03] text-foreground-muted hover:text-foreground hover:border-foreground/20",
+        pending && "opacity-60 cursor-wait",
       )}
     >
-      <Icon className="h-6 w-6" />
-      <span className="text-xs font-semibold">{shortLabel ?? label}</span>
+      {active && (
+        <span className="absolute top-1.5 right-1.5 h-3.5 w-3.5 rounded-full bg-emerald-500 flex items-center justify-center">
+          <Check className="h-2 w-2 text-white" strokeWidth={3} />
+        </span>
+      )}
+      {pending ? (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      ) : (
+        <Icon className="h-5 w-5" />
+      )}
+      <span className="text-[10px] font-bold leading-none">{label}</span>
+      <span className="text-[9px] font-semibold opacity-70">
+        +€{price % 1 === 0 ? price : price.toFixed(2)}
+      </span>
     </button>
   );
 }
@@ -114,66 +131,86 @@ export function GuestQuickActionsDrawer({
   onOpenPayment,
 }: GuestQuickActionsDrawerProps) {
   const { openPanel } = useRightPanel();
-  const [addOns, setAddOns] = useState<AddOns>({
-    parking: false,
-    breakfast: false,
-    pet: false,
-  });
+  const queryClient = useQueryClient();
+
+  const [addOns, setAddOns] = useState<AddOns>({ parking: false, breakfast: false, pet: false });
+  const [pendingAddon, setPendingAddon] = useState<AddOnKey | null>(null);
   const [billToCompany, setBillToCompany] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [syncingGuest, setSyncingGuest] = useState(false);
+  const [roomPickerOpen, setRoomPickerOpen] = useState(false);
+  const [changingRoom, setChangingRoom] = useState(false);
 
-  const { data: summary } = useQuery({
+  const { data: summary, refetch: refetchSummary } = useQuery({
     queryKey: ["pms", "reservation-summary", guest?.reservation_id],
     queryFn: () => fetchPmsReservationSummary(guest!.reservation_id, defaultHotelPropertyId),
     enabled: open && Boolean(guest?.reservation_id),
     staleTime: 30_000,
   });
 
-  const chargeMutation = useMutation({
-    mutationFn: ({
-      description,
-      unitPrice,
-      chargeType,
-    }: {
-      description: string;
-      unitPrice: number;
-      chargeType: string;
-    }) =>
-      createPmsReservationCharge(guest!.reservation_id, {
-        description,
-        quantity: 1,
-        unit_price: unitPrice,
-        charge_type: chargeType,
-        service_date: new Date().toISOString().slice(0, 10),
-      }),
-    onSuccess: (_, vars) => {
-      toast.success(`${vars.description} added to folio.`);
-    },
-    onError: (_, vars) => {
-      toast.error(`Could not add ${vars.description}. Try again.`);
-    },
+  const { data: roomsData } = useQuery({
+    queryKey: ["hms", "rooms", defaultHotelPropertyId],
+    queryFn: () => getJson<{ items: RoomItem[] }>("/hms/rooms", {
+      params: { property_id: defaultHotelPropertyId },
+    }),
+    enabled: roomPickerOpen,
+    staleTime: 60_000,
   });
 
   if (!guest) return null;
 
-  function toggle(key: keyof AddOns) {
-    const next = !addOns[key];
-    setAddOns((prev) => ({ ...prev, [key]: next }));
-    if (next) {
-      const map: Record<keyof AddOns, { description: string; unitPrice: number; chargeType: string }> = {
-        parking: { description: "Car Parking", unitPrice: 15, chargeType: "parking" },
-        breakfast: { description: "Breakfast", unitPrice: 25, chargeType: "breakfast" },
-        pet: { description: "Pet Fee", unitPrice: 40, chargeType: "pet_fee" },
-      };
-      chargeMutation.mutate(map[key]);
+  // Live balance = server balance + cost of any add-ons ticked this session
+  const baseBalance = summary?.folio_balance_due ?? guest.total_amount;
+  const addOnTotal = (Object.keys(ADDON_PRICES) as AddOnKey[]).reduce(
+    (sum, key) => sum + (addOns[key] ? ADDON_PRICES[key].price : 0),
+    0,
+  );
+  const displayBalance = baseBalance + addOnTotal;
+
+  function fmtEur(n: number) {
+    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n);
+  }
+
+  async function toggle(key: AddOnKey) {
+    if (addOns[key]) return; // already added — don't double-charge
+    setPendingAddon(key);
+    try {
+      await createPmsReservationCharge(guest.reservation_id, {
+        description: ADDON_PRICES[key].label,
+        quantity: 1,
+        unit_price: ADDON_PRICES[key].price,
+        charge_type: ADDON_PRICES[key].chargeType,
+        service_date: new Date().toISOString().slice(0, 10),
+      });
+      setAddOns((prev) => ({ ...prev, [key]: true }));
+      toast.success(`${ADDON_PRICES[key].label} added to folio.`);
+      void refetchSummary();
+      void queryClient.invalidateQueries({ queryKey: ["pms", "reservation-workspace"] });
+    } catch {
+      toast.error(`Could not add ${ADDON_PRICES[key].label}. Try again.`);
+    } finally {
+      setPendingAddon(null);
+    }
+  }
+
+  async function handleChangeRoom(roomNumber: string) {
+    setChangingRoom(true);
+    try {
+      await patchHotelReservation(guest.reservation_id, { room: roomNumber });
+      toast.success(`Room changed to ${roomNumber}.`);
+      setRoomPickerOpen(false);
+      void refetchSummary();
+      void queryClient.invalidateQueries({ queryKey: ["pms", "front-desk-cockpit"] });
+    } catch {
+      toast.error("Could not change room. Try again.");
+    } finally {
+      setChangingRoom(false);
     }
   }
 
   async function openEditDetails() {
     let contactId = summary?.guest_id;
     if (!contactId) {
-      // No GuestProfile linked yet — create/sync one from reservation data
       try {
         setSyncingGuest(true);
         const synced = await syncPmsReservationGuest(guest.reservation_id);
@@ -193,11 +230,7 @@ export function GuestQuickActionsDrawer({
     });
   }
 
-  const balance = summary?.folio_balance_due ?? guest.total_amount;
-
-  function fmtEur(n: number) {
-    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n);
-  }
+  const currentRoom = summary?.room ?? guest.room;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -228,37 +261,31 @@ export function GuestQuickActionsDrawer({
 
           {/* Quick Add Services */}
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
-                Quick Add Services
-              </p>
-              {chargeMutation.isPending && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground-muted" />
-              )}
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <ServiceButton
-                icon={Car}
-                label="Parking"
-                active={addOns.parking}
-                onClick={() => toggle("parking")}
-              />
-              <ServiceButton
-                icon={UtensilsCrossed}
-                label="Breakfast"
-                active={addOns.breakfast}
-                onClick={() => toggle("breakfast")}
-              />
-              <ServiceButton
-                icon={PawPrint}
-                label="Pet Fee"
-                active={addOns.pet}
-                onClick={() => toggle("pet")}
-              />
-            </div>
-            <p className="mt-2 text-[10px] text-foreground-muted">
-              Tap a service to instantly add it to the guest&apos;s folio.
+            <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted mb-3">
+              Quick Add Services
             </p>
+            <div className="grid grid-cols-3 gap-2.5">
+              {(Object.keys(ADDON_PRICES) as AddOnKey[]).map((key) => {
+                const cfg = ADDON_PRICES[key];
+                const Icon = key === "parking" ? Car : key === "breakfast" ? UtensilsCrossed : PawPrint;
+                return (
+                  <ServiceButton
+                    key={key}
+                    icon={Icon}
+                    label={cfg.label === "Car Parking" ? "Parking" : cfg.label === "Pet Fee" ? "Pet" : cfg.label}
+                    price={cfg.price}
+                    active={addOns[key]}
+                    pending={pendingAddon === key}
+                    onClick={() => void toggle(key)}
+                  />
+                );
+              })}
+            </div>
+            {addOnTotal > 0 && (
+              <p className="mt-2 text-xs font-semibold text-emerald-600">
+                +{fmtEur(addOnTotal)} added this session
+              </p>
+            )}
           </section>
 
           {/* Room Management */}
@@ -266,33 +293,68 @@ export function GuestQuickActionsDrawer({
             <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted mb-3">
               Room Management
             </p>
-            <div className="rounded-2xl border border-foreground/10 bg-zinc-50 dark:bg-zinc-800/50 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              </div>
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-foreground text-background flex items-center justify-center font-bold text-lg select-none">
-                  {guest.room ?? <BedDouble className="h-5 w-5" />}
+                  {currentRoom ?? <BedDouble className="h-5 w-5" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground truncate">
                     {guest.room_type_label ?? "Hotel Room"}
                   </p>
-                  {summary?.booking_source && (
-                    <p className="text-xs text-foreground-muted mt-0.5">
-                      via {summary.booking_source}
-                    </p>
-                  )}
+                  <p className="text-xs text-foreground-muted mt-0.5">
+                    {currentRoom ? `Room ${currentRoom}` : "Room TBD"}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  className="flex-shrink-0 text-xs font-semibold text-foreground border border-foreground/10 rounded-xl px-3 py-1.5 hover:bg-foreground/[0.04] transition-colors"
+                  onClick={() => setRoomPickerOpen((prev) => !prev)}
+                  className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-foreground border border-foreground/10 rounded-xl px-3 py-1.5 hover:bg-foreground/[0.04] transition-colors"
                 >
                   Change Room
+                  {roomPickerOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 </button>
               </div>
+
+              {/* Room picker dropdown */}
+              {roomPickerOpen && (
+                <div className="border-t border-foreground/10 pt-3 space-y-1 max-h-48 overflow-y-auto">
+                  {!roomsData ? (
+                    <div className="flex items-center gap-2 text-xs text-foreground-muted py-2">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Loading rooms…
+                    </div>
+                  ) : roomsData.items.length === 0 ? (
+                    <p className="text-xs text-foreground-muted py-2">No rooms found.</p>
+                  ) : (
+                    roomsData.items.map((room) => (
+                      <button
+                        key={room.id}
+                        type="button"
+                        disabled={changingRoom || room.number === currentRoom}
+                        onClick={() => void handleChangeRoom(room.number)}
+                        className={cn(
+                          "w-full flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors",
+                          room.number === currentRoom
+                            ? "bg-emerald-500/10 text-emerald-700 font-semibold cursor-default"
+                            : "hover:bg-foreground/[0.05] text-foreground",
+                          changingRoom && "opacity-50 cursor-wait",
+                        )}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="font-bold">{room.number}</span>
+                          <span className="text-foreground-muted text-xs">{room.room_type_name}</span>
+                        </span>
+                        {room.number === currentRoom && (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        )}
+                        {changingRoom && room.number !== currentRoom && (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground-muted" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </section>
 
@@ -330,13 +392,13 @@ export function GuestQuickActionsDrawer({
 
           {/* Billing & Company */}
           <section>
-            <div className="rounded-2xl border border-foreground/10 bg-zinc-50 dark:bg-zinc-800/50 p-4 space-y-3">
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
                   Billing & Company
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-foreground-muted">Guest Name</span>
+                  <span className="text-xs text-foreground-muted">Bill to Company</span>
                   <Toggle checked={billToCompany} onChange={setBillToCompany} />
                 </div>
               </div>
@@ -355,8 +417,13 @@ export function GuestQuickActionsDrawer({
         {/* ── Footer ───────────────────────────────────────────────────── */}
         <div className="border-t border-foreground/10 p-5 flex-shrink-0 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-foreground-muted font-medium">Total Balance</p>
-            <p className="text-2xl font-bold text-foreground">{fmtEur(balance)}</p>
+            <div>
+              <p className="text-xs text-foreground-muted font-medium">Total Balance</p>
+              {addOnTotal > 0 && (
+                <p className="text-[10px] text-emerald-600">incl. {fmtEur(addOnTotal)} new charges</p>
+              )}
+            </div>
+            <p className="text-2xl font-bold text-foreground">{fmtEur(displayBalance)}</p>
           </div>
           <button
             type="button"

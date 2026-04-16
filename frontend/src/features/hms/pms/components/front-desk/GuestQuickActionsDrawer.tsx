@@ -131,6 +131,7 @@ export function GuestQuickActionsDrawer({
 }: GuestQuickActionsDrawerProps) {
   const { openPanel } = useRightPanel();
   const queryClient = useQueryClient();
+  const reservationId = guest?.reservation_id ?? null;
 
   const [addOns, setAddOns] = useState<AddOns>({ parking: false, breakfast: false, pet: false });
   const [pendingAddon, setPendingAddon] = useState<AddOnKey | null>(null);
@@ -141,9 +142,14 @@ export function GuestQuickActionsDrawer({
   const [changingRoom, setChangingRoom] = useState(false);
 
   const { data: summary, refetch: refetchSummary } = useQuery({
-    queryKey: ["pms", "reservation-summary", guest?.reservation_id],
-    queryFn: () => fetchPmsReservationSummary(guest!.reservation_id, defaultHotelPropertyId),
-    enabled: open && Boolean(guest?.reservation_id),
+    queryKey: ["pms", "reservation-summary", reservationId],
+    queryFn: () => {
+      if (reservationId === null) {
+        throw new Error("Missing reservation id for guest summary");
+      }
+      return fetchPmsReservationSummary(reservationId, defaultHotelPropertyId);
+    },
+    enabled: open && reservationId !== null,
     staleTime: 30_000,
   });
 
@@ -157,9 +163,10 @@ export function GuestQuickActionsDrawer({
   });
 
   if (!guest) return null;
+  const activeGuest = guest;
 
   // Live balance = server balance + cost of any add-ons ticked this session
-  const baseBalance = summary?.folio_balance_due ?? guest.total_amount;
+  const baseBalance = summary?.folio_balance_due ?? activeGuest.total_amount;
   const addOnTotal = (Object.keys(ADDON_PRICES) as AddOnKey[]).reduce(
     (sum, key) => sum + (addOns[key] ? ADDON_PRICES[key].price : 0),
     0,
@@ -174,7 +181,7 @@ export function GuestQuickActionsDrawer({
     if (addOns[key]) return; // already added — don't double-charge
     setPendingAddon(key);
     try {
-      await createPmsReservationCharge(guest.reservation_id, {
+      await createPmsReservationCharge(activeGuest.reservation_id, {
         description: ADDON_PRICES[key].label,
         quantity: 1,
         unit_price: ADDON_PRICES[key].price,
@@ -195,7 +202,7 @@ export function GuestQuickActionsDrawer({
   async function handleChangeRoom(roomNumber: string) {
     setChangingRoom(true);
     try {
-      await patchHotelReservation(guest.reservation_id, { room: roomNumber });
+      await patchHotelReservation(activeGuest.reservation_id, { room: roomNumber });
       toast.success(`Room changed to ${roomNumber}.`);
       setRoomPickerOpen(false);
       void refetchSummary();
@@ -212,7 +219,7 @@ export function GuestQuickActionsDrawer({
     if (!contactId) {
       try {
         setSyncingGuest(true);
-        const synced = await syncPmsReservationGuest(guest.reservation_id);
+        const synced = await syncPmsReservationGuest(activeGuest.reservation_id);
         contactId = synced.guest_id;
       } catch {
         toast.error("Could not load guest profile. Try again.");
@@ -225,11 +232,11 @@ export function GuestQuickActionsDrawer({
     openPanel({
       type: "guest.details",
       data: { contactId: String(contactId) },
-      title: `Edit: ${guest.guest_name}`,
+      title: `Edit: ${activeGuest.guest_name}`,
     });
   }
 
-  const currentRoom = summary?.room ?? guest.room;
+  const currentRoom = summary?.room ?? activeGuest.room;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -240,10 +247,10 @@ export function GuestQuickActionsDrawer({
         <div className="flex items-start justify-between gap-4 border-b border-foreground/10 px-6 py-5 pr-12 flex-shrink-0">
           <div className="min-w-0">
             <DialogTitle className="font-bold text-xl text-foreground truncate">
-              {guest.guest_name}
+              {activeGuest.guest_name}
             </DialogTitle>
             <p className="text-sm text-foreground-muted mt-0.5">
-              Reservation #{guest.booking_id}
+              Reservation #{activeGuest.booking_id}
             </p>
           </div>
         </div>
@@ -292,7 +299,7 @@ export function GuestQuickActionsDrawer({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground truncate">
-                    {guest.room_type_label ?? "Hotel Room"}
+                    {activeGuest.room_type_label ?? "Hotel Room"}
                   </p>
                   <p className="text-xs text-foreground-muted mt-0.5">
                     {currentRoom ? `Room ${currentRoom}` : "Room TBD"}
@@ -368,7 +375,7 @@ export function GuestQuickActionsDrawer({
             </div>
             <div className="space-y-3">
               {[
-                { label: "Name", value: guest.guest_name },
+                { label: "Name", value: activeGuest.guest_name },
                 { label: "Email", value: summary?.guest_email ?? "—" },
                 { label: "Phone", value: summary?.guest_phone ?? "—" },
               ].map(({ label, value }) => (

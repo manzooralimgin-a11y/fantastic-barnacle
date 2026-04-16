@@ -81,10 +81,12 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> User:
 
 
 async def authenticate_user(db: AsyncSession, payload: LoginRequest) -> TokenResponse:
-    result = await db.execute(select(User).where(func.lower(User.email) == payload.email.lower()))
+    normalized_email = payload.email.strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.email) == normalized_email))
     user = result.scalar_one_or_none()
+    password_valid = user is not None and verify_password(payload.password, user.password_hash)
 
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if user is None or not password_valid:
         emit_sensitive_audit(
             action="auth_login",
             tenant_id=None,
@@ -92,7 +94,12 @@ async def authenticate_user(db: AsyncSession, payload: LoginRequest) -> TokenRes
             agent_id=None,
             status="blocked",
             detail="Invalid credentials",
-            metadata={"email": payload.email},
+            metadata={
+                "email": payload.email,
+                "normalized_email": normalized_email,
+                "user_found": user is not None,
+                "password_valid": password_valid,
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -107,6 +114,14 @@ async def authenticate_user(db: AsyncSession, payload: LoginRequest) -> TokenRes
             agent_id=None,
             status="blocked",
             detail="Deactivated account attempted login",
+            metadata={
+                "email": user.email,
+                "normalized_email": normalized_email,
+                "user_found": True,
+                "password_valid": password_valid,
+                "is_active": user.is_active,
+                "role": user.role.value,
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -120,6 +135,14 @@ async def authenticate_user(db: AsyncSession, payload: LoginRequest) -> TokenRes
         agent_id=None,
         status="success",
         detail="User authenticated",
+        metadata={
+            "email": user.email,
+            "normalized_email": normalized_email,
+            "user_found": True,
+            "password_valid": password_valid,
+            "is_active": user.is_active,
+            "role": user.role.value,
+        },
     )
     return await _issue_tokens(db, user)
 

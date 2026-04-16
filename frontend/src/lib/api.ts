@@ -10,6 +10,21 @@ function normalizeApiBaseUrl(raw: string): string {
   return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 }
 
+function resolveApiBaseUrl(baseURL: string, env: NodeJS.ProcessEnv = process.env): string {
+  if (/^https?:\/\//i.test(baseURL)) {
+    return baseURL.replace(/\/+$/, "");
+  }
+  const normalized = baseURL.startsWith("/") ? baseURL : `/${baseURL}`;
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${normalized}`.replace(/\/+$/, "");
+  }
+  const fallbackOrigin = env.NEXT_PUBLIC_SAAS_BASE_URL?.trim();
+  if (fallbackOrigin) {
+    return `${fallbackOrigin.replace(/\/+$/, "")}${normalized}`.replace(/\/+$/, "");
+  }
+  return normalized.replace(/\/+$/, "");
+}
+
 export function getApiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
   if (typeof window !== "undefined" && env.NODE_ENV === "development") {
     const override = localStorage.getItem("gestronomy_api_url");
@@ -19,6 +34,21 @@ export function getApiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
     return normalizeApiBaseUrl(env.NEXT_PUBLIC_API_URL);
   }
   return "/api";
+}
+
+export function resolveApiRequestUrl(
+  config: Pick<AxiosRequestConfig, "baseURL" | "url">,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const baseURL = resolveApiBaseUrl(config.baseURL || getApiBaseUrl(env), env);
+  const url = String(config.url || "").trim();
+  if (!url) {
+    return baseURL;
+  }
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  return `${baseURL}/${url.replace(/^\/+/, "")}`;
 }
 
 export interface ApiClientLike {
@@ -40,6 +70,14 @@ api.interceptors.request.use((config) => {
     (typeof window !== "undefined" ? localStorage.getItem("access_token") : null);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (typeof window !== "undefined" && config.url?.includes("/auth/")) {
+    console.info("API request", {
+      method: config.method?.toUpperCase() || "GET",
+      url: resolveApiRequestUrl(config),
+      baseURL: config.baseURL || getApiBaseUrl(),
+      origin: window.location.origin,
+    });
   }
   return config;
 });
@@ -83,15 +121,32 @@ api.interceptors.response.use(
       }
     }
 
+    // Do not log cancelled / aborted requests as errors. React Query cancels
+    // in-flight requests when components unmount or the user closes a panel;
+    // these are benign and show up here with no response and a cancel code.
+    const isCanceled =
+      axios.isCancel?.(error) ||
+      error.code === "ERR_CANCELED" ||
+      error.name === "CanceledError" ||
+      error.message === "canceled";
+
     const status = error.response?.status;
-    if (!status || status >= 500) {
+    if (!isCanceled && (!status || status >= 500 || config.url?.includes("/auth/"))) {
+      const requestUrl = resolveApiRequestUrl(config);
       console.error("API request failed", {
         method: config.method?.toUpperCase() || "GET",
         url: config.url,
-        baseURL: config.baseURL,
+        requestUrl,
+        baseURL: config.baseURL || getApiBaseUrl(),
+        origin: typeof window !== "undefined" ? window.location.origin : null,
         status: status ?? "network_error",
-        detail: error.response?.data ?? error.message,
+        code: error.code ?? null,
+        message: error.message,
+        detail: error.response?.data ?? null,
       });
+      console.error(error.response?.data);
+      console.error(error.message);
+      console.error(error);
     }
 
     return Promise.reject(error);

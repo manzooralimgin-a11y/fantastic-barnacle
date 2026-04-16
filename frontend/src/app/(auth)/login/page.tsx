@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getMe, login } from "@/lib/auth";
+import { getApiBaseUrl, getApiErrorMessage, resolveApiRequestUrl } from "@/lib/api";
 import { normalizeDomain } from "@/lib/domain-config";
 import { useAuthStore } from "@/stores/auth-store";
 import { getDefaultDashboardRoute } from "@/lib/role-routing";
@@ -33,6 +34,9 @@ export default function LoginPage() {
       useAuthStore.getState().setUser(user);
       router.push(getDefaultDashboardRoute(user.role, normalizeDomain(activeSection)));
     } catch (err: unknown) {
+      const apiBaseUrl = getApiBaseUrl();
+      const loginRequestUrl = resolveApiRequestUrl({ baseURL: apiBaseUrl, url: "/auth/login" });
+      const meRequestUrl = resolveApiRequestUrl({ baseURL: apiBaseUrl, url: "/auth/me" });
       const axiosErr = err as {
         response?: {
           status?: number;
@@ -42,36 +46,28 @@ export default function LoginPage() {
           };
         };
         code?: string;
+        message?: string;
       };
 
-      if (!axiosErr.response) {
-        setError("Cannot reach server. Please check your internet connection.");
-      } else {
-        const data = axiosErr.response?.data ?? {};
-        const detail = data.detail;
+      console.error("Login failed", {
+        origin: typeof window !== "undefined" ? window.location.origin : null,
+        apiBaseUrl,
+        loginRequestUrl,
+        meRequestUrl,
+        status: axiosErr.response?.status ?? "network_error",
+        code: axiosErr.code ?? null,
+        message: axiosErr.message ?? null,
+      });
+      console.error(axiosErr.response?.data);
+      console.error(axiosErr.message);
+      console.error(err);
 
-        // Use backend `error` field first (canonical), then detail, then generic
-        let message: string;
-        if (typeof data.error === "string" && data.error.trim()) {
-          message = data.error;
-        } else if (typeof detail === "string" && detail.trim()) {
-          message = detail;
-        } else if (Array.isArray(detail) && detail.length > 0) {
-          // Pydantic v2: items are strings — objects with .msg are Pydantic v1
-          message = detail
-            .map((d) => {
-              if (typeof d === "string") {
-                const colonIdx = d.indexOf(": ");
-                return colonIdx !== -1 ? d.slice(colonIdx + 2) : d;
-              }
-              return (d as { msg?: string }).msg ?? String(d);
-            })
-            .join(" · ");
-        } else {
-          message = "Invalid email or password. Please try again.";
-        }
-        setError(message);
+      if (!axiosErr.response) {
+        setError(`Cannot reach server at ${loginRequestUrl}. This is usually a network or CORS issue.`);
+        return;
       }
+
+      setError(getApiErrorMessage(err, "Invalid email or password. Please try again."));
     } finally {
       setLoading(false);
     }

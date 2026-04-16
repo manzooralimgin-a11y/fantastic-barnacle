@@ -255,19 +255,28 @@ async def seed_reservations(
 ):
     """
     Seed 15 restaurant reservations for today and 15 for tomorrow.
-    Deletes any existing seeded reservations first (source='seed') then re-creates.
+    Deletes any existing seeded reservations first (notes='__seed__') then re-creates.
     """
+    import traceback as _tb
+    try:
+        return await _do_seed_reservations(db)
+    except Exception as exc:
+        logger.exception("seed_reservations failed")
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}\n{_tb.format_exc()[-800:]}")
+
+
+async def _do_seed_reservations(db: AsyncSession):
     # Get first restaurant
     rest_result = await db.execute(select(Restaurant).order_by(Restaurant.id).limit(1))
     restaurant = rest_result.scalar_one_or_none()
     if not restaurant:
         raise HTTPException(status_code=404, detail="No restaurant found — run /api/admin/bootstrap first")
 
-    # Remove previously seeded reservations
+    # Remove previously seeded reservations (identified by notes marker)
     await db.execute(
         delete(Reservation).where(
             Reservation.restaurant_id == restaurant.id,
-            Reservation.source == "seed",
+            Reservation.notes == "__seed__",
         )
     )
 
@@ -316,9 +325,9 @@ async def seed_reservations(
                 start_time=slot,
                 duration_min=90,
                 status=status,
-                source="seed",
+                source=source,
                 special_requests=None,
-                notes=None,
+                notes="__seed__",
                 payment_status="pending",
             )
             db.add(r)

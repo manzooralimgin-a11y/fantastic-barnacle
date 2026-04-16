@@ -15,6 +15,7 @@ type HotelOverview = {
   occupied: number;
   available: number;
   cleaning: number;
+  arriving_today?: number;
 };
 
 type RoomStatus = {
@@ -84,10 +85,10 @@ export default function HMSDashboardPage() {
       {fetchError && <ApiError message={fetchError} dismissible={false} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard label="Total Inventory" value={overview.total_rooms} icon={Bed} trend="+0% vs LW" />
-        <StatCard label="Live Occupancy" value={overview.occupied} icon={Users} trend="+12% vs LW" />
-        <StatCard label="Available Now" value={overview.available} icon={TrendingUp} trend="-2 since 8am" />
-        <StatCard label="In Turnover" value={overview.cleaning} icon={CleaningBuckets} trend="4 pending" />
+        <StatCard label="Total Inventory" value={overview.total_rooms} icon={Bed} trend={`${overview.total_rooms} rooms total`} />
+        <StatCard label="Live Occupancy" value={overview.occupied} icon={Users} trend={overview.total_rooms ? `${Math.round((overview.occupied / overview.total_rooms) * 100)}% occupancy` : "0% occupancy"} />
+        <StatCard label="Available Now" value={overview.available} icon={TrendingUp} trend={overview.arriving_today ? `${overview.arriving_today} arriving today` : "no arrivals today"} />
+        <StatCard label="In Turnover" value={overview.cleaning} icon={CleaningBuckets} trend={overview.cleaning ? `${overview.cleaning} rooms pending` : "all clear"} />
       </div>
 
 

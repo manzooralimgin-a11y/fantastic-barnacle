@@ -253,20 +253,53 @@ async def get_hms_overview(
             "cleaning": 0,
         }
 
+    today = date.today()
+
+    # Live occupancy = reservations currently checked in (status='checked_in')
+    # whose stay overlaps today. This is the ground truth regardless of
+    # whether Room.status was updated.
+    occupied_result = await db.execute(
+        select(func.count(HotelReservation.id)).where(
+            HotelReservation.property_id == prop.id,
+            HotelReservation.status == "checked_in",
+            HotelReservation.check_in <= today,
+            HotelReservation.check_out > today,
+        )
+    )
+    occupied = int(occupied_result.scalar() or 0)
+
+    # Rooms arriving today (booked/confirmed, not yet checked in) still count
+    # as occupied from an availability standpoint.
+    arriving_result = await db.execute(
+        select(func.count(HotelReservation.id)).where(
+            HotelReservation.property_id == prop.id,
+            HotelReservation.status.in_(["confirmed", "booked"]),
+            HotelReservation.check_in == today,
+        )
+    )
+    arriving_today = int(arriving_result.scalar() or 0)
+
+    # Room.status 'cleaning' from housekeeping is still useful for turnover metric
     status_counts = await db.execute(
         select(Room.status, func.count(Room.id))
         .where(Room.property_id == prop.id)
         .group_by(Room.status)
     )
     counts = {s: c for s, c in status_counts.all()}
+    cleaning = counts.get("cleaning", 0)
+
+    total = expected_room_count()
+    # Available = total minus checked-in guests minus arriving today minus rooms in turnover
+    available = max(total - occupied - arriving_today - cleaning, 0)
 
     return {
         "hotel_name": prop.name,
         "city": prop.city,
-        "total_rooms": expected_room_count(),
-        "occupied": counts.get("occupied", 0),
-        "available": max(expected_room_count() - counts.get("occupied", 0) - counts.get("cleaning", 0), 0),
-        "cleaning": counts.get("cleaning", 0),
+        "total_rooms": total,
+        "occupied": occupied,
+        "available": available,
+        "cleaning": cleaning,
+        "arriving_today": arriving_today,
     }
 
 

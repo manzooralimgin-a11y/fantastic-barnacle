@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import os
 import logging
+import random
+from datetime import date, time, timedelta
 from fastapi import APIRouter, Body, Depends, HTTPException, Header
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -19,6 +21,7 @@ from app.auth.utils import hash_password
 from app.hms.models import HotelProperty, RoomType, Room
 from app.hms.rbac import ensure_hotel_rbac_bootstrap
 from app.menu.models import MenuCategory, MenuItem
+from app.reservations.models import Reservation
 
 logger = logging.getLogger("app.bootstrap")
 router = APIRouter()
@@ -242,4 +245,91 @@ async def reset_password(
         "status": "ok",
         "email": user.email,
         "message": "Password updated. You can now log in with the new password.",
+    }
+
+
+@router.post("/admin/seed-reservations", tags=["Bootstrap"])
+async def seed_reservations(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_check_secret),
+):
+    """
+    Seed 15 restaurant reservations for today and 15 for tomorrow.
+    Deletes any existing seeded reservations first (source='seed') then re-creates.
+    """
+    # Get first restaurant
+    rest_result = await db.execute(select(Restaurant).order_by(Restaurant.id).limit(1))
+    restaurant = rest_result.scalar_one_or_none()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="No restaurant found — run /api/admin/bootstrap first")
+
+    # Remove previously seeded reservations
+    await db.execute(
+        delete(Reservation).where(
+            Reservation.restaurant_id == restaurant.id,
+            Reservation.source == "seed",
+        )
+    )
+
+    GUEST_NAMES = [
+        "Anna Müller", "Thomas Schneider", "Sophie Wagner", "Felix Becker",
+        "Laura Hoffmann", "Maximilian Koch", "Emma Richter", "Luca Fischer",
+        "Marie Braun", "Jonas Weber", "Hannah Schäfer", "Elias Zimmermann",
+        "Mia Krause", "Noah Hartmann", "Lea Schuster", "David Bergmann",
+        "Julia Neumann", "Paul Schulz", "Sarah Klein", "Tim Lange",
+        "Viktoria Huber", "Florian Baumann", "Christina Vogel", "Moritz Wolf",
+        "Stefanie Roth", "Andreas Keller", "Katharina Groß", "Tobias Lorenz",
+        "Nina Frank", "Patrick Schmid",
+    ]
+
+    SLOT_TIMES = [
+        time(12, 0), time(12, 30), time(13, 0), time(13, 30), time(14, 0),
+        time(18, 0), time(18, 30), time(19, 0), time(19, 30), time(20, 0),
+        time(20, 30), time(21, 0),
+    ]
+
+    STATUSES = ["confirmed"] * 10 + ["pending"] * 3 + ["seated"] * 2
+    SOURCES = ["online"] * 8 + ["phone"] * 5 + ["walk_in"] * 2
+
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    created = 0
+    guest_pool = GUEST_NAMES.copy()
+    random.shuffle(guest_pool)
+
+    for target_date in (today, tomorrow):
+        slots = SLOT_TIMES.copy()
+        random.shuffle(slots)
+        for i in range(15):
+            name = guest_pool[(created) % len(guest_pool)]
+            slot = slots[i % len(slots)]
+            party = random.randint(1, 6)
+            status = STATUSES[i % len(STATUSES)]
+            source = SOURCES[i % len(SOURCES)]
+            r = Reservation(
+                restaurant_id=restaurant.id,
+                guest_name=name,
+                guest_email=f"{name.lower().replace(' ', '.')}@example.com",
+                guest_phone=f"+49 {random.randint(150,179)} {random.randint(1000000,9999999)}",
+                party_size=party,
+                reservation_date=target_date,
+                start_time=slot,
+                duration_min=90,
+                status=status,
+                source="seed",
+                special_requests=None,
+                notes=None,
+                payment_status="pending",
+            )
+            db.add(r)
+            created += 1
+
+    await db.commit()
+    logger.info("seed_reservations completed", extra={"created": created})
+    return {
+        "status": "ok",
+        "created": created,
+        "today": str(today),
+        "tomorrow": str(tomorrow),
+        "restaurant_id": restaurant.id,
     }

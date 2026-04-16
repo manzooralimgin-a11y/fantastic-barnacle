@@ -72,6 +72,21 @@ async def ensure_test_schema_compatibility() -> AsyncGenerator[None, None]:
             "ALTER TABLE guest_profiles ADD COLUMN IF NOT EXISTS custom_fields_json JSON"
         )
         await connection.exec_driver_sql(
+            """
+            ALTER TABLE hms_reservations
+            ADD COLUMN IF NOT EXISTS billing_guest_id INTEGER REFERENCES guest_profiles(id) ON DELETE SET NULL
+            """
+        )
+        await connection.exec_driver_sql(
+            "ALTER TABLE hms_reservations ADD COLUMN IF NOT EXISTS booking_source VARCHAR(80)"
+        )
+        await connection.exec_driver_sql(
+            "ALTER TABLE hms_reservations ADD COLUMN IF NOT EXISTS color_tag VARCHAR(20)"
+        )
+        await connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_hms_reservations_billing_guest_id ON hms_reservations (billing_guest_id)"
+        )
+        await connection.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_guest_profiles_birthday ON guest_profiles (birthday)"
         )
         await connection.exec_driver_sql(

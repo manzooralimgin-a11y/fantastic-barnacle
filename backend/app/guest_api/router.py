@@ -13,10 +13,11 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.utils import create_access_token, decode_access_token
+from app.config import settings
 from app.database import get_db
 from app.hms.housekeeping_service import (
     create_housekeeping_task,
@@ -207,9 +208,7 @@ def _create_guest_token(
     }
     # Re-use the same create_access_token infrastructure but embed extra claims.
     # We pass a fake sub=0 and override the type so staff token validation rejects it.
-    from app.auth.utils import create_access_token as _cat
     import jwt
-    from app.core.config import settings
     now = datetime.now(timezone.utc)
     payload = {
         "sub": f"guest:{booking_id}",
@@ -223,7 +222,6 @@ def _create_guest_token(
 def _decode_guest_token(token: str) -> dict | None:
     """Decode and validate a guest JWT, returning claims or None."""
     import jwt
-    from app.core.config import settings
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         if payload.get("type") != GUEST_TOKEN_TYPE:
@@ -385,18 +383,67 @@ async def guest_auth(
     Validate booking_id + last_name against HotelReservation records.
     Returns a short-lived guest JWT containing room and property context.
     """
-    booking_id = payload.booking_id.strip().upper()
-    last_name = payload.last_name.strip().lower()
+    raw_booking_id = payload.booking_id
+    raw_last_name = payload.last_name
+    booking_id = raw_booking_id.strip()
+    last_name = raw_last_name.strip().lower()
+
+    logger.info(
+        "Guest auth request received: raw_booking_id=%r normalized_booking_id=%r raw_last_name=%r",
+        raw_booking_id,
+        booking_id,
+        raw_last_name,
+    )
+
+    if not booking_id:
+        logger.warning("Guest auth failed: raw_booking_id=%r reason=empty_booking_id", raw_booking_id)
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Booking ID is required")
+
+    if not last_name:
+        logger.warning(
+            "Guest auth failed: raw_booking_id=%r matched_booking_id=None reason=empty_last_name",
+            raw_booking_id,
+        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Last name is required")
 
     reservation = await db.scalar(
         select(HotelReservation).where(HotelReservation.booking_id == booking_id)
     )
+    logger.info(
+        "Guest auth exact lookup: booking_id=%r matched=%s",
+        booking_id,
+        reservation is not None,
+    )
+
+    matched_case_insensitively = False
     if reservation is None:
+        reservation = await db.scalar(
+            select(HotelReservation).where(func.lower(HotelReservation.booking_id) == booking_id.lower())
+        )
+        matched_case_insensitively = reservation is not None
+        logger.info(
+            "Guest auth case-insensitive lookup: booking_id=%r matched=%s matched_booking_id=%r",
+            booking_id,
+            matched_case_insensitively,
+            reservation.booking_id if reservation is not None else None,
+        )
+
+    if reservation is None:
+        logger.warning(
+            "Guest auth failed: raw_booking_id=%r normalized_booking_id=%r reason=booking_not_found",
+            raw_booking_id,
+            booking_id,
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Booking not found")
 
     # Validate last name — guest_name field contains full name
     guest_name_lower = (reservation.guest_name or "").lower()
     if last_name not in guest_name_lower:
+        logger.warning(
+            "Guest auth failed: raw_booking_id=%r matched_booking_id=%r reason=last_name_mismatch",
+            raw_booking_id,
+            reservation.booking_id,
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Last name does not match booking")
 
     # Resolve the room record — reservation.room holds room_number as string
@@ -413,8 +460,17 @@ async def guest_auth(
             detail=f"Room {room_number} not found in property",
         )
 
+    logger.info(
+        "Guest auth success: raw_booking_id=%r matched_booking_id=%r property_id=%s room_number=%r case_insensitive_fallback=%s",
+        raw_booking_id,
+        reservation.booking_id,
+        reservation.property_id,
+        room_number,
+        matched_case_insensitively,
+    )
+
     token = _create_guest_token(
-        booking_id=booking_id,
+        booking_id=reservation.booking_id,
         room_number=room_number,
         room_id=room_record.id,
         property_id=reservation.property_id,
@@ -425,7 +481,7 @@ async def guest_auth(
         access_token=token,
         room_number=room_number,
         guest_name=reservation.guest_name or "",
-        booking_id=booking_id,
+        booking_id=reservation.booking_id,
     )
 
 

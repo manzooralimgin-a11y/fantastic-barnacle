@@ -103,11 +103,11 @@ export default function LoginScreen() {
 
   const validate = () => {
     const e = {}
-    const bn = bookingNumber.trim().toUpperCase()
+    const bn = bookingNumber.trim()
     if (!bn) {
       e.bookingNumber = 'Booking number is required.'
-    } else if (!/^BK\d{6}$/.test(bn)) {
-      e.bookingNumber = 'Format should be BK followed by 6 digits (e.g. BK123456).'
+    } else if (bn.length < 3) {
+      e.bookingNumber = 'Booking number looks too short.'
     }
     if (!lastName.trim()) {
       e.lastName = 'Last name is required.'
@@ -122,8 +122,8 @@ export default function LoginScreen() {
     e.preventDefault()
     if (!validate()) return
     const success = await login({
-      bookingNumber: bookingNumber.trim().toUpperCase(),
-      lastName:      lastName.trim(),
+      bookingNumber,
+      lastName,
     })
     if (success) setLoginSuccess(true)
   }
@@ -173,15 +173,15 @@ export default function LoginScreen() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <Field
               label="Booking Number"
-              placeholder="e.g. BK123456"
+              placeholder="e.g. SWED0416-012 or BK000123"
               value={bookingNumber}
               onChange={(e) => {
-                setBookingNumber(e.target.value.toUpperCase())
+                setBookingNumber(e.target.value)
                 setErrors((p) => ({ ...p, bookingNumber: '' }))
               }}
               error={errors.bookingNumber}
               icon={BookOpen}
-              hint="Found in your confirmation email"
+              hint="Exactly as shown in your confirmation email"
             />
 
             <Field

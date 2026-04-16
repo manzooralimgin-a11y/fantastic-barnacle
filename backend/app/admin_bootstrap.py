@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.auth.models import User, UserRole, Restaurant
 from app.auth.utils import hash_password
-from app.hms.models import HotelProperty, RoomType, Room, HotelReservation
+from app.hms.models import HotelProperty, RoomType, Room, HotelReservation, HotelStay, HotelFolio, HotelInvoice
 from app.hms.rbac import ensure_hotel_rbac_bootstrap
 from app.menu.models import MenuCategory, MenuItem
 from app.reservations.models import Reservation
@@ -441,11 +441,61 @@ async def _do_seed_hotel_bookings(db: AsyncSession):
                 zahlungs_status="bezahlt" if status == "confirmed" else "offen",
             )
             db.add(r)
+            await db.flush()  # get r.id
+
+            # Create stay
+            stay = HotelStay(
+                property_id=prop.id,
+                reservation_id=r.id,
+                planned_check_in=check_in_date,
+                planned_check_out=check_out_date,
+                status="booked",
+                notes="__seed__",
+            )
+            db.add(stay)
+            await db.flush()  # get stay.id
+
+            # Create folio
+            folio_number = f"F-{check_in_date.strftime('%m%d')}-{idx:03d}"
+            is_paid = status == "confirmed"
+            folio = HotelFolio(
+                property_id=prop.id,
+                stay_id=stay.id,
+                reservation_id=r.id,
+                folio_number=folio_number,
+                currency=prop.currency or "EUR",
+                status="closed" if is_paid else "open",
+                subtotal=round(total / 1.07, 2),
+                tax_amount=round(total - total / 1.07, 2),
+                discount_amount=0.0,
+                total=total,
+                balance_due=0.0 if is_paid else total,
+            )
+            db.add(folio)
+            await db.flush()  # get folio.id
+
+            # Create invoice
+            from datetime import timezone as _tz
+            invoice_number = f"INV-{check_in_date.strftime('%Y%m%d')}-{idx:03d}"
+            invoice = HotelInvoice(
+                property_id=prop.id,
+                reservation_id=r.id,
+                stay_id=stay.id,
+                folio_id=folio.id,
+                invoice_number=invoice_number,
+                status="issued" if is_paid else "draft",
+                currency=prop.currency or "EUR",
+                recipient_name=name,
+                recipient_email=f"{first}.{last}@example.com",
+                issued_at=__import__('datetime').datetime.now(_tz.utc) if is_paid else None,
+            )
+            db.add(invoice)
+
             created += 1
             idx += 1
 
     await db.commit()
-    logger.info("seed_hotel_bookings completed: %d bookings inserted", created)
+    logger.info("seed_hotel_bookings completed: %d bookings with stays/folios/invoices inserted", created)
     return {
         "status": "ok",
         "created": created,

@@ -33,7 +33,7 @@ function FieldGroup({
 }) {
   return (
     <div>
-      <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
+      <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#8ab89a]">
         <Icon className="h-3 w-3" />
         {label}
       </label>
@@ -42,8 +42,12 @@ function FieldGroup({
   );
 }
 
+// Dark-green panel palette
+const panelBg = "bg-[#15302200]"; // applied at wrapper level via className
+const cardCls = "rounded-2xl border border-[#3a6b4a]/40 bg-[#1a3d2b] p-4 space-y-4";
+const labelCls = "text-[10px] font-bold uppercase tracking-widest text-[#8ab89a]";
 const inputCls =
-  "w-full rounded-xl border border-foreground/10 bg-muted px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 transition-shadow placeholder:text-foreground-muted/60";
+  "w-full rounded-xl border border-[#3a6b4a]/60 bg-[#122a1d] px-3 py-2.5 text-sm text-[#f0e8d4] outline-none focus:ring-2 focus:ring-[#5d9e72]/40 transition-shadow placeholder:text-[#6d9b7b]/60";
 
 export function GuestDetailsPanel({ panel }: Props) {
   const { closePanel, registerSubmitHandler, setDirty } = useRightPanel();
@@ -124,29 +128,27 @@ export function GuestDetailsPanel({ panel }: Props) {
   }, [panel.id, registerSubmitHandler, form]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-2xl bg-[#112a1c] p-5 min-h-full">
       <div>
-        <h2 className="text-2xl font-editorial font-bold text-foreground">Guest Details</h2>
-        <p className="text-sm text-foreground-muted mt-1">
+        <h2 className="text-2xl font-editorial font-bold text-[#f0e8d4]">Guest Details</h2>
+        <p className="text-sm text-[#8ab89a] mt-1">
           Edit contact information for this guest.
         </p>
       </div>
 
       {query.isLoading ? (
-        <div className="flex items-center gap-3 text-sm text-foreground-muted py-8">
+        <div className="flex items-center gap-3 text-sm text-[#8ab89a] py-8">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading guest…
         </div>
       ) : (
         <div className="space-y-5">
           {/* Identity */}
-          <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4 space-y-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
-              Identity
-            </p>
+          <div className={cardCls}>
+            <p className={labelCls}>Identity</p>
 
             <FieldGroup icon={Tag} label="Salutation">
-              <select value={form.salutation} onChange={set("salutation")} className={inputCls}>
+              <select value={form.salutation} onChange={set("salutation")} className={`${inputCls} [&>option]:bg-[#122a1d] [&>option]:text-[#f0e8d4]`}>
                 <option value="">— Select —</option>
                 <option value="Herr">Herr</option>
                 <option value="Frau">Frau</option>
@@ -176,10 +178,8 @@ export function GuestDetailsPanel({ panel }: Props) {
           </div>
 
           {/* Contact */}
-          <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4 space-y-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
-              Contact
-            </p>
+          <div className={cardCls}>
+            <p className={labelCls}>Contact</p>
 
             <FieldGroup icon={Mail} label="Email Address">
               <input
@@ -203,10 +203,8 @@ export function GuestDetailsPanel({ panel }: Props) {
           </div>
 
           {/* Location */}
-          <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4 space-y-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
-              Location
-            </p>
+          <div className={cardCls}>
+            <p className={labelCls}>Location</p>
 
             <div className="grid grid-cols-[100px_1fr] gap-3">
               <FieldGroup icon={Globe} label="Code">
@@ -231,21 +229,19 @@ export function GuestDetailsPanel({ panel }: Props) {
 
           {/* Read-only stats */}
           {query.data && (
-            <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-4 space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted mb-3">
-                Stay History
-              </p>
+            <div className={cardCls}>
+              <p className={labelCls}>Stay History</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[10px] text-foreground-muted">Total Stays</p>
-                  <p className="text-lg font-editorial font-bold text-foreground">
+                  <p className="text-[10px] text-[#6d9b7b]">Total Stays</p>
+                  <p className="text-lg font-editorial font-bold text-[#f0e8d4]">
                     {query.data.reservation_count}
                   </p>
                 </div>
                 {query.data.last_stay_date && (
                   <div>
-                    <p className="text-[10px] text-foreground-muted">Last Stay</p>
-                    <p className="text-sm font-semibold text-foreground">
+                    <p className="text-[10px] text-[#6d9b7b]">Last Stay</p>
+                    <p className="text-sm font-semibold text-[#f0e8d4]">
                       {new Date(query.data.last_stay_date).toLocaleDateString("en-GB", {
                         day: "2-digit",
                         month: "short",
@@ -266,7 +262,7 @@ export function GuestDetailsPanel({ panel }: Props) {
         <button
           type="button"
           onClick={() => closePanel(panel.id)}
-          className="px-4 py-2.5 rounded-xl text-sm font-semibold text-foreground-muted hover:bg-foreground/5 transition-colors"
+          className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[#8ab89a] hover:bg-[#1a3d2b] transition-colors"
         >
           Close
         </button>
@@ -274,7 +270,7 @@ export function GuestDetailsPanel({ panel }: Props) {
           type="button"
           onClick={() => void submitForm()}
           disabled={saving || query.isLoading || !dirty}
-          className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+          className="bg-[#3a7d52] text-[#f0e8d4] px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
         >
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           {saving ? "Saving…" : "Save Guest"}

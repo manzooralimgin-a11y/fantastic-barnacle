@@ -35,7 +35,7 @@ ROOM_INVENTORY = {
         "409",
     ],
     "suite": ["206", "306", "401"],
-    "tagung": ["T1", "V1"],
+    "tagung": ["T1"],
 }
 
 
@@ -54,7 +54,7 @@ ROOM_CATEGORY_CONFIG: dict[str, RoomCategoryConfig] = {
     "4_pax": RoomCategoryConfig(
         key="4_pax",
         canonical_label="4_PAX",
-        display_label="4 PAX",
+        display_label="4 Pax+ Appartment",
         base_occupancy=4,
         max_occupancy=4,
         base_price=159.0,
@@ -78,7 +78,7 @@ ROOM_CATEGORY_CONFIG: dict[str, RoomCategoryConfig] = {
     "suite": RoomCategoryConfig(
         key="suite",
         canonical_label="SUITE",
-        display_label="Suite",
+        display_label="Suite Deluxe",
         base_occupancy=2,
         max_occupancy=4,
         base_price=199.0,

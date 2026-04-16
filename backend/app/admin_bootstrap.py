@@ -20,6 +20,7 @@ from app.auth.models import User, UserRole, Restaurant
 from app.auth.utils import hash_password
 from app.hms.models import HotelProperty, RoomType, Room, HotelReservation, HotelStay, HotelFolio, HotelInvoice
 from app.hms.rbac import ensure_hotel_rbac_bootstrap
+from app.hms.room_inventory import ROOM_INVENTORY, ROOM_CATEGORY_CONFIG, normalize_room_category
 from app.menu.models import MenuCategory, MenuItem
 from app.reservations.models import Reservation
 
@@ -147,32 +148,38 @@ async def bootstrap(
         await db.flush()
         log.append(f"Created hotel property id={prop.id} name='{prop.name}'")
 
-        # Room types
-        types_spec = [
-            {"name": "Standard Single", "base_occupancy": 1, "max_occupancy": 1, "base_price": 89.0},
-            {"name": "Standard Double", "base_occupancy": 2, "max_occupancy": 2, "base_price": 129.0},
-            {"name": "Deluxe River View", "base_occupancy": 2, "max_occupancy": 3, "base_price": 189.0},
-            {"name": "The Elb Suite", "base_occupancy": 2, "max_occupancy": 4, "base_price": 349.0},
-        ]
-        room_types = []
-        for ts in types_spec:
-            rt = RoomType(property_id=prop.id, **ts)
+        # Room types — canonical from room_inventory.py
+        room_types_by_key: dict[str, RoomType] = {}
+        for category_key, config in ROOM_CATEGORY_CONFIG.items():
+            rt = RoomType(
+                property_id=prop.id,
+                name=config.display_label,
+                base_occupancy=config.base_occupancy,
+                max_occupancy=config.max_occupancy,
+                base_price=config.base_price,
+                description=f"Canonical inventory category {config.canonical_label}",
+            )
             db.add(rt)
-            room_types.append(rt)
+            room_types_by_key[category_key] = rt
         await db.flush()
-        log.append(f"Created {len(room_types)} room types")
+        log.append(f"Created {len(room_types_by_key)} room types")
 
-        # Rooms
-        room_specs = [
-            (room_types[0].id, "101"), (room_types[0].id, "102"), (room_types[0].id, "103"),
-            (room_types[1].id, "201"), (room_types[1].id, "202"), (room_types[1].id, "203"),
-            (room_types[2].id, "301"), (room_types[2].id, "302"),
-            (room_types[3].id, "401"),
-        ]
-        for rt_id, num in room_specs:
-            db.add(Room(property_id=prop.id, room_type_id=rt_id, room_number=num, status="clean"))
+        # Rooms — all canonical room numbers from room_inventory.py
+        room_count = 0
+        for category_key, room_numbers in ROOM_INVENTORY.items():
+            rt = room_types_by_key[category_key]
+            for room_number in room_numbers:
+                floor = int(room_number[0]) if room_number and room_number[0].isdigit() else 0
+                db.add(Room(
+                    property_id=prop.id,
+                    room_type_id=rt.id,
+                    room_number=room_number,
+                    status="available",
+                    floor=floor,
+                ))
+                room_count += 1
         await db.flush()
-        log.append(f"Created {len(room_specs)} rooms")
+        log.append(f"Created {room_count} rooms")
     else:
         log.append(f"Hotel property already exists id={prop.id} name='{prop.name}'")
 
@@ -245,6 +252,124 @@ async def reset_password(
         "status": "ok",
         "email": user.email,
         "message": "Password updated. You can now log in with the new password.",
+    }
+
+
+@router.post("/admin/sync-rooms", tags=["Bootstrap"])
+async def sync_rooms(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_check_secret),
+):
+    """
+    Sync the DB room types and rooms to match the canonical room_inventory.py definition.
+    Safe to call multiple times — creates missing rooms, updates existing, removes stale ones.
+    """
+    import traceback as _tb
+    try:
+        return await _do_sync_rooms(db)
+    except Exception as exc:
+        logger.exception("sync_rooms failed")
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}\n{_tb.format_exc()[-800:]}")
+
+
+async def _do_sync_rooms(db: AsyncSession):
+    prop_result = await db.execute(select(HotelProperty).order_by(HotelProperty.id).limit(1))
+    prop = prop_result.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="No hotel property — run /api/admin/bootstrap first")
+
+    log: list[str] = []
+
+    # 1. Ensure canonical room types exist (upsert by normalized name)
+    rt_result = await db.execute(select(RoomType).where(RoomType.property_id == prop.id))
+    existing_rts = rt_result.scalars().all()
+
+    room_types_by_key: dict[str, RoomType] = {}
+    for category_key, config in ROOM_CATEGORY_CONFIG.items():
+        # Try to match by normalized name
+        matched = next(
+            (rt for rt in existing_rts if normalize_room_category(rt.name) == category_key),
+            None,
+        )
+        if matched is None:
+            matched = RoomType(
+                property_id=prop.id,
+                name=config.display_label,
+                base_occupancy=config.base_occupancy,
+                max_occupancy=config.max_occupancy,
+                base_price=config.base_price,
+                description=f"Canonical inventory category {config.canonical_label}",
+            )
+            db.add(matched)
+            await db.flush()
+            log.append(f"Created room type: {config.display_label}")
+        else:
+            matched.name = config.display_label
+            matched.base_occupancy = config.base_occupancy
+            matched.max_occupancy = config.max_occupancy
+            log.append(f"Updated room type: {config.display_label}")
+        room_types_by_key[category_key] = matched
+
+    await db.flush()
+
+    # 2. Build set of all canonical room numbers
+    canonical_numbers: set[str] = set()
+    for room_numbers in ROOM_INVENTORY.values():
+        for rn in room_numbers:
+            canonical_numbers.add(rn.strip().upper())
+
+    # 3. Fetch all existing rooms
+    rooms_result = await db.execute(select(Room).where(Room.property_id == prop.id))
+    existing_rooms = rooms_result.scalars().all()
+    existing_by_number = {r.room_number.strip().upper(): r for r in existing_rooms}
+
+    # 4. Delete rooms not in canonical inventory
+    deleted = 0
+    for number, room in list(existing_by_number.items()):
+        if number not in canonical_numbers:
+            await db.delete(room)
+            del existing_by_number[number]
+            deleted += 1
+            log.append(f"Deleted stale room: {number}")
+
+    # 5. Create / update canonical rooms
+    created = 0
+    updated = 0
+    for category_key, room_numbers in ROOM_INVENTORY.items():
+        rt = room_types_by_key[category_key]
+        for room_number in room_numbers:
+            normalized = room_number.strip().upper()
+            floor = int(normalized[0]) if normalized and normalized[0].isdigit() else 0
+            existing = existing_by_number.get(normalized)
+            if existing is None:
+                db.add(Room(
+                    property_id=prop.id,
+                    room_number=normalized,
+                    room_type_id=rt.id,
+                    status="available",
+                    floor=floor,
+                ))
+                created += 1
+                log.append(f"Created room: {normalized}")
+            else:
+                changed = False
+                if existing.room_type_id != rt.id:
+                    existing.room_type_id = rt.id
+                    changed = True
+                if existing.floor != floor:
+                    existing.floor = floor
+                    changed = True
+                if changed:
+                    updated += 1
+
+    await db.commit()
+    return {
+        "status": "ok",
+        "property_id": prop.id,
+        "created_rooms": created,
+        "updated_rooms": updated,
+        "deleted_rooms": deleted,
+        "log": log,
     }
 
 
@@ -374,6 +499,20 @@ async def _do_seed_hotel_bookings(db: AsyncSession):
     if not room_types:
         raise HTTPException(status_code=404, detail="No room types found — run /api/admin/bootstrap first")
 
+    # Get bookable rooms for assignment (exclude Tagung/non-bookable)
+    rooms_result = await db.execute(
+        select(Room).where(Room.property_id == prop.id).order_by(Room.room_number)
+    )
+    all_rooms = rooms_result.scalars().all()
+    bookable_rooms = [r for r in all_rooms if normalize_room_category(
+        next((rt.name for rt in room_types if rt.id == r.room_type_id), "")
+    ) not in ("tagung", None) or True]
+    # Filter to only rooms whose category is bookable
+    bookable_rooms = [
+        r for r in all_rooms
+        if r.room_number not in ("T1", "V1")
+    ]
+
     # Clear previous seed bookings
     await db.execute(
         delete(HotelReservation).where(
@@ -400,12 +539,18 @@ async def _do_seed_hotel_bookings(db: AsyncSession):
     created = 0
     idx = 0
 
-    rt_cycle = room_types  # cycle through available room types
+    # Use bookable rooms for cycling; fall back to room_types if no rooms synced yet
+    room_cycle = bookable_rooms if bookable_rooms else []
 
     for check_in_date in (today, tomorrow):
         for i in range(15):
             anrede, name = GUEST_NAMES[idx % len(GUEST_NAMES)]
-            rt = rt_cycle[idx % len(rt_cycle)]
+            # Pick a room from the cycle (if rooms exist), derive rt from it
+            assigned_room: Room | None = room_cycle[idx % len(room_cycle)] if room_cycle else None
+            if assigned_room is not None:
+                rt = next((r for r in room_types if r.id == assigned_room.room_type_id), room_types[idx % len(room_types)])
+            else:
+                rt = room_types[idx % len(room_types)]
             nights = random.randint(1, 5)
             check_out_date = check_in_date + timedelta(days=nights)
             adults = random.randint(1, min(2, rt.max_occupancy))
@@ -439,6 +584,7 @@ async def _do_seed_hotel_bookings(db: AsyncSession):
                 booking_source=source,
                 zahlungs_methode="Kreditkarte" if source != "Walk-In" else "Bar",
                 zahlungs_status="bezahlt" if status == "confirmed" else "offen",
+                room=assigned_room.room_number if assigned_room else None,
             )
             db.add(r)
             await db.flush()  # get r.id

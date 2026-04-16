@@ -10,7 +10,7 @@ def test_room_inventory_has_no_duplicate_rooms() -> None:
 
 
 def test_room_inventory_matches_expected_total() -> None:
-    assert sum(len(rooms) for rooms in ROOM_INVENTORY.values()) == 33
+    assert sum(len(rooms) for rooms in ROOM_INVENTORY.values()) == 32
 
 
 def test_room_inventory_room_numbers_are_non_empty_strings() -> None:

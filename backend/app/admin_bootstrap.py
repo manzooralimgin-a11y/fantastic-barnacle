@@ -1,18 +1,16 @@
 """
 Bootstrap endpoints — hotel property setup, RBAC seeding, user role promotion.
 
-/api/admin/first-run  — No secret required. Only works while NO admin exists.
-                        Promotes all registered users to admin and creates the
-                        hotel property. Auto-disables once an admin exists.
-
-/api/admin/bootstrap  — Secret-protected (BOOTSTRAP_SECRET env var). Full setup.
+/api/admin/first-run       — No secret required. Only works while NO admin exists.
+/api/admin/bootstrap       — Secret-protected (BOOTSTRAP_SECRET env var). Full setup.
+/api/admin/reset-password  — Secret-protected. Resets any user's password by email.
 """
 from __future__ import annotations
 
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy import select, update
+from fastapi import APIRouter, Body, Depends, HTTPException, Header
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -212,3 +210,36 @@ async def bootstrap(
 
     await db.commit()
     return {"status": "ok", "log": log}
+
+
+@router.post("/admin/reset-password", tags=["Bootstrap"])
+async def reset_password(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_check_secret),
+    email: str = Body(..., embed=True),
+    new_password: str = Body(..., embed=True),
+):
+    """
+    Secret-protected password reset.
+    Resets any user's password by email without requiring the current password.
+    Requires X-Bootstrap-Secret header.
+    """
+    if len(new_password) < 12:
+        raise HTTPException(status_code=422, detail="Password must be at least 12 characters")
+
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == email.lower().strip())
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"No user found with email: {email}")
+
+    user.password_hash = hash_password(new_password)
+    await db.commit()
+
+    logger.info("reset_password completed", extra={"email": email})
+    return {
+        "status": "ok",
+        "email": user.email,
+        "message": "Password updated. You can now log in with the new password.",
+    }

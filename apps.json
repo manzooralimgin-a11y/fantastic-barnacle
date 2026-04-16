@@ -40,7 +40,7 @@
       "node_version": "22",
       "lint_command": "npm run lint",
       "typecheck_command": "npm run typecheck",
-      "build_command": "npm run build",
+      "build_command": "npm run build:ci",
       "test_command": "",
       "e2e_command": "npx playwright test"
     },
@@ -54,6 +54,17 @@
       "build_command": "npm run build",
       "test_command": "npm test",
       "e2e_command": "npx playwright test"
+    },
+    {
+      "app_name": "mobile",
+      "app_path": "das-elb-mobile",
+      "runtime": "node",
+      "node_version": "22",
+      "lint_command": "",
+      "typecheck_command": "npm run typecheck",
+      "build_command": "npm run build:ci",
+      "test_command": "npm test",
+      "e2e_command": ""
     },
     {
       "app_name": "landing",

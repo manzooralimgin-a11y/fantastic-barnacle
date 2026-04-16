@@ -9,11 +9,11 @@
  *   - Error state shows a meaningful error message (not blank)
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const API_PATTERN = /localhost|gestronomy-api|127\.0\.0\.1/;
 
-async function injectAuth(page: Parameters<typeof test>[1]["page"]) {
+async function injectAuth(page: Page) {
   await page.goto("/");
   await page.evaluate(() => {
     localStorage.setItem("access_token", "mock.owner.token.for.ci");
@@ -21,7 +21,7 @@ async function injectAuth(page: Parameters<typeof test>[1]["page"]) {
   });
 }
 
-async function setupMocks(page: Parameters<typeof test>[1]["page"]) {
+async function setupMocks(page: Page) {
   await page.route(API_PATTERN, async (route) => {
     const url = route.request().url();
     const method = route.request().method();

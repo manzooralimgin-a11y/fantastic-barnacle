@@ -108,9 +108,18 @@ jobs:
           cache-dependency-path: ${{ inputs.app_path }}/package-lock.json
 
       # ── Install ──────────────────────────────────────────────────────
+      # hotel-guest and hotel-owner need --legacy-peer-deps (peer dep conflicts)
+      # mobile (Expo) also needs --legacy-peer-deps
       - name: Install dependencies
         working-directory: ${{ inputs.app_path }}
-        run: npm ci --prefer-offline
+        run: |
+          if [[ "${{ inputs.app_name }}" == "hotel-guest" || \
+                "${{ inputs.app_name }}" == "hotel-owner" || \
+                "${{ inputs.app_name }}" == "mobile" ]]; then
+            npm ci --prefer-offline --legacy-peer-deps
+          else
+            npm ci --prefer-offline
+          fi
 
       # ── Environment validation ────────────────────────────────────────
       - name: Validate environment variables
@@ -139,6 +148,7 @@ jobs:
         working-directory: ${{ inputs.app_path }}
         env:
           NEXT_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          EXPO_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
         run: ${{ inputs.typecheck_command }}
 
       # ── Build ─────────────────────────────────────────────────────────
@@ -151,8 +161,10 @@ jobs:
           VITE_PUBLIC_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api"
           VITE_RESTAURANT_ID: "4240"
           PUBLIC_API_BASE_URL: "https://gestronomy-api-5atv.onrender.com/api"
-          # Suppress Next.js telemetry in CI
+          EXPO_PUBLIC_API_URL: "https://gestronomy-api-5atv.onrender.com/api"
+          # Suppress telemetry in CI
           NEXT_TELEMETRY_DISABLED: "1"
+          EXPO_NO_TELEMETRY: "1"
         run: ${{ inputs.build_command }}
 
       # ── Unit tests ────────────────────────────────────────────────────

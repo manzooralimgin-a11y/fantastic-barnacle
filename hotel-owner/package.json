@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "build:ci": "npm run typecheck && next build",
     "test:e2e": "playwright test"
   },
   "dependencies": {

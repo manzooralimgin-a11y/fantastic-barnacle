@@ -13,7 +13,7 @@
  */
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   X,
   Car,
@@ -22,9 +22,13 @@ import {
   ArrowRight,
   AlertCircle,
   BedDouble,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { createPmsReservationCharge } from "@/features/hms/pms/api/billing";
 import { fetchPmsReservationSummary } from "@/features/hms/pms/api/reservations";
+import { useRightPanel } from "@/features/hms/pms/components/right-panel/useRightPanel";
 import type { PmsCockpitItem } from "@/features/hms/pms/schemas/reservation";
 import { defaultHotelPropertyId } from "@/lib/hotel-room-types";
 import { cn } from "@/lib/utils";
@@ -109,6 +113,7 @@ export function GuestQuickActionsDrawer({
   onClose,
   onOpenPayment,
 }: GuestQuickActionsDrawerProps) {
+  const { openPanel } = useRightPanel();
   const [addOns, setAddOns] = useState<AddOns>({
     parking: false,
     breakfast: false,
@@ -124,10 +129,59 @@ export function GuestQuickActionsDrawer({
     staleTime: 30_000,
   });
 
+  const chargeMutation = useMutation({
+    mutationFn: ({
+      description,
+      unitPrice,
+      chargeType,
+    }: {
+      description: string;
+      unitPrice: number;
+      chargeType: string;
+    }) =>
+      createPmsReservationCharge(guest!.reservation_id, {
+        description,
+        quantity: 1,
+        unit_price: unitPrice,
+        charge_type: chargeType,
+        service_date: new Date().toISOString().slice(0, 10),
+      }),
+    onSuccess: (_, vars) => {
+      toast.success(`${vars.description} added to folio.`);
+    },
+    onError: (_, vars) => {
+      toast.error(`Could not add ${vars.description}. Try again.`);
+    },
+  });
+
   if (!guest) return null;
 
-  const toggle = (key: keyof AddOns) =>
-    setAddOns((prev) => ({ ...prev, [key]: !prev[key] }));
+  function toggle(key: keyof AddOns) {
+    const next = !addOns[key];
+    setAddOns((prev) => ({ ...prev, [key]: next }));
+    if (next) {
+      const map: Record<keyof AddOns, { description: string; unitPrice: number; chargeType: string }> = {
+        parking: { description: "Car Parking", unitPrice: 15, chargeType: "parking" },
+        breakfast: { description: "Breakfast", unitPrice: 25, chargeType: "breakfast" },
+        pet: { description: "Pet Fee", unitPrice: 40, chargeType: "pet_fee" },
+      };
+      chargeMutation.mutate(map[key]);
+    }
+  }
+
+  function openEditDetails() {
+    const contactId = summary?.guest_id;
+    if (!contactId) {
+      toast.info("No guest contact linked to this reservation.");
+      return;
+    }
+    onClose();
+    openPanel({
+      type: "guest.details",
+      data: { contactId: String(contactId) },
+      title: `Edit: ${guest.guest_name}`,
+    });
+  }
 
   const balance = summary?.folio_balance_due ?? guest.total_amount;
 
@@ -164,9 +218,14 @@ export function GuestQuickActionsDrawer({
 
           {/* Quick Add Services */}
           <section>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted mb-3">
-              Quick Add Services
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
+                Quick Add Services
+              </p>
+              {chargeMutation.isPending && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground-muted" />
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <ServiceButton
                 icon={Car}
@@ -187,6 +246,9 @@ export function GuestQuickActionsDrawer({
                 onClick={() => toggle("pet")}
               />
             </div>
+            <p className="mt-2 text-[10px] text-foreground-muted">
+              Tap a service to instantly add it to the guest&apos;s folio.
+            </p>
           </section>
 
           {/* Room Management */}
@@ -232,6 +294,7 @@ export function GuestQuickActionsDrawer({
               </p>
               <button
                 type="button"
+                onClick={openEditDetails}
                 className="text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
               >
                 Edit All

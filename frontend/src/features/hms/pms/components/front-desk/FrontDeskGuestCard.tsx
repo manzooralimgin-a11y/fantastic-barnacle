@@ -22,6 +22,8 @@ import {
   Clock,
   Plane,
   Circle,
+  LogIn,
+  BedDouble as BedIcon,
 } from "lucide-react";
 import type { PmsCockpitItem } from "@/features/hms/pms/schemas/reservation";
 import { cn } from "@/lib/utils";
@@ -195,7 +197,7 @@ export function FrontDeskGuestCard({
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-md bg-emerald-600/[0.09] text-emerald-700 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border border-emerald-200/60">
-            <CheckCircle2 className="h-2.5 w-2.5" /> Checked-In
+            <BedIcon className="h-2.5 w-2.5" /> Checked-In
           </span>
         )}
       </div>
@@ -234,7 +236,7 @@ export function FrontDeskGuestCard({
               {actionPending ? (
                 <Clock className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <CheckCircle2 className="h-3.5 w-3.5" />
+                <LogIn className="h-3.5 w-3.5" />
               )}
               {actionPending ? "Working…" : "Check In"}
             </button>

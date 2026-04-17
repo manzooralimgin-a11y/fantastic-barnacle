@@ -366,6 +366,9 @@ export const waiterApi = {
   orderDetail: (orderId: number | string, signal?: AbortSignal) =>
     getJson<TableOrderRead>(`/billing/orders/${orderId}`, true, signal),
 
+  orderItems: (orderId: number | string, signal?: AbortSignal) =>
+    getJson<OrderItemRead[]>(`/billing/orders/${orderId}/items`, true, signal),
+
   /* --- bills / receipt --- */
   billByOrder: (orderId: number | string, signal?: AbortSignal) =>
     getJson<BillRead>(`/billing/bills/by-order/${orderId}`, true, signal),

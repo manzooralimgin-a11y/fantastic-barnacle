@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ApiError,
   waiterApi,
@@ -23,22 +23,24 @@ export function OrderDetailModal({ orderId, onClose }: Props) {
   const [paying, setPaying] = useState(false);
   const [payMethod, setPayMethod] = useState("cash");
   const [paid, setPaid] = useState(false);
-  const receiptRef = useRef<HTMLDivElement>(null);
 
   const refreshLiveOrders = useAppStore((s) => s.refreshLiveOrders);
   const refreshTables = useAppStore((s) => s.refreshTables);
   const waiterId = useAppStore((s) => s.waiterId);
+  const waiterName = useAppStore((s) => s.waiterName);
   const logout = useAppStore((s) => s.logout);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [o, b] = await Promise.all([
+      const [o, items, b] = await Promise.all([
         waiterApi.orderDetail(orderId),
+        waiterApi.orderItems(orderId).catch(() => []),
         waiterApi.billByOrder(orderId).catch(() => null),
       ]);
-      setOrder(o);
+      // Backend returns TableOrderRead without items eagerly loaded — merge.
+      setOrder({ ...o, items });
       setBill(b);
       if (b) {
         try {
@@ -246,15 +248,15 @@ export function OrderDetailModal({ orderId, onClose }: Props) {
           </div>
         )}
 
-        {/* Receipt mounted off-screen so window.print() can show it.
+        {/* Receipt mounted so window.print() can show it.
             CSS @media print makes only the receipt visible. */}
-        <div ref={receiptRef} style={{ marginTop: "1rem" }}>
+        <div style={{ marginTop: "1rem" }}>
           {order && (
             <Receipt
               order={order}
               bill={bill}
               receipt={receipt}
-              waiterName={useAppStore.getState().waiterName}
+              waiterName={waiterName}
             />
           )}
         </div>

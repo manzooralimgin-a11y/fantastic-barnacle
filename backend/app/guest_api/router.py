@@ -316,26 +316,54 @@ def _serialize_guest_stay(
     room_record: Room | None,
     folio_balance_due: float = 0,
 ) -> GuestStayResponse:
-    first_name, last_name = _split_guest_name(reservation.guest_name)
-    nights = max((reservation.check_out - reservation.check_in).days, 1)
-    check_in_status = (stay.status if stay is not None else reservation.status or "booked").replace("-", "_")
+    """
+    Defensive serializer — never raises on partial data. Any missing field
+    gets a sensible fallback so the guest app can render a useful screen.
+    """
+    first_name, last_name = _split_guest_name(reservation.guest_name or "")
+
+    # Nights: fall back to 1 if either date is missing or check_out <= check_in
+    try:
+        if reservation.check_out and reservation.check_in:
+            nights = max((reservation.check_out - reservation.check_in).days, 1)
+        else:
+            nights = 1
+    except Exception:
+        nights = 1
+
+    # check_in_status: tolerate None from either stay.status or reservation.status
+    raw_status = (
+        (stay.status if stay is not None and stay.status else None)
+        or reservation.status
+        or "booked"
+    )
+    check_in_status = str(raw_status).replace("-", "_")
     key_status = "active" if check_in_status == "checked_in" else "inactive"
     room_number = room_record.room_number if room_record is not None else (reservation.room or "")
+
+    def _iso(value) -> str:
+        if value is None:
+            return ""
+        try:
+            return value.isoformat()
+        except Exception:
+            return str(value)
+
     return GuestStayResponse(
         guest=GuestProfileResponse(
-            id=str(reservation.guest_id or reservation.booking_id),
-            first_name=first_name,
-            last_name=last_name,
+            id=str(reservation.guest_id or reservation.booking_id or ""),
+            first_name=first_name or "Guest",
+            last_name=last_name or "",
             email=reservation.guest_email,
             phone=reservation.guest_phone or reservation.phone,
-            booking_number=reservation.booking_id,
+            booking_number=reservation.booking_id or "",
         ),
         booking=GuestBookingResponse(
             room_number=room_number,
             floor=room_record.floor if room_record is not None else None,
             room_type=reservation.room_type_label or "Hotel Room",
-            check_in_date=reservation.check_in.isoformat(),
-            check_out_date=reservation.check_out.isoformat(),
+            check_in_date=_iso(reservation.check_in),
+            check_out_date=_iso(reservation.check_out),
             nights=nights,
             payment_status=reservation.payment_status or "pending",
             check_in_status=check_in_status,
@@ -346,7 +374,42 @@ def _serialize_guest_stay(
             },
         ),
         stay_status=check_in_status,
-        folio_balance_due=folio_balance_due,
+        folio_balance_due=float(folio_balance_due or 0),
+    )
+
+
+def _fallback_stay_response(guest: dict) -> GuestStayResponse:
+    """
+    Absolute-minimum response from JWT context when DB lookup fails entirely.
+    Guarantees the guest app NEVER sees a 500 on /stay.
+    """
+    full_name = guest.get("guest_name") or ""
+    first_name, last_name = _split_guest_name(full_name)
+    booking_id = str(guest.get("booking_id") or "")
+    room_number = str(guest.get("room_number") or "")
+    return GuestStayResponse(
+        guest=GuestProfileResponse(
+            id=booking_id,
+            first_name=first_name or "Guest",
+            last_name=last_name or "",
+            email=None,
+            phone=None,
+            booking_number=booking_id,
+        ),
+        booking=GuestBookingResponse(
+            room_number=room_number,
+            floor=None,
+            room_type="Hotel Room",
+            check_in_date="",
+            check_out_date="",
+            nights=1,
+            payment_status="pending",
+            check_in_status="booked",
+            key_status="inactive",
+            preferences={"language": "en", "notes": ""},
+        ),
+        stay_status="booked",
+        folio_balance_due=0.0,
     )
 
 
@@ -595,28 +658,38 @@ async def get_guest_stay(
             response.folio_balance_due,
         )
         return response
-    except HTTPException:
+    except HTTPException as http_exc:
+        # 401/403 must still bubble (token issues). 404/422/etc. → fall back
+        # to JWT-derived minimal response so the guest app always renders.
+        if http_exc.status_code in (401, 403):
+            logger.warning(
+                "Guest stay auth error: guest_id=%r booking_id=%r status=%s",
+                guest_id, booking_id, http_exc.status_code,
+            )
+            raise
         logger.warning(
-            "Guest stay request failed with HTTPException: guest_id=%r booking_id=%r",
+            "Guest stay HTTPException %s — returning JWT fallback: guest_id=%r booking_id=%r property_id=%r detail=%r",
+            http_exc.status_code,
             guest_id,
             booking_id,
+            guest.get("property_id"),
+            http_exc.detail,
         )
-        raise
+        return _fallback_stay_response(guest)
     except Exception as exc:
+        # Unexpected DB / serialization errors must NOT surface as 500 to the
+        # client — guest app would show "Failed to fetch" and get stuck on
+        # the splash screen. Log full traceback, return minimal JWT payload.
         logger.exception(
-            "Guest stay request failed unexpectedly: guest_id=%r booking_id=%r error=%s",
+            "Guest stay unexpected error — returning JWT fallback: "
+            "guest_id=%r booking_id=%r property_id=%r room_id=%r error=%s",
             guest_id,
             booking_id,
+            guest.get("property_id"),
+            guest.get("room_id"),
             exc,
         )
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Failed to load guest stay",
-                "detail": str(exc),
-                "booking_id": booking_id,
-            },
-        )
+        return _fallback_stay_response(guest)
 
 
 @router.post("/id-verifications", response_model=GuestIDVerificationResponse, summary="Submit guest ID evidence")

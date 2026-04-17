@@ -28,13 +28,49 @@ logger = logging.getLogger("app.bootstrap")
 router = APIRouter()
 
 BOOTSTRAP_SECRET = os.environ.get("BOOTSTRAP_SECRET", "")
+# Hard kill-switch — when "true"/"1" the bootstrap endpoints are permanently
+# disabled regardless of whether the secret is set. Ops should flip this on
+# immediately after the initial admin is provisioned.
+_BOOTSTRAP_DISABLED_RAW = os.environ.get("BOOTSTRAP_DISABLED", "").strip().lower()
+BOOTSTRAP_DISABLED = _BOOTSTRAP_DISABLED_RAW in ("1", "true", "yes", "on")
 
 
 def _check_secret(x_bootstrap_secret: str = Header(default="")):
+    if BOOTSTRAP_DISABLED:
+        # Explicit ops lockdown — refuse ALL bootstrap operations.
+        raise HTTPException(
+            status_code=410,
+            detail="Bootstrap permanently disabled on this deployment.",
+        )
     if not BOOTSTRAP_SECRET:
         raise HTTPException(status_code=503, detail="Bootstrap not configured")
     if x_bootstrap_secret != BOOTSTRAP_SECRET:
         raise HTTPException(status_code=401, detail="Invalid bootstrap secret")
+
+
+async def _check_reset_password_allowed(db: AsyncSession) -> None:
+    """
+    Extra gate for /admin/reset-password: in production, once ANY admin exists
+    we refuse reset-password unless the explicit opt-in env var is set. This
+    closes the common "attacker steals bootstrap secret → owns every account"
+    path after initial setup.
+    """
+    app_env = (os.environ.get("APP_ENV") or "").strip().lower()
+    allow_reset = (os.environ.get("ALLOW_BOOTSTRAP_PASSWORD_RESET") or "").strip().lower()
+    if app_env != "production" or allow_reset in ("1", "true", "yes", "on"):
+        return
+    admin_exists = await db.scalar(
+        select(User.id).where(User.role == UserRole.admin).limit(1)
+    )
+    if admin_exists is not None:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Password reset via bootstrap is locked in production once an "
+                "admin exists. Set ALLOW_BOOTSTRAP_PASSWORD_RESET=true to "
+                "temporarily re-enable it, or use the in-app password change flow."
+            ),
+        )
 
 
 @router.post("/admin/first-run", tags=["Bootstrap"])
@@ -231,11 +267,18 @@ async def reset_password(
 ):
     """
     Secret-protected password reset.
-    Resets any user's password by email without requiring the current password.
-    Requires X-Bootstrap-Secret header.
+
+    Security posture (production):
+      - BOOTSTRAP_DISABLED=true   → hard 410, no reset possible.
+      - APP_ENV=production + admin exists → 403 unless
+        ALLOW_BOOTSTRAP_PASSWORD_RESET=true is explicitly set for a
+        narrow maintenance window.
+      - Otherwise the secret-protected reset works as before.
     """
     if len(new_password) < 12:
         raise HTTPException(status_code=422, detail="Password must be at least 12 characters")
+
+    await _check_reset_password_allowed(db)
 
     result = await db.execute(
         select(User).where(func.lower(User.email) == email.lower().strip())
@@ -247,7 +290,10 @@ async def reset_password(
     user.password_hash = hash_password(new_password)
     await db.commit()
 
-    logger.info("reset_password completed", extra={"email": email})
+    logger.warning(
+        "bootstrap_reset_password used — SENSITIVE",
+        extra={"email": user.email, "user_id": user.id},
+    )
     return {
         "status": "ok",
         "email": user.email,

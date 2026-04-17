@@ -162,7 +162,9 @@ _cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip(
 if settings.frontend_url and settings.frontend_url not in _cors_origins:
     _cors_origins.append(settings.frontend_url)
 _cors_origin_regex = (
-    r"^https://(?:gestronomy-web|gestronomy-guest|hotel-guest|hotel-owner|das-elb-hotel|das-elb-rest)"
+    # All project-owned Render services (web + waiter + hotel).
+    r"^https://(?:gestronomy-web|gestronomy-guest|hotel-guest|hotel-owner"
+    r"|das-elb-hotel|das-elb-rest|waiter-web)"
     r"(?:-[a-z0-9]+)?\.onrender\.com$"
     r"|^https://(?:www\.)?zukunftwebs\.com$"
     r"|^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$"

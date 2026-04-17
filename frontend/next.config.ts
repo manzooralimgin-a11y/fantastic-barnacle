@@ -25,38 +25,21 @@ function buildAllowedDevOrigins(): string[] {
   return origins;
 }
 
-function trimTrailingSlash(value: string): string {
-  return value.replace(/\/+$/, "");
-}
-
-function resolveBackendApiUrl(): string {
-  const configuredUrl =
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "https://gestronomy-api-5atv.onrender.com/api";
-  const normalized = trimTrailingSlash(configuredUrl);
-  return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
-}
-
 const nextConfig: NextConfig = {
   // Static export disabled — Replit preview requires the Next.js dev server
   // (static export breaks routing and returns 404 for all pages in dev mode)
   allowedDevOrigins: buildAllowedDevOrigins(),
 
-  async rewrites() {
-    const backendApiUrl = resolveBackendApiUrl();
-    const backendOrigin = backendApiUrl.replace(/\/api$/, "");
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendApiUrl}/:path*`,
-      },
-      {
-        source: "/ws/:path*",
-        destination: `${backendOrigin}/ws/:path*`,
-      },
-    ];
-  },
+  // NOTE: /api/* rewrites intentionally removed.
+  //
+  // All API calls from the management frontend go through src/lib/api.ts,
+  // which uses an absolute backend URL (NEXT_PUBLIC_API_URL or the
+  // DEFAULT_RENDER_API_URL fallback). Proxy-rewrites here caused two bugs:
+  //   1. Error responses lost CORS headers when bounced through the Next
+  //      proxy on Render ("Failed to fetch" in the browser console).
+  //   2. Environments without BACKEND_URL silently proxied to themselves,
+  //      creating a loop that returned HTML for JSON endpoints.
+  // Keeping the frontend strictly on absolute URLs fixes both.
 };
 
 export default nextConfig;

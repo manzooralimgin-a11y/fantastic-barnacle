@@ -104,7 +104,9 @@ class ReservationRead(BaseModel):
     start_time: time
     end_time: time | None = None
     duration_min: int
-    status: Literal["confirmed", "seated", "arrived", "completed", "cancelled", "no_show"]
+    # Tolerates legacy statuses (e.g. "pending") in existing rows; POST/PATCH
+    # still enforce the canonical literal via ReservationCreate/Update.
+    status: str
     special_requests: str | None = None
     notes: str | None = None
     source: str

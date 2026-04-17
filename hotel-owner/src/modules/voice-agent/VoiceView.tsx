@@ -11,36 +11,48 @@ import { VoiceButton } from "./VoiceButton";
 import { VoiceWaveAnimation } from "./VoiceWaveAnimation";
 import { ConversationScreen } from "./ConversationScreen";
 
-// Web Speech API — fully declared locally (absent from TypeScript 5.9.3 lib.dom.d.ts).
-interface SpeechRecognitionEvent extends Event {
-  readonly resultIndex: number;
-  readonly results: SpeechRecognitionResultList;
+// Minimal Web Speech API typings — not shipped in TS DOM lib.
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+  confidence: number;
 }
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-  readonly message: string;
+interface SpeechRecognitionResultLike {
+  [index: number]: SpeechRecognitionAlternativeLike;
+  0: SpeechRecognitionAlternativeLike;
+  length: number;
+  isFinal: boolean;
 }
-interface SpeechRecognitionInstance {
+interface SpeechRecognitionEventLike extends Event {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+  resultIndex: number;
+}
+interface SpeechRecognitionErrorEventLike extends Event {
+  error: string;
+  message?: string;
+}
+interface SpeechRecognitionInstance extends EventTarget {
   lang: string;
+  continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
-  continuous: boolean;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onstart: (() => void) | null;
-  onend: (() => void) | null;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onstart: ((ev: Event) => void) | null;
+  onresult: ((ev: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((ev: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: ((ev: Event) => void) | null;
 }
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
+
 declare global {
   interface Window {
-    SpeechRecognition?: new () => SpeechRecognitionInstance;
-    webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
   }
 }
 
-function getSpeechRecognition(): (new () => SpeechRecognitionInstance) | null {
+function getSpeechRecognition(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null;
   return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
 }
@@ -94,14 +106,14 @@ export function VoiceView() {
       startListening();
     };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim();
       if (transcript) {
         sendQuery(transcript);
       }
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       console.warn("[VoiceView] SpeechRecognition error:", event.error);
       stopListening();
       if (event.error === "not-allowed") {

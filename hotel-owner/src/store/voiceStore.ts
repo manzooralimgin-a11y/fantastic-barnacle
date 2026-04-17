@@ -1,81 +1,61 @@
 import { create } from "zustand";
-import { api } from "@/services";
+import { api, ApiError } from "@/services/api";
 
 export interface ConversationMessage {
-  id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-  dataType?: "stat" | "list" | "confirmation";
+  dataType?: "stat" | "list" | "confirmation" | "error";
   data?: unknown;
-  status?: "pending" | "complete" | "error";
+  meta?: {
+    model?: string;
+    route?: string;
+    usedFallback?: boolean;
+    latencyMs?: number | null;
+  };
 }
 
-interface AIConversationTurnPayload {
-  role: "user" | "assistant";
-  content: string;
-}
-
+// Backend response shape from POST /api/ai/query
 interface AIQueryResponse {
   question: string;
   answer: string;
   model: string;
   route: string;
   used_fallback: boolean;
-  highlights?: Record<string, unknown> | null;
-  snapshot?: {
-    summary?: Record<string, unknown>;
-  };
-}
-
-interface AIStreamStatusEvent {
-  state: string;
-  message: string;
+  highlights: Record<string, unknown> | null;
+  snapshot: Record<string, unknown>;
+  latency_ms: number | null;
+  snapshot_latency_ms: number | null;
+  llm_latency_ms: number | null;
+  snapshot_cache_status: string | null;
+  error: string | null;
 }
 
 interface VoiceState {
   isListening: boolean;
   conversation: ConversationMessage[];
   isProcessing: boolean;
+  lastError: string | null;
   startListening: () => void;
   stopListening: () => void;
   sendQuery: (text: string) => Promise<void>;
+  clearConversation: () => void;
 }
 
-const MAX_CONVERSATION_MESSAGES = 5;
+const HISTORY_LIMIT = 5;
 
-function createMessageId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function trimConversation(messages: ConversationMessage[]): ConversationMessage[] {
-  return messages.slice(-MAX_CONVERSATION_MESSAGES);
-}
-
-function toHistoryPayload(messages: ConversationMessage[]): AIConversationTurnPayload[] {
-  return messages.slice(-MAX_CONVERSATION_MESSAGES).map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
-}
-
-function replaceMessage(
-  messages: ConversationMessage[],
-  messageId: string,
-  patch: Partial<ConversationMessage>
-): ConversationMessage[] {
-  return messages.map((message) =>
-    message.id === messageId ? { ...message, ...patch } : message
-  );
+function toHistory(conversation: ConversationMessage[]) {
+  return conversation
+    .filter((m) => m.dataType !== "error")
+    .slice(-HISTORY_LIMIT * 2)
+    .map((m) => ({ role: m.role, content: m.content }));
 }
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
   isListening: false,
   conversation: [],
   isProcessing: false,
+  lastError: null,
 
   startListening: () => {
     set({ isListening: true });
@@ -85,119 +65,76 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     set({ isListening: false });
   },
 
+  clearConversation: () => {
+    set({ conversation: [], lastError: null });
+  },
+
   sendQuery: async (text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
     const userMessage: ConversationMessage = {
-      id: createMessageId(),
       role: "user",
-      content: text,
+      content: trimmed,
       timestamp: new Date(),
-      status: "complete",
     };
 
-    const placeholderId = createMessageId();
-    const placeholderMessage: ConversationMessage = {
-      id: placeholderId,
-      role: "assistant",
-      content: "Pulling the live hotel snapshot...",
-      timestamp: new Date(),
-      dataType: "confirmation",
-      status: "pending",
-    };
+    const historyBefore = toHistory(get().conversation);
 
-    const conversationWithoutPlaceholder = trimConversation([
-      ...get().conversation,
-      userMessage,
-    ]);
-    const nextConversation = trimConversation([
-      ...conversationWithoutPlaceholder,
-      placeholderMessage,
-    ]);
-
-    set({
-      conversation: nextConversation,
+    set((state) => ({
+      conversation: [...state.conversation, userMessage],
       isProcessing: true,
       isListening: false,
-    });
+      lastError: null,
+    }));
 
     try {
-      let streamDeliveredResult = false;
-
-      try {
-        await api.streamPost<AIQueryResponse | AIStreamStatusEvent>(
-          "/ai/query/stream",
-          {
-            question: text,
-            history: toHistoryPayload(conversationWithoutPlaceholder),
-          },
-          ({ event, data }) => {
-            if (event === "status") {
-              const statusEvent = data as AIStreamStatusEvent;
-              set((state) => ({
-                conversation: replaceMessage(state.conversation, placeholderId, {
-                  content: statusEvent.message,
-                  timestamp: new Date(),
-                }),
-              }));
-              return;
-            }
-
-            if (event === "result") {
-              const response = data as AIQueryResponse;
-              streamDeliveredResult = true;
-              set((state) => ({
-                conversation: trimConversation(
-                  replaceMessage(state.conversation, placeholderId, {
-                    content: response.answer,
-                    timestamp: new Date(),
-                    dataType: response.highlights ? "stat" : undefined,
-                    data: response.highlights ?? response.snapshot?.summary,
-                    status: "complete",
-                  })
-                ),
-                isProcessing: false,
-              }));
-            }
-          }
-        );
-      } catch {
-        streamDeliveredResult = false;
-      }
-
-      if (streamDeliveredResult) {
-        return;
-      }
-
-      const response = await api.post<AIQueryResponse>("/ai/query", {
-        question: text,
-        history: toHistoryPayload(conversationWithoutPlaceholder),
+      const result = await api.authPost<AIQueryResponse>("/api/ai/query", {
+        question: trimmed,
+        history: historyBefore,
       });
 
+      const assistantMessage: ConversationMessage = {
+        role: "assistant",
+        content: result.answer,
+        timestamp: new Date(),
+        data: result.highlights ?? undefined,
+        meta: {
+          model: result.model,
+          route: result.route,
+          usedFallback: result.used_fallback,
+          latencyMs: result.latency_ms,
+        },
+      };
+
       set((state) => ({
-        conversation: trimConversation(
-          replaceMessage(state.conversation, placeholderId, {
-            content: response.answer,
-            timestamp: new Date(),
-            dataType: response.highlights ? "stat" : undefined,
-            data: response.highlights ?? response.snapshot?.summary,
-            status: "complete",
-          })
-        ),
+        conversation: [...state.conversation, assistantMessage],
         isProcessing: false,
+        lastError: result.used_fallback
+          ? `AI fallback mode: ${result.error ?? "OpenAI unavailable"}`
+          : null,
       }));
-    } catch (error) {
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? `[${err.status}] ${err.message}`
+          : err instanceof Error
+            ? err.message
+            : String(err);
+
+      console.error("[voiceStore] sendQuery failed:", err);
+
+      const errorMessage: ConversationMessage = {
+        role: "assistant",
+        content: `Error: ${message}`,
+        timestamp: new Date(),
+        dataType: "error",
+      };
+
       set((state) => ({
-        conversation: trimConversation(
-          replaceMessage(state.conversation, placeholderId, {
-            content:
-              error instanceof Error
-                ? error.message
-                : "I couldn't reach the live hotel assistant just now.",
-            timestamp: new Date(),
-            dataType: "confirmation",
-            status: "error",
-          })
-        ),
+        conversation: [...state.conversation, errorMessage],
         isProcessing: false,
+        lastError: message,
       }));
     }
   },

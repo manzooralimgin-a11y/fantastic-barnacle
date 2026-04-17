@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useDashboardStore } from "@/store";
-import { MOCK_ACTIVITIES } from "@/mock";
 import { Header } from "@/components/layout";
 import { BottomNav } from "@/components/layout";
 import { Card } from "@/components/ui";
@@ -107,18 +106,37 @@ function formatActivityTime(iso: string): string {
 
 export function DashboardView() {
   const router = useRouter();
-  const { data, isLoading, fetchDashboard } = useDashboardStore();
+  const { data, activities, isLoading, error, fetchDashboard } = useDashboardStore();
 
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
 
-  const activities = MOCK_ACTIVITIES.slice(0, 6);
+  const recentActivities = activities.slice(0, 6);
+
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-background-dark">
+        <Header notificationCount={0} />
+        <div className="space-y-3 px-4 pb-24 pt-6">
+          <h2 className="text-sm font-semibold text-status-error">Dashboard unavailable</h2>
+          <p className="text-xs text-text-secondary-dark whitespace-pre-wrap">{error}</p>
+          <button
+            onClick={() => fetchDashboard()}
+            className="rounded-lg bg-accent/15 px-3 py-1.5 text-xs font-medium text-accent"
+          >
+            Retry
+          </button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return (
       <div className="min-h-screen bg-background-dark">
-        <Header notificationCount={3} />
+        <Header notificationCount={0} />
         <div className="space-y-4 px-4 pb-24 pt-2">
           <Skeleton className="h-44" />
           <div className="grid grid-cols-2 gap-3">
@@ -137,7 +155,7 @@ export function DashboardView() {
 
   return (
     <div className="min-h-screen bg-background-dark">
-      <Header notificationCount={3} />
+      <Header notificationCount={0} />
 
       <motion.div
         variants={stagger}
@@ -254,25 +272,31 @@ export function DashboardView() {
           </div>
 
           <Card variant="default" className="divide-y divide-white/5 p-0">
-            {activities.map((activity, i) => (
-              <motion.div
-                key={activity.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{
-                  duration: 0.3,
-                  delay: 0.4 + i * 0.08,
-                  ease: "easeOut",
-                }}
-              >
-                <ActivityItem
-                  title={activity.title}
-                  description={activity.description}
-                  timestamp={formatActivityTime(activity.timestamp)}
-                  type={activity.type}
-                />
-              </motion.div>
-            ))}
+            {recentActivities.length === 0 ? (
+              <div className="p-6 text-center text-xs text-text-secondary-dark">
+                No recent agent activity recorded yet.
+              </div>
+            ) : (
+              recentActivities.map((activity, i) => (
+                <motion.div
+                  key={activity.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{
+                    duration: 0.3,
+                    delay: 0.4 + i * 0.08,
+                    ease: "easeOut",
+                  }}
+                >
+                  <ActivityItem
+                    title={activity.title}
+                    description={activity.description}
+                    timestamp={formatActivityTime(activity.timestamp)}
+                    type={activity.type}
+                  />
+                </motion.div>
+              ))
+            )}
           </Card>
         </motion.div>
 

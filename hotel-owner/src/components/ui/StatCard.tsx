@@ -9,7 +9,7 @@ import { AnimatedCounter } from "./AnimatedCounter";
 interface StatCardProps {
   label: string;
   value: number;
-  change: number;
+  change?: number;
   prefix?: string;
   suffix?: string;
   decimals?: number;
@@ -25,7 +25,8 @@ export function StatCard({
   decimals,
   className,
 }: StatCardProps) {
-  const isPositive = change >= 0;
+  const hasChange = typeof change === "number";
+  const isPositive = hasChange && (change as number) >= 0;
 
   return (
     <Card variant="glass" className={cn("space-y-2", className)}>
@@ -40,25 +41,27 @@ export function StatCard({
           decimals={decimals}
         />
       </div>
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3, delay: 0.5, ease: "easeOut" }}
-        className={cn(
-          "inline-flex items-center gap-1 text-xs font-medium",
-          isPositive ? "text-status-success" : "text-status-error"
-        )}
-      >
-        {isPositive ? (
-          <TrendingUp className="h-3.5 w-3.5" />
-        ) : (
-          <TrendingDown className="h-3.5 w-3.5" />
-        )}
-        <span>
-          {isPositive ? "+" : ""}
-          {change}%
-        </span>
-      </motion.div>
+      {hasChange ? (
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: 0.5, ease: "easeOut" }}
+          className={cn(
+            "inline-flex items-center gap-1 text-xs font-medium",
+            isPositive ? "text-status-success" : "text-status-error"
+          )}
+        >
+          {isPositive ? (
+            <TrendingUp className="h-3.5 w-3.5" />
+          ) : (
+            <TrendingDown className="h-3.5 w-3.5" />
+          )}
+          <span>
+            {isPositive ? "+" : ""}
+            {change}%
+          </span>
+        </motion.div>
+      ) : null}
     </Card>
   );
 }

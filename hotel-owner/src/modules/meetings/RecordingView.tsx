@@ -78,7 +78,7 @@ export function RecordingView({ onComplete }: RecordingViewProps) {
     const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 
     api
-      .post<{ id?: number }>("/hms/housekeeping/tasks", {
+      .authPost<{ id?: number }>("/api/hms/housekeeping/tasks", {
         task_type: "reception",
         priority: "normal",
         room_number: null,
@@ -89,7 +89,7 @@ export function RecordingView({ onComplete }: RecordingViewProps) {
           `Audio transcription is not yet available — please review any written notes.`,
         task_source: "owner_app",
       })
-      .then((res) => {
+      .then((res: { id?: number }) => {
         const ref = res?.id ? `HMS-${res.id}` : null;
         setSavedRef(ref);
         setState("done");

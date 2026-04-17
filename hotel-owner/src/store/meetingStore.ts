@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { Meeting } from "@/mock";
-import { MOCK_MEETINGS } from "@/mock";
+
+// Meetings are local-only — there is no backend endpoint for meeting recordings.
+// Recording state is managed in-memory; past meetings are stored here during the session.
 
 interface MeetingState {
   meetings: Meeting[];
@@ -25,9 +27,8 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
   isLoading: false,
 
   fetchMeetings: async () => {
-    set({ isLoading: true });
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    set({ meetings: MOCK_MEETINGS, isLoading: false });
+    // No backend endpoint — meetings list is session-local only.
+    set({ isLoading: false });
   },
 
   startRecording: () => {

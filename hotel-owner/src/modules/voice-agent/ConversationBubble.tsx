@@ -71,7 +71,6 @@ function ListInline({ data }: { data: Record<string, unknown> }) {
 
 export function ConversationBubble({ message }: ConversationBubbleProps) {
   const isUser = message.role === "user";
-  const isPending = message.status === "pending";
 
   return (
     <motion.div
@@ -88,20 +87,35 @@ export function ConversationBubble({ message }: ConversationBubbleProps) {
             </p>
           </div>
         ) : (
-          <Card variant="glass" className="rounded-2xl rounded-bl-md px-4 py-3">
+          <Card
+            variant="glass"
+            className={cn(
+              "rounded-2xl rounded-bl-md px-4 py-3",
+              message.dataType === "error" && "border-status-error/40 bg-status-error/10"
+            )}
+          >
             <p
               className={cn(
-                "text-sm leading-relaxed text-text-primary-dark",
-                isPending && "animate-pulse text-text-secondary-dark"
+                "text-sm leading-relaxed",
+                message.dataType === "error"
+                  ? "text-status-error"
+                  : "text-text-primary-dark"
               )}
             >
               {message.content}
             </p>
-            {!isPending && message.dataType === "stat" && message.data != null ? (
+            {message.dataType === "list" && message.data != null ? (
+              <ListInline data={message.data as Record<string, unknown>} />
+            ) : message.dataType !== "error" && message.data != null ? (
               <StatInline data={message.data as Record<string, unknown>} />
             ) : null}
-            {!isPending && message.dataType === "list" && message.data != null ? (
-              <ListInline data={message.data as Record<string, unknown>} />
+            {message.meta ? (
+              <p className="mt-2 text-[10px] text-text-secondary-dark/60">
+                {message.meta.route ?? "llm"}
+                {message.meta.model ? ` · ${message.meta.model}` : ""}
+                {message.meta.usedFallback ? " · fallback" : ""}
+                {typeof message.meta.latencyMs === "number" ? ` · ${message.meta.latencyMs}ms` : ""}
+              </p>
             ) : null}
           </Card>
         )}

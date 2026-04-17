@@ -9,16 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-
-const OCCUPANCY_DATA = [
-  { day: "Mon", rate: 78 },
-  { day: "Tue", rate: 72 },
-  { day: "Wed", rate: 80 },
-  { day: "Thu", rate: 82 },
-  { day: "Fri", rate: 91 },
-  { day: "Sat", rate: 96 },
-  { day: "Sun", rate: 84 },
-];
+import { useDashboardStore } from "@/store";
 
 function CustomTooltip({
   active,
@@ -42,10 +33,20 @@ function CustomTooltip({
 }
 
 export function OccupancyChart() {
+  const data = useDashboardStore((s) => s.dailyOccupancy);
+
+  if (!data.length) {
+    return (
+      <div className="flex h-[220px] items-center justify-center text-xs text-text-secondary-dark">
+        No occupancy data available yet.
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={220}>
       <AreaChart
-        data={OCCUPANCY_DATA}
+        data={data}
         margin={{ top: 5, right: 5, left: -15, bottom: 0 }}
       >
         <defs>

@@ -10,7 +10,6 @@ import { Card, StatCard } from "@/components/ui";
 import { cn } from "@/utils/cn";
 import { RevenueChart } from "./RevenueChart";
 import { OccupancyChart } from "./OccupancyChart";
-import { PeakHoursChart } from "./PeakHoursChart";
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -36,13 +35,32 @@ function Skeleton({ className }: { className?: string }) {
 }
 
 export function AnalyticsView() {
-  const { data, isLoading, fetchDashboard } = useDashboardStore();
+  const { data, isLoading, error, fetchDashboard } = useDashboardStore();
 
   useEffect(() => {
     if (!data) {
       fetchDashboard();
     }
   }, [data, fetchDashboard]);
+
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-background-dark">
+        <Header notificationCount={0} />
+        <div className="space-y-3 px-4 pb-24 pt-6">
+          <h2 className="text-sm font-semibold text-status-error">Analytics unavailable</h2>
+          <p className="text-xs text-text-secondary-dark whitespace-pre-wrap">{error}</p>
+          <button
+            onClick={() => fetchDashboard()}
+            className="rounded-lg bg-accent/15 px-3 py-1.5 text-xs font-medium text-accent"
+          >
+            Retry
+          </button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return (
@@ -65,9 +83,7 @@ export function AnalyticsView() {
   }
 
   const weeklyTotal = data.weeklyRevenue.reduce((s, d) => s + d.amount, 0);
-  const avgOccupancy = 83.3; // mock weekly average
-  const totalBookings = 156; // mock weekly total
-  const revenuePerRoom = Math.round(weeklyTotal / data.totalRooms);
+  const revenuePerRoom = data.totalRooms > 0 ? Math.round(weeklyTotal / data.totalRooms) : 0;
 
   return (
     <div className="min-h-screen bg-background-dark">
@@ -104,30 +120,27 @@ export function AnalyticsView() {
           </button>
         </motion.div>
 
-        {/* Summary stat cards */}
+        {/* Summary stat cards — derived from live backend data */}
         <motion.div variants={fadeUp} className="grid grid-cols-2 gap-3">
           <StatCard
             label="Weekly Revenue"
             value={weeklyTotal}
-            change={8.4}
             prefix="€"
           />
           <StatCard
-            label="Avg Occupancy"
-            value={avgOccupancy}
-            change={3.2}
+            label="Occupancy Today"
+            value={data.occupancyRate}
+            change={data.occupancyChange}
             suffix="%"
             decimals={1}
           />
           <StatCard
-            label="Total Bookings"
-            value={totalBookings}
-            change={12.1}
+            label="Arrivals Today"
+            value={data.bookingsToday}
           />
           <StatCard
             label="Rev / Room"
             value={revenuePerRoom}
-            change={5.7}
             prefix="€"
           />
         </motion.div>
@@ -149,16 +162,6 @@ export function AnalyticsView() {
               Occupancy Trends
             </h3>
             <OccupancyChart />
-          </Card>
-        </motion.div>
-
-        {/* Peak Hours Chart */}
-        <motion.div variants={fadeUp}>
-          <Card variant="glass" className="space-y-3">
-            <h3 className="text-sm font-semibold text-text-primary-dark">
-              Peak Booking Hours
-            </h3>
-            <PeakHoursChart data={data.peakHours} />
           </Card>
         </motion.div>
       </motion.div>

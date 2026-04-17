@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { API_BASE } from "../lib/api";
+import { useAppStore } from "../lib/store";
 
-interface Props {
-  onLogin: (username: string, password: string) => Promise<void>;
-}
-
-export function LoginScreen({ onLogin }: Props) {
+export function LoginScreen() {
+  const login = useAppStore((s) => s.login);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -17,10 +15,12 @@ export function LoginScreen({ onLogin }: Props) {
     setBusy(true);
     setErr(null);
     try {
-      await onLogin(username.trim(), password);
+      await login(username.trim(), password);
     } catch (error) {
       setErr(
-        error instanceof Error ? error.message : "Login failed. Check credentials."
+        error instanceof Error
+          ? error.message
+          : "Login failed. Check credentials."
       );
     } finally {
       setBusy(false);
@@ -30,13 +30,13 @@ export function LoginScreen({ onLogin }: Props) {
   return (
     <div className="login">
       <div className="card">
-        <h1>Waiter sign-in</h1>
+        <img className="logo" src="/das-elb-logo.png" alt="Das Elb" />
+        <h1>Das Elb · Waiter</h1>
         <p className="sub">
-          Use your restaurant staff credentials. Orders go straight to the
-          kitchen and appear in management.
+          Sign in to take orders, manage tables and print receipts.
         </p>
         <form onSubmit={submit}>
-          <label style={{ display: "grid", gap: 4 }}>
+          <label style={{ display: "grid", gap: 6 }}>
             <small className="hint">Username or email</small>
             <input
               autoFocus
@@ -46,7 +46,7 @@ export function LoginScreen({ onLogin }: Props) {
               required
             />
           </label>
-          <label style={{ display: "grid", gap: 4 }}>
+          <label style={{ display: "grid", gap: 6 }}>
             <small className="hint">Password</small>
             <input
               type="password"

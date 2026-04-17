@@ -7,6 +7,7 @@ from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.ai.service import schedule_ai_snapshot_invalidation
 from app.dependencies import HotelAccessContext
 from app.hms.models import (
     HotelFolio,
@@ -309,6 +310,11 @@ async def ensure_folio_for_reservation_record(
 
     await _recalculate_folio_totals(db, folio)
     await _sync_reservation_payment_status(db, reservation, folio)
+    schedule_ai_snapshot_invalidation(
+        db,
+        property_id=folio.property_id,
+        reason="folio_created",
+    )
     await log_human_action(
         db,
         action="hotel_folio_created",
@@ -360,6 +366,11 @@ async def sync_folio_for_reservation_record(
 
     await _recalculate_folio_totals(db, folio)
     await _sync_reservation_payment_status(db, reservation, folio)
+    schedule_ai_snapshot_invalidation(
+        db,
+        property_id=folio.property_id,
+        reason="folio_synced",
+    )
 
 
 async def list_folios(
@@ -419,6 +430,11 @@ async def add_folio_line(
     reservation = await db.get(HotelReservation, folio.reservation_id)
     if reservation is not None:
         await _sync_reservation_payment_status(db, reservation, folio)
+    schedule_ai_snapshot_invalidation(
+        db,
+        property_id=folio.property_id,
+        reason="folio_line_added",
+    )
     actor_restaurant_id = getattr(hotel_access.user, "restaurant_id", None) or None
     await log_human_action(
         db,
@@ -464,6 +480,11 @@ async def void_folio_line(
     reservation = await db.get(HotelReservation, folio.reservation_id)
     if reservation is not None:
         await _sync_reservation_payment_status(db, reservation, folio)
+    schedule_ai_snapshot_invalidation(
+        db,
+        property_id=folio.property_id,
+        reason="folio_line_voided",
+    )
 
     actor_restaurant_id = getattr(hotel_access.user, "restaurant_id", None) or None
     await log_human_action(
@@ -506,6 +527,11 @@ async def post_folio_payment(
     if reservation is not None:
         reservation.zahlungs_methode = payload.method
         await _sync_reservation_payment_status(db, reservation, folio)
+    schedule_ai_snapshot_invalidation(
+        db,
+        property_id=folio.property_id,
+        reason="folio_payment_posted",
+    )
 
     actor_restaurant_id = getattr(hotel_access.user, "restaurant_id", None) or None
     await log_human_action(

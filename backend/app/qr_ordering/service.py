@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.service import schedule_ai_snapshot_invalidation
 from app.reservations.models import Table, FloorSection, QRTableCode
 from app.menu.models import MenuItem
 from app.menu.service import get_public_menu_catalog
@@ -156,6 +157,11 @@ async def submit_qr_order(db: AsyncSession, table_code: str, guest_name: str, it
 
     await db.flush()
     await db.refresh(order)
+    schedule_ai_snapshot_invalidation(
+        db,
+        property_id=None,
+        reason="qr_order_created",
+    )
 
     # Broadcast to KDS via WebSockets
     await manager.broadcast(

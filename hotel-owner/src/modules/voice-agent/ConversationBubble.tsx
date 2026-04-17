@@ -71,6 +71,7 @@ function ListInline({ data }: { data: Record<string, unknown> }) {
 
 export function ConversationBubble({ message }: ConversationBubbleProps) {
   const isUser = message.role === "user";
+  const isPending = message.status === "pending";
 
   return (
     <motion.div
@@ -88,13 +89,18 @@ export function ConversationBubble({ message }: ConversationBubbleProps) {
           </div>
         ) : (
           <Card variant="glass" className="rounded-2xl rounded-bl-md px-4 py-3">
-            <p className="text-sm leading-relaxed text-text-primary-dark">
+            <p
+              className={cn(
+                "text-sm leading-relaxed text-text-primary-dark",
+                isPending && "animate-pulse text-text-secondary-dark"
+              )}
+            >
               {message.content}
             </p>
-            {message.dataType === "stat" && message.data != null ? (
+            {!isPending && message.dataType === "stat" && message.data != null ? (
               <StatInline data={message.data as Record<string, unknown>} />
             ) : null}
-            {message.dataType === "list" && message.data != null ? (
+            {!isPending && message.dataType === "list" && message.data != null ? (
               <ListInline data={message.data as Record<string, unknown>} />
             ) : null}
           </Card>

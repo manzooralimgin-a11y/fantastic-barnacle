@@ -6,6 +6,7 @@ from sqlalchemy import Integer, and_, cast, Date, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.service import schedule_ai_snapshot_invalidation
 from app.auth.models import Restaurant
 from app.billing.models import Bill, CashShift, KDSStationConfig, OrderItem, Payment, TableOrder
 from app.billing.schemas import (
@@ -139,6 +140,11 @@ async def create_order(db: AsyncSession, restaurant_id: int, payload: TableOrder
     order = TableOrder(**payload.model_dump(), restaurant_id=restaurant_id)
     db.add(order)
     await db.flush()
+    schedule_ai_snapshot_invalidation(
+        db,
+        property_id=None,
+        reason="order_created",
+    )
     await log_human_action(
         db,
         action="table_order_created",

@@ -3,6 +3,9 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+import importlib
+import os
+from pathlib import Path
 import time as time_module
 from types import SimpleNamespace
 from uuid import uuid4
@@ -12,6 +15,15 @@ import pytest_asyncio
 from fastapi import Request
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+_TEST_DB_DIR = Path(__file__).resolve().parent / ".pytest-tmp"
+_TEST_DB_DIR.mkdir(parents=True, exist_ok=True)
+_TEST_DB_PATH = _TEST_DB_DIR / "backend-tests.sqlite3"
+os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{_TEST_DB_PATH}")
+os.environ.setdefault("DATABASE_URL_SYNC", f"sqlite:///{_TEST_DB_PATH}")
+os.environ.setdefault("STARTUP_VALIDATION_REQUIRE_REDIS", "false")
+os.environ.setdefault("STARTUP_VALIDATION_REQUIRE_MIGRATIONS", "false")
+os.environ.setdefault("STARTUP_VALIDATION_ENFORCED", "false")
 
 from app.auth.models import Restaurant, UserRole
 from app.billing.models import TableOrder
@@ -51,6 +63,44 @@ async def ensure_test_schema_compatibility() -> AsyncGenerator[None, None]:
     Apply the last safe voucher compatibility columns up front so the suite can
     exercise the current code without mutating feature logic.
     """
+
+    if engine.url.get_backend_name().startswith("sqlite"):
+        from app.database import Base
+
+        model_modules = (
+            "app.accounting.models",
+            "app.auth.models",
+            "app.billing.models",
+            "app.core.models",
+            "app.dashboard.models",
+            "app.digital_twin.models",
+            "app.email_inbox.models",
+            "app.food_safety.models",
+            "app.forecasting.models",
+            "app.franchise.models",
+            "app.guests.models",
+            "app.hms.models",
+            "app.integrations.models",
+            "app.inventory.models",
+            "app.maintenance.models",
+            "app.marketing.models",
+            "app.menu.models",
+            "app.menu_designer.models",
+            "app.reservations.models",
+            "app.signage.models",
+            "app.vision.models",
+            "app.vouchers.models",
+            "app.workforce.models",
+        )
+        for module_name in model_modules:
+            importlib.import_module(module_name)
+
+        async with engine.begin() as connection:
+            await connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            await connection.run_sync(Base.metadata.drop_all)
+            await connection.run_sync(Base.metadata.create_all)
+        yield
+        return
 
     async with engine.begin() as connection:
         await connection.exec_driver_sql(

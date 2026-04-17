@@ -14,6 +14,7 @@ interface ConversationScreenProps {
 export function ConversationScreen({ className }: ConversationScreenProps) {
   const { conversation, isProcessing } = useVoiceStore();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasPendingMessage = conversation.some((message) => message.status === "pending");
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -48,7 +49,7 @@ export function ConversationScreen({ className }: ConversationScreenProps) {
               How can I help?
             </h3>
             <p className="mt-1 max-w-[240px] text-xs leading-relaxed text-text-secondary-dark">
-              Tap the microphone and ask about bookings, revenue, occupancy, emails, or meetings.
+              Tap the microphone and ask naturally about occupancy, revenue, departures, housekeeping, or live operations.
             </p>
           </motion.div>
         </div>
@@ -59,7 +60,7 @@ export function ConversationScreen({ className }: ConversationScreenProps) {
           ))}
 
           {/* Typing indicator */}
-          {isProcessing && (
+          {isProcessing && !hasPendingMessage && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}

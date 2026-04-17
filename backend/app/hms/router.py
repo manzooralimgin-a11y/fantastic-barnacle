@@ -8,6 +8,11 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.ai.service import (
+    discard_pending_ai_snapshot_invalidations,
+    flush_pending_ai_snapshot_invalidations,
+    schedule_ai_snapshot_invalidation,
+)
 from app.database import get_db
 from app.dependencies import (
     HotelAccessContext,
@@ -806,12 +811,19 @@ async def create_reservation(
                 check_in=created_reservation.check_in,
                 check_out=created_reservation.check_out,
             )
+        schedule_ai_snapshot_invalidation(
+            db,
+            property_id=property_record.id,
+            reason="reservation_created",
+        )
         await db.commit()
         await flush_pending_availability_invalidations(db)
+        await flush_pending_ai_snapshot_invalidations(db)
         await flush_pending_consistency_checks(db)
     except Exception:
         await db.rollback()
         discard_pending_availability_invalidations(db)
+        discard_pending_ai_snapshot_invalidations(db)
         discard_pending_consistency_checks(db)
         raise
 
@@ -1015,14 +1027,21 @@ async def update_reservation(
             reason="reservation_updated",
             request_source="hms_admin",
         )
+        schedule_ai_snapshot_invalidation(
+            db,
+            property_id=res.property_id,
+            reason="reservation_updated",
+        )
         await sync_folio_for_reservation_record(db, res)
         await sync_guest_profile_for_hotel_reservation(db, res)
         await db.commit()
         await flush_pending_availability_invalidations(db)
+        await flush_pending_ai_snapshot_invalidations(db)
         await db.refresh(res)
     except Exception:
         await db.rollback()
         discard_pending_availability_invalidations(db)
+        discard_pending_ai_snapshot_invalidations(db)
         raise
     return await _build_pms_reservation_summary(
         db,

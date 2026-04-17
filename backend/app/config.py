@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     stripe_api_key: str = ""
     stripe_webhook_secret: str = ""
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
+    ai_openai_model: str = "gpt-4o-mini"
+    ai_openai_timeout_seconds: float = 20.0
+    ai_openai_max_output_tokens: int = 400
+    ai_history_message_limit: int = 5
+    ai_snapshot_cache_ttl_seconds: int = 8
+    ai_openai_retry_attempts: int = 1
+    ai_direct_query_confidence_threshold: float = 0.88
+    ai_daily_token_limit_per_tenant: int = 50000
     resend_api_key: str = ""
     voicebooker_secret: str = _DEFAULT_VOICEBOOKER_SECRET
     aws_region: str = ""

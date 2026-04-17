@@ -416,6 +416,7 @@ app.add_middleware(
 )
 
 from app.accounting.router import router as accounting_router  # noqa: E402
+from app.ai.router import router as ai_router  # noqa: E402
 from app.auth.router import router as auth_router  # noqa: E402
 from app.billing.router import public_router as billing_public_router  # noqa: E402
 from app.billing.router import router as billing_router  # noqa: E402
@@ -455,6 +456,7 @@ from app.websockets.router import router as ws_router  # noqa: E402
 from app.workforce.router import router as workforce_router  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
+app.include_router(ai_router, prefix="/api/ai", tags=["AI"])
 
 
 @app.get("/mcp/voicebooker", include_in_schema=False)

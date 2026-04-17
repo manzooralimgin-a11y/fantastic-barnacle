@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.service import answer_hotel_question, record_ai_query
 from app.config import settings
 from app.core.models import AgentAction
 from app.dashboard.models import Alert, AuditEvent, DashboardQuery, KPISnapshot
@@ -317,25 +318,16 @@ def _build_nl_answer(query: str, snapshot: dict) -> tuple[str, dict]:
 
 
 async def process_nl_query(db: AsyncSession, payload: NLQueryRequest) -> NLQueryResponse:
-    try:
-        snapshot = await _fetch_hotel_snapshot(db)
-        answer, data = _build_nl_answer(payload.query, snapshot)
-    except Exception as exc:
-        logger.warning("NL query data fetch failed: %s", exc)
-        answer = "Konnte keine aktuellen Hoteldaten abrufen. Bitte Backend-Verbindung prüfen."
-        data = None
-
-    query_record = DashboardQuery(
-        query_text=payload.query,
-        ai_response=answer,
+    result = await answer_hotel_question(db, question=payload.query)
+    await record_ai_query(
+        db,
+        result=result,
     )
-    db.add(query_record)
-    await db.flush()
 
     return NLQueryResponse(
         query=payload.query,
-        answer=answer,
-        data=data,
+        answer=result.answer,
+        data=result.highlights,
     )
 
 

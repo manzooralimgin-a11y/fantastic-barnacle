@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import HotelAccessContext, require_hotel_permissions
+from app.dependencies import HotelAccessContext, require_any_hotel_permission, require_hotel_permissions
 from app.hms.document_service import list_document_blueprints
 from app.hms.models import HotelProperty
 from app.hms.pms.schemas import (
@@ -123,6 +123,7 @@ from app.hms.rbac import (
     HOTEL_PERMISSION_COMMS,
     HOTEL_PERMISSION_CRM,
     HOTEL_PERMISSION_DOCUMENTS,
+    HOTEL_PERMISSION_FINANCE,
     HOTEL_PERMISSION_FOLIO,
     HOTEL_PERMISSION_FRONT_DESK,
     HOTEL_PERMISSION_HOUSEKEEPING,
@@ -318,7 +319,9 @@ async def list_pms_billing_folios(
     status: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await list_pms_folios(
         db,
@@ -334,7 +337,9 @@ async def list_pms_reservation_folios(
     reservation_id: int,
     property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await list_reservation_folios(
         db,
@@ -364,7 +369,9 @@ async def list_pms_reservation_invoices(
     reservation_id: int,
     property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await list_pms_invoices(
         db,
@@ -391,7 +398,9 @@ async def get_pms_cash_master(
     sort_by: str = Query(default="invoice_date"),
     sort_dir: str = Query(default="desc"),
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await search_pms_cash_master(
         db,
@@ -429,7 +438,9 @@ async def ensure_pms_reservation_invoice(
 async def get_pms_billing_invoice(
     invoice_id: int,
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await get_pms_invoice(db, invoice_id=invoice_id, hotel_access=hotel_access)
 
@@ -438,7 +449,9 @@ async def get_pms_billing_invoice(
 async def get_pms_billing_invoice_detail(
     invoice_id: int,
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await get_pms_invoice_detail(db, invoice_id=invoice_id, hotel_access=hotel_access)
 
@@ -447,7 +460,9 @@ async def get_pms_billing_invoice_detail(
 async def get_pms_billing_invoice_preview(
     invoice_id: int,
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await get_pms_invoice_preview(db, invoice_id=invoice_id, hotel_access=hotel_access)
 
@@ -544,7 +559,9 @@ async def create_pms_invoice_document_route(
 async def get_pms_billing_folio(
     folio_id: int,
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await get_pms_folio(db, folio_id=folio_id, hotel_access=hotel_access)
 

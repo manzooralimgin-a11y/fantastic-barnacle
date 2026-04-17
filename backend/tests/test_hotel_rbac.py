@@ -250,3 +250,92 @@ async def test_auth_me_bootstraps_hotel_rbac_when_tables_are_empty(
     assert payload["active_property_id"] is not None
     assert "hotel.dashboard" in payload["hotel_permissions"]
     assert payload["hotel_properties"]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_auth_me_repairs_staff_finance_permissions_for_existing_hotel_role(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    restaurant = Restaurant(
+        name="Finance Repair Restaurant",
+        address="Finance 1",
+        city="Berlin",
+        state="BE",
+        zip_code="10115",
+        phone="+49 30 222222",
+    )
+    db_session.add(restaurant)
+    await db_session.flush()
+
+    property_record = HotelProperty(
+        name="Finance Repair Hotel",
+        address="River 9",
+        city="Magdeburg",
+        country="DE",
+    )
+    db_session.add(property_record)
+    await db_session.flush()
+
+    role = (await db_session.execute(select(HotelRole).where(HotelRole.code == "hotel_staff"))).scalar_one_or_none()
+    if role is None:
+        role = HotelRole(code="hotel_staff", name="Hotel Staff")
+        db_session.add(role)
+        await db_session.flush()
+
+    dashboard_permission = (
+        await db_session.execute(select(HotelPermission).where(HotelPermission.code == "hotel.dashboard"))
+    ).scalar_one_or_none()
+    if dashboard_permission is None:
+        dashboard_permission = HotelPermission(code="hotel.dashboard", name="Dashboard")
+        db_session.add(dashboard_permission)
+        await db_session.flush()
+
+    existing_pair = (
+        await db_session.execute(
+            select(HotelRolePermission).where(
+                HotelRolePermission.role_id == role.id,
+                HotelRolePermission.permission_id == dashboard_permission.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_pair is None:
+        db_session.add(HotelRolePermission(role_id=role.id, permission_id=dashboard_permission.id))
+
+    user = User(
+        email="staff-finance-rbac@example.com",
+        password_hash=hash_password("StrongPassword123!"),
+        full_name="Staff Finance RBAC User",
+        role=UserRole.staff,
+        is_active=True,
+        restaurant_id=restaurant.id,
+        active_property_id=property_record.id,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    db_session.add(
+        HotelUserPropertyRole(
+            user_id=user.id,
+            property_id=property_record.id,
+            role_id=role.id,
+        )
+    )
+    await db_session.commit()
+
+    login_response = await client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "StrongPassword123!"},
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    me_response = await client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert me_response.status_code == 200
+    payload = me_response.json()
+    assert payload["hotel_roles"] == ["hotel_staff"]
+    assert "hotel.finance" in payload["hotel_permissions"]
+    assert "hotel.folio" not in payload["hotel_permissions"]

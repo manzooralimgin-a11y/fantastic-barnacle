@@ -299,3 +299,106 @@ async def test_hotel_folio_non_room_lines_can_be_voided(
     assert payload["balance_due"] == 198.0
     voided_line = next(line for line in payload["lines"] if line["id"] == created_line["id"])
     assert voided_line["status"] == "void"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_staff_finance_permission_can_view_folios_but_cannot_post_payments(
+    client: AsyncClient,
+    tenant_seed,
+    db_session: AsyncSession,
+) -> None:
+    property_record = HotelProperty(
+        name="Finance Read Hotel",
+        address="Canal Street 7",
+        city="Hamburg",
+        country="DE",
+    )
+    db_session.add(property_record)
+    await db_session.flush()
+
+    room_type = RoomType(
+        property_id=property_record.id,
+        name="Deluxe",
+        base_occupancy=2,
+        max_occupancy=2,
+        base_price=129.0,
+    )
+    db_session.add(room_type)
+    await db_session.flush()
+
+    room = Room(
+        property_id=property_record.id,
+        room_number="305",
+        room_type_id=room_type.id,
+        status="available",
+    )
+    db_session.add(room)
+    await db_session.flush()
+
+    reservation = HotelReservation(
+        property_id=property_record.id,
+        guest_name="Finance Reader",
+        guest_email="finance-reader@example.com",
+        guest_phone="555",
+        phone="555",
+        check_in=date(2026, 12, 10),
+        check_out=date(2026, 12, 12),
+        status="confirmed",
+        total_amount=258.0,
+        booking_id="BK-FINREAD",
+        room="305",
+        room_type_id=room_type.id,
+        room_type_label="Deluxe",
+        adults=2,
+        children=0,
+    )
+    db_session.add(reservation)
+    await db_session.flush()
+
+    stay = HotelStay(
+        property_id=property_record.id,
+        reservation_id=reservation.id,
+        room_id=room.id,
+        status="booked",
+        planned_check_in=reservation.check_in,
+        planned_check_out=reservation.check_out,
+    )
+    db_session.add(stay)
+    await db_session.flush()
+
+    folio = HotelFolio(
+        property_id=property_record.id,
+        stay_id=stay.id,
+        reservation_id=reservation.id,
+        folio_number="F-FIN-READ",
+        currency="EUR",
+        status="open",
+        subtotal=258.0,
+        tax_amount=0,
+        discount_amount=0,
+        total=258.0,
+        balance_due=258.0,
+    )
+    db_session.add(folio)
+    await db_session.commit()
+
+    read_response = await client.get(
+        f"/api/hms/folios?property_id={property_record.id}",
+        headers=hotel_headers(tenant_seed.restaurant_a_id, property_record.id, role="staff"),
+    )
+    assert read_response.status_code == 200
+    payload = read_response.json()
+    assert len(payload) == 1
+    assert payload[0]["folio_number"] == "F-FIN-READ"
+
+    payment_response = await client.post(
+        f"/api/hms/folios/{folio.id}/payments",
+        headers=hotel_headers(tenant_seed.restaurant_a_id, property_record.id, role="staff"),
+        json={
+            "amount": 25.0,
+            "method": "card",
+            "reference": "TX-STAFF-READ",
+        },
+    )
+    assert payment_response.status_code == 403
+    assert payment_response.json()["detail"] == "Insufficient hotel permissions"

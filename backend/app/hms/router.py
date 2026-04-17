@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.dependencies import HotelAccessContext, get_current_hotel_user, require_hotel_permissions
+from app.dependencies import (
+    HotelAccessContext,
+    get_current_hotel_user,
+    require_any_hotel_permission,
+    require_hotel_permissions,
+)
 from app.hms.crm_service import (
     get_hotel_crm_guest,
     list_hotel_crm_guests,
@@ -59,6 +64,7 @@ from app.hms.rbac import (
     HOTEL_PERMISSION_CRM,
     HOTEL_PERMISSION_DASHBOARD,
     HOTEL_PERMISSION_DOCUMENTS,
+    HOTEL_PERMISSION_FINANCE,
     HOTEL_PERMISSION_FOLIO,
     HOTEL_PERMISSION_FRONT_DESK,
     HOTEL_PERMISSION_HOUSEKEEPING,
@@ -572,7 +578,9 @@ async def get_hms_reporting_summary(
     days: int = Query(default=30, ge=1, le=365),
     property_id: int | None = Query(default=None, gt=0),
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_REPORTS)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_REPORTS, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     property_record = await _resolve_property_record(db, hotel_access=hotel_access, property_id=property_id)
     if property_record is None:
@@ -1041,7 +1049,9 @@ async def list_hotel_folios(
     status: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await list_folios(
         db,
@@ -1065,7 +1075,9 @@ async def ensure_reservation_folio(
 async def hotel_folio_detail(
     folio_id: int,
     db: AsyncSession = Depends(get_db),
-    hotel_access: HotelAccessContext = Depends(require_hotel_permissions(HOTEL_PERMISSION_FOLIO)),
+    hotel_access: HotelAccessContext = Depends(
+        require_any_hotel_permission(HOTEL_PERMISSION_FOLIO, HOTEL_PERMISSION_FINANCE)
+    ),
 ):
     return await get_folio(db, folio_id, hotel_access)
 

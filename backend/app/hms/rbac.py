@@ -72,6 +72,7 @@ DEFAULT_HOTEL_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         HOTEL_PERMISSION_RESERVATIONS,
         HOTEL_PERMISSION_HOUSEKEEPING,
         HOTEL_PERMISSION_DOCUMENTS,
+        HOTEL_PERMISSION_FINANCE,
     ),
     "hotel_manager": (
         HOTEL_PERMISSION_DASHBOARD,
@@ -79,6 +80,7 @@ DEFAULT_HOTEL_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         HOTEL_PERMISSION_RESERVATIONS,
         HOTEL_PERMISSION_HOUSEKEEPING,
         HOTEL_PERMISSION_DOCUMENTS,
+        HOTEL_PERMISSION_FINANCE,
         HOTEL_PERMISSION_FOLIO,
         HOTEL_PERMISSION_REPORTS,
         HOTEL_PERMISSION_RATE_MANAGEMENT,
@@ -162,6 +164,24 @@ def serialize_hotel_access_context(context: HotelAccessContext) -> dict:
             for property_item in context.properties
         ],
     }
+
+
+def _role_permissions_need_sync(assignments: list[HotelUserPropertyRole]) -> bool:
+    for assignment in assignments:
+        role_record = assignment.role
+        if role_record is None:
+            continue
+        expected_permissions = set(DEFAULT_HOTEL_ROLE_PERMISSIONS.get(role_record.code, ()))
+        if not expected_permissions:
+            continue
+        actual_permissions = {
+            role_permission.permission.code
+            for role_permission in role_record.role_permissions
+            if role_permission.permission is not None
+        }
+        if not expected_permissions.issubset(actual_permissions):
+            return True
+    return False
 
 
 async def ensure_hotel_rbac_bootstrap(
@@ -292,7 +312,7 @@ async def get_hotel_access_context(
     )
     assignments = result.scalars().all()
 
-    if not assignments:
+    if not assignments or _role_permissions_need_sync(assignments):
         await ensure_hotel_rbac_bootstrap(db, users=[user])
         result = await db.execute(
             select(HotelUserPropertyRole)

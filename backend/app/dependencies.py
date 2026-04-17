@@ -206,29 +206,97 @@ async def get_current_hotel_user(
 
 
 def require_hotel_permissions(*required_permissions: str) -> Callable:
+    required_permission_set = tuple(dict.fromkeys(required_permissions))
+
+    def _log_hotel_authorization_denied(
+        request: Request,
+        hotel_access: HotelAccessContext,
+        *,
+        required_permissions: tuple[str, ...],
+        match_mode: str,
+    ) -> None:
+        user_role = getattr(hotel_access.user, "role", None)
+        user_role_value = user_role.value if hasattr(user_role, "value") else str(user_role)
+        requested_property_id = request.query_params.get("property_id")
+        logger.warning(
+            json.dumps(
+                {
+                    "event": "hotel_authorization_denied",
+                    "path": request.url.path,
+                    "method": request.method,
+                    "user_id": getattr(hotel_access.user, "id", None),
+                    "user_role": user_role_value,
+                    "restaurant_id": getattr(hotel_access.user, "restaurant_id", None),
+                    "active_property_id": hotel_access.active_property_id,
+                    "requested_property_id": int(requested_property_id) if requested_property_id else None,
+                    "accessible_property_ids": sorted(hotel_access.property_ids),
+                    "required_permissions": list(required_permissions),
+                    "available_permissions": list(hotel_access.hotel_permissions),
+                    "match_mode": match_mode,
+                }
+            )
+        )
+
     async def permission_guard(
         request: Request,
         hotel_access: HotelAccessContext = Depends(get_current_hotel_user),
     ) -> HotelAccessContext:
         missing_permissions = [
             permission
-            for permission in required_permissions
+            for permission in required_permission_set
             if permission not in set(hotel_access.hotel_permissions)
         ]
         if missing_permissions:
-            logger.warning(
-                json.dumps(
-                    {
-                        "event": "hotel_authorization_denied",
-                        "path": request.url.path,
-                        "method": request.method,
-                        "user_id": getattr(hotel_access.user, "id", None),
-                        "active_property_id": hotel_access.active_property_id,
-                        "missing_permissions": missing_permissions,
-                        "available_permissions": list(hotel_access.hotel_permissions),
-                    }
-                )
+            _log_hotel_authorization_denied(
+                request,
+                hotel_access,
+                required_permissions=required_permission_set,
+                match_mode="all",
             )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient hotel permissions",
+            )
+        return hotel_access
+
+    return permission_guard
+
+
+def require_any_hotel_permission(*accepted_permissions: str) -> Callable:
+    accepted_permission_set = tuple(dict.fromkeys(accepted_permissions))
+
+    def _log_hotel_authorization_denied(
+        request: Request,
+        hotel_access: HotelAccessContext,
+    ) -> None:
+        user_role = getattr(hotel_access.user, "role", None)
+        user_role_value = user_role.value if hasattr(user_role, "value") else str(user_role)
+        requested_property_id = request.query_params.get("property_id")
+        logger.warning(
+            json.dumps(
+                {
+                    "event": "hotel_authorization_denied",
+                    "path": request.url.path,
+                    "method": request.method,
+                    "user_id": getattr(hotel_access.user, "id", None),
+                    "user_role": user_role_value,
+                    "restaurant_id": getattr(hotel_access.user, "restaurant_id", None),
+                    "active_property_id": hotel_access.active_property_id,
+                    "requested_property_id": int(requested_property_id) if requested_property_id else None,
+                    "accessible_property_ids": sorted(hotel_access.property_ids),
+                    "required_permissions": list(accepted_permission_set),
+                    "available_permissions": list(hotel_access.hotel_permissions),
+                    "match_mode": "any",
+                }
+            )
+        )
+
+    async def permission_guard(
+        request: Request,
+        hotel_access: HotelAccessContext = Depends(get_current_hotel_user),
+    ) -> HotelAccessContext:
+        if not any(permission in set(hotel_access.hotel_permissions) for permission in accepted_permission_set):
+            _log_hotel_authorization_denied(request, hotel_access)
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient hotel permissions",

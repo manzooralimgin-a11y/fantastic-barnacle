@@ -9,10 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.hms.models import HotelProperty, HotelReservation, Room, RoomType
 
 
-def hotel_headers(restaurant_id: int, property_id: int, permissions: str | None = None) -> dict[str, str]:
+def hotel_headers(
+    restaurant_id: int,
+    property_id: int,
+    permissions: str | None = None,
+    role: str = "manager",
+) -> dict[str, str]:
     return {
         "x-test-restaurant-id": str(restaurant_id),
-        "x-test-role": "manager",
+        "x-test-role": role,
         "x-test-property-id": str(property_id),
         "x-test-hotel-property-ids": str(property_id),
         **({"x-test-hotel-permissions": permissions} if permissions else {}),
@@ -256,6 +261,47 @@ async def test_hms_reporting_daily_returns_per_day_metrics(
         "departures": 1,
         "turnover": 0.0,
     }
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_staff_finance_permission_can_read_reporting_summary(
+    client: AsyncClient,
+    tenant_seed,
+    db_session: AsyncSession,
+) -> None:
+    property_record = HotelProperty(
+        name="Finance Summary Hotel",
+        address="Pier 7",
+        city="Hamburg",
+        country="DE",
+        currency="EUR",
+    )
+    db_session.add(property_record)
+    await db_session.flush()
+
+    room_type = RoomType(
+        property_id=property_record.id,
+        name="Komfort",
+        base_occupancy=2,
+        max_occupancy=2,
+        base_price=120.0,
+    )
+    db_session.add(room_type)
+    await db_session.flush()
+
+    db_session.add(
+        Room(property_id=property_record.id, room_number="401", room_type_id=room_type.id, status="available")
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/hms/reports/summary?property_id={property_record.id}&start_date=2026-08-01&days=1",
+        headers=hotel_headers(tenant_seed.restaurant_a_id, property_record.id, role="staff"),
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["property_id"] == property_record.id
+    assert payload["room_count"] == 1
 
 
 @pytest.mark.asyncio(loop_scope="session")

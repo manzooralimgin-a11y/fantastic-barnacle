@@ -20,11 +20,12 @@ from app.hms.models import (
 )
 
 
-def _headers(property_id: int, permissions: str) -> dict[str, str]:
+def _headers(property_id: int, permissions: str | None = None, role: str = "manager") -> dict[str, str]:
     return {
+        "x-test-role": role,
         "x-test-property-id": str(property_id),
         "x-test-hotel-property-ids": str(property_id),
-        "x-test-hotel-permissions": permissions,
+        **({"x-test-hotel-permissions": permissions} if permissions else {}),
     }
 
 
@@ -650,3 +651,95 @@ async def test_hms_admin_update_reservation_rejects_locked_records(
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Reservation is locked and cannot be updated"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_staff_finance_permission_can_read_pms_billing_folios(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    property_record = HotelProperty(
+        name="PMS Finance Hotel",
+        address="Finance Pier 3",
+        city="Hamburg",
+        country="DE",
+    )
+    db_session.add(property_record)
+    await db_session.flush()
+
+    room_type = RoomType(
+        property_id=property_record.id,
+        name="Apartment",
+        base_occupancy=2,
+        max_occupancy=4,
+        base_price=149.0,
+    )
+    db_session.add(room_type)
+    await db_session.flush()
+
+    room = Room(
+        property_id=property_record.id,
+        room_number="202",
+        room_type_id=room_type.id,
+        status="available",
+    )
+    db_session.add(room)
+    await db_session.flush()
+
+    reservation = HotelReservation(
+        property_id=property_record.id,
+        guest_name="PMS Finance Guest",
+        guest_email="pms-finance@example.com",
+        guest_phone="+49 111 9999",
+        check_in=date.today(),
+        check_out=date.today().replace(day=min(date.today().day + 1, 28)),
+        status="confirmed",
+        total_amount=149.0,
+        currency="EUR",
+        room_type_id=room_type.id,
+        booking_id="R-PMS-FIN",
+        room="202",
+        room_type_label="Apartment",
+        adults=2,
+        children=0,
+        payment_status="pending",
+    )
+    db_session.add(reservation)
+    await db_session.flush()
+
+    stay = HotelStay(
+        property_id=property_record.id,
+        reservation_id=reservation.id,
+        room_id=room.id,
+        status="booked",
+        planned_check_in=reservation.check_in,
+        planned_check_out=reservation.check_out,
+    )
+    db_session.add(stay)
+    await db_session.flush()
+
+    db_session.add(
+        HotelFolio(
+            property_id=property_record.id,
+            stay_id=stay.id,
+            reservation_id=reservation.id,
+            folio_number="F-PMS-FIN",
+            currency="EUR",
+            status="open",
+            subtotal=149.0,
+            tax_amount=0,
+            discount_amount=0,
+            total=149.0,
+            balance_due=149.0,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/hms/pms/billing/folios?property_id={property_record.id}",
+        headers=_headers(property_record.id, role="staff"),
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["folio_number"] == "F-PMS-FIN"

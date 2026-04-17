@@ -153,7 +153,7 @@ export const hotelNavSections: NavSection[] = [
     title: "System",
     items: [
       { label: "AI Agents", href: hotel("/agents"), icon: Bot, minRole: "admin", hotelPermission: "hotel.agents" },
-      { label: "Finance", href: hotel("/finance"), icon: Receipt, minRole: "admin", hotelPermission: "hotel.finance" },
+      { label: "Finance", href: hotel("/finance"), icon: Receipt, hotelPermission: "hotel.finance" },
       { label: "Security", href: hotel("/security"), icon: ShieldCheck, minRole: "admin", hotelPermission: "hotel.security" },
       { label: "Settings", href: hotel("/settings"), icon: Settings, minRole: "manager", hotelPermission: "hotel.settings" },
     ],

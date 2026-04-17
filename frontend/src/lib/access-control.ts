@@ -73,7 +73,7 @@ const hotelRouteRules: RouteRule[] = [
   { prefix: buildDomainPath("hotel", "/cash-master"), hotelPermission: "hotel.folio" },
   { prefix: buildDomainPath("hotel", "/comms"), minRole: "manager", hotelPermission: "hotel.comms" },
   { prefix: buildDomainPath("hotel", "/agents"), minRole: "admin", hotelPermission: "hotel.agents" },
-  { prefix: buildDomainPath("hotel", "/finance"), minRole: "admin", hotelPermission: "hotel.finance" },
+  { prefix: buildDomainPath("hotel", "/finance"), hotelPermission: "hotel.finance" },
   { prefix: buildDomainPath("hotel", "/security"), minRole: "admin", hotelPermission: "hotel.security" },
   { prefix: buildDomainPath("hotel", "/settings"), minRole: "manager", hotelPermission: "hotel.settings" },
 ];

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,7 @@ from app.auth.models import User
 from app.auth.schemas import LoginRequest, RefreshRequest
 from app.auth.service import authenticate_user, refresh_tokens
 from app.auth.utils import verify_password
-from app.billing.models import Bill
+from app.billing.models import Bill, OrderItem, TableOrder
 from app.billing.schemas import BillCreate, OrderItemCreate, PaymentCreate, TableOrderCreate
 from app.billing.service import (
     add_order_item,
@@ -24,12 +25,18 @@ from app.billing.service import (
     send_to_kitchen,
 )
 from app.config import settings
-from app.database import get_db
+from app.database import get_db, mark_session_commit_managed
 from app.dependencies import get_current_tenant_user
+from app.middleware.request_id import reset_idempotency_key, set_idempotency_key
 from app.menu.models import MenuItem, MenuItemModifier, MenuModifier
 from app.menu.service import get_categories as get_menu_categories
 from app.menu.service import get_items as get_menu_items
 from app.reservations.models import FloorSection, Reservation, Table, TableSession
+from app.waiter.idempotency import (
+    IdempotencyClaim,
+    IdempotencyReplay,
+    WaiterOrderIdempotencyService,
+)
 
 router = APIRouter()
 
@@ -75,6 +82,8 @@ class WaiterTableResponse(BaseModel):
     current_total: float = 0
     guest_count: int = 0
     item_count: int = 0
+    elapsed_minutes: int = 0
+    item_status_counts: dict[str, int] = Field(default_factory=dict)
     reservation: dict[str, Any] | None = None
 
 
@@ -138,6 +147,22 @@ class WaiterOrderCreateResponse(BaseModel):
     created_at: str
 
 
+class WaiterRepeatOrderItemResponse(BaseModel):
+    menu_item_id: str
+    item_name: str
+    quantity: int
+    notes: str | None = None
+    modifier_ids: list[str] = Field(default_factory=list)
+
+
+class WaiterTableLastOrderResponse(BaseModel):
+    order_id: str
+    status: str
+    created_at: str
+    notes: str | None = None
+    items: list[WaiterRepeatOrderItemResponse] = Field(default_factory=list)
+
+
 class WaiterPaymentRequest(BaseModel):
     order_id: str
     amount: float = Field(gt=0)
@@ -199,6 +224,151 @@ async def _resolve_waiter_user(db: AsyncSession, username: str) -> User | None:
         )
     )
     return result.scalars().first()
+
+
+def _empty_item_status_counts() -> dict[str, int]:
+    return {
+        "preparing": 0,
+        "ready": 0,
+        "served": 0,
+    }
+
+
+def _summary_status(status_value: str | None) -> str | None:
+    normalized = (status_value or "").strip().lower()
+    if normalized in {"pending", "preparing"}:
+        return "preparing"
+    if normalized in {"ready", "served"}:
+        return normalized
+    return None
+
+
+def _extract_modifier_ids(payload: dict[str, Any] | None) -> list[str]:
+    if payload is None or not isinstance(payload, dict):
+        return []
+    selected = payload.get("selected")
+    if not isinstance(selected, list):
+        return []
+    modifier_ids: list[str] = []
+    for entry in selected:
+        if not isinstance(entry, dict):
+            continue
+        modifier_id = entry.get("id")
+        if modifier_id is None:
+            continue
+        modifier_ids.append(str(modifier_id))
+    return modifier_ids
+
+
+async def _load_modifier_map(
+    db: AsyncSession,
+    restaurant_id: int,
+    item_ids: list[int],
+) -> dict[int, list[WaiterMenuModifierResponse]]:
+    if not item_ids:
+        return {}
+
+    modifier_rows = await db.execute(
+        select(
+            MenuItemModifier.item_id,
+            MenuModifier.id,
+            MenuModifier.name,
+            MenuModifier.group_name,
+            MenuModifier.price_adjustment,
+            MenuModifier.is_default,
+        )
+        .join(MenuModifier, MenuModifier.id == MenuItemModifier.modifier_id)
+        .where(
+            MenuItemModifier.item_id.in_(item_ids),
+            MenuModifier.restaurant_id == restaurant_id,
+        )
+        .order_by(MenuModifier.group_name.asc(), MenuModifier.name.asc())
+    )
+    modifiers_by_item: dict[int, list[WaiterMenuModifierResponse]] = {}
+    for item_id, modifier_id, name, group_name, price_adjustment, is_default in modifier_rows.all():
+        modifiers_by_item.setdefault(int(item_id), []).append(
+            WaiterMenuModifierResponse(
+                id=str(modifier_id),
+                name=name,
+                group_name=group_name,
+                price_adjustment=float(price_adjustment or 0),
+                is_default=bool(is_default),
+            )
+        )
+    return modifiers_by_item
+
+
+def _serialize_waiter_menu_item(
+    item: MenuItem,
+    modifiers_by_item: dict[int, list[WaiterMenuModifierResponse]],
+) -> WaiterMenuItemResponse:
+    return WaiterMenuItemResponse(
+        id=str(item.id),
+        category_id=str(item.category_id),
+        name=item.name,
+        description=item.description or "",
+        price=float(item.price or 0),
+        available=bool(item.is_available),
+        is_available=bool(item.is_available),
+        featured=bool(item.is_featured),
+        is_featured=bool(item.is_featured),
+        image_url=item.image_url,
+        prep_time_min=int(item.prep_time_min or 0),
+        allergens=_extract_tags(item.allergens_json),
+        dietary_tags=_extract_tags(item.dietary_tags_json),
+        modifiers=modifiers_by_item.get(item.id, []),
+    )
+
+
+async def _load_last_table_order(
+    db: AsyncSession,
+    restaurant_id: int,
+    table_id: int,
+) -> TableOrder | None:
+    return await db.scalar(
+        select(TableOrder)
+        .where(
+            TableOrder.restaurant_id == restaurant_id,
+            TableOrder.table_id == table_id,
+        )
+        .order_by(TableOrder.created_at.desc(), TableOrder.id.desc())
+        .limit(1)
+    )
+
+
+async def _serialize_last_table_order(
+    db: AsyncSession,
+    restaurant_id: int,
+    order: TableOrder,
+) -> WaiterTableLastOrderResponse:
+    items = list(
+        (
+            await db.execute(
+                select(OrderItem)
+                .where(
+                    OrderItem.restaurant_id == restaurant_id,
+                    OrderItem.order_id == order.id,
+                )
+                .order_by(OrderItem.course_number.asc(), OrderItem.id.asc())
+            )
+        ).scalars().all()
+    )
+    return WaiterTableLastOrderResponse(
+        order_id=str(order.id),
+        status=order.status,
+        created_at=order.created_at.isoformat() if order.created_at else datetime.now(timezone.utc).isoformat(),
+        notes=order.notes,
+        items=[
+            WaiterRepeatOrderItemResponse(
+                menu_item_id=str(item.menu_item_id),
+                item_name=item.item_name,
+                quantity=int(item.quantity or 0),
+                notes=item.notes,
+                modifier_ids=_extract_modifier_ids(item.modifiers_json),
+            )
+            for item in items
+        ],
+    )
 
 
 async def _authenticate_waiter(db: AsyncSession, payload: WaiterLoginRequest) -> WaiterAuthResponse:
@@ -307,6 +477,31 @@ async def waiter_tables(
         ).scalars().all()
     )
     live_orders = await get_active_orders_with_info(db, restaurant_id)
+    active_order_ids = [
+        int(order["id"])
+        for order in live_orders
+        if order.get("id") is not None
+    ]
+    status_counts_by_order: dict[int, dict[str, int]] = {}
+    if active_order_ids:
+        item_status_rows = await db.execute(
+            select(
+                OrderItem.order_id,
+                OrderItem.status,
+                func.coalesce(func.sum(OrderItem.quantity), 0),
+            )
+            .where(
+                OrderItem.restaurant_id == restaurant_id,
+                OrderItem.order_id.in_(active_order_ids),
+            )
+            .group_by(OrderItem.order_id, OrderItem.status)
+        )
+        for order_id, item_status, quantity_total in item_status_rows.all():
+            summary_status = _summary_status(item_status)
+            if summary_status is None:
+                continue
+            counts = status_counts_by_order.setdefault(int(order_id), _empty_item_status_counts())
+            counts[summary_status] += int(quantity_total or 0)
 
     section_name_by_id = {section.id: section.name for section in section_rows}
     session_by_table = {session.table_id: session for session in session_rows}
@@ -387,6 +582,12 @@ async def waiter_tables(
                 current_total=float(live_order.get("total", 0)) if has_active_order else 0,
                 guest_count=guest_count,
                 item_count=int(live_order.get("item_count", 0)) if has_active_order else 0,
+                elapsed_minutes=int(live_order.get("elapsed_minutes", 0)) if has_active_order else 0,
+                item_status_counts=(
+                    status_counts_by_order.get(int(live_order["id"]), _empty_item_status_counts())
+                    if has_active_order
+                    else _empty_item_status_counts()
+                ),
                 reservation=(
                     {
                         "id": str(reservation.id),
@@ -450,6 +651,8 @@ async def waiter_update_table_status(
         current_total=0,
         guest_count=0,
         item_count=0,
+        elapsed_minutes=0,
+        item_status_counts=_empty_item_status_counts(),
         reservation=None,
     )
 
@@ -476,56 +679,18 @@ async def waiter_menu(
     items = await get_menu_items(db, restaurant_id)
     active_categories = [category for category in categories if category.is_active]
     category_map = {category.id: category for category in active_categories}
-
-    modifier_rows = await db.execute(
-        select(
-            MenuItemModifier.item_id,
-            MenuModifier.id,
-            MenuModifier.name,
-            MenuModifier.group_name,
-            MenuModifier.price_adjustment,
-            MenuModifier.is_default,
-        )
-        .join(MenuModifier, MenuModifier.id == MenuItemModifier.modifier_id)
-        .where(
-            MenuItemModifier.item_id.in_([item.id for item in items] or [-1]),
-            MenuModifier.restaurant_id == restaurant_id,
-        )
-        .order_by(MenuModifier.group_name.asc(), MenuModifier.name.asc())
+    modifiers_by_item = await _load_modifier_map(
+        db,
+        restaurant_id,
+        [item.id for item in items],
     )
-    modifiers_by_item: dict[int, list[WaiterMenuModifierResponse]] = {}
-    for item_id, modifier_id, name, group_name, price_adjustment, is_default in modifier_rows.all():
-        modifiers_by_item.setdefault(int(item_id), []).append(
-            WaiterMenuModifierResponse(
-                id=str(modifier_id),
-                name=name,
-                group_name=group_name,
-                price_adjustment=float(price_adjustment or 0),
-                is_default=bool(is_default),
-            )
-        )
 
     waiter_items: list[WaiterMenuItemResponse] = []
     items_by_category: dict[int, list[WaiterMenuItemResponse]] = {}
     for item in items:
         if item.category_id not in category_map:
             continue
-        serialized_item = WaiterMenuItemResponse(
-            id=str(item.id),
-            category_id=str(item.category_id),
-            name=item.name,
-            description=item.description or "",
-            price=float(item.price or 0),
-            available=bool(item.is_available),
-            is_available=bool(item.is_available),
-            featured=bool(item.is_featured),
-            is_featured=bool(item.is_featured),
-            image_url=item.image_url,
-            prep_time_min=int(item.prep_time_min or 0),
-            allergens=_extract_tags(item.allergens_json),
-            dietary_tags=_extract_tags(item.dietary_tags_json),
-            modifiers=modifiers_by_item.get(item.id, []),
-        )
+        serialized_item = _serialize_waiter_menu_item(item, modifiers_by_item)
         waiter_items.append(serialized_item)
         items_by_category.setdefault(item.category_id, []).append(serialized_item)
 
@@ -545,6 +710,69 @@ async def waiter_menu(
         categories=[category for category in payload if category.items],
         items=waiter_items,
     )
+
+
+@router.get("/quick-items", response_model=list[WaiterMenuItemResponse])
+async def waiter_quick_items(
+    current_user: User = Depends(_current_restaurant_user),
+    db: AsyncSession = Depends(get_db),
+):
+    restaurant_id = current_user.restaurant_id
+    categories = await get_menu_categories(db, restaurant_id)
+    active_category_ids = {category.id for category in categories if category.is_active}
+    menu_items = [
+        item
+        for item in await get_menu_items(db, restaurant_id)
+        if item.category_id in active_category_ids and item.is_available
+    ]
+    if not menu_items:
+        return []
+
+    item_ids = [item.id for item in menu_items]
+    item_by_id = {item.id: item for item in menu_items}
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    top_rows = await db.execute(
+        select(
+            OrderItem.menu_item_id,
+            func.coalesce(func.sum(OrderItem.quantity), 0).label("quantity_total"),
+        )
+        .join(TableOrder, TableOrder.id == OrderItem.order_id)
+        .where(
+            TableOrder.restaurant_id == restaurant_id,
+            OrderItem.restaurant_id == restaurant_id,
+            OrderItem.menu_item_id.in_(item_ids),
+            TableOrder.created_at >= cutoff,
+        )
+        .group_by(OrderItem.menu_item_id)
+        .order_by(func.coalesce(func.sum(OrderItem.quantity), 0).desc(), OrderItem.menu_item_id.asc())
+        .limit(8)
+    )
+
+    ordered_item_ids: list[int] = []
+    for menu_item_id, _quantity_total in top_rows.all():
+        item_id = int(menu_item_id)
+        if item_id in item_by_id and item_id not in ordered_item_ids:
+            ordered_item_ids.append(item_id)
+
+    fallback_items = sorted(
+        menu_items,
+        key=lambda item: (
+            0 if item.is_featured else 1,
+            item.name.lower(),
+        ),
+    )
+    for item in fallback_items:
+        if item.id not in ordered_item_ids:
+            ordered_item_ids.append(item.id)
+        if len(ordered_item_ids) >= 8:
+            break
+
+    modifiers_by_item = await _load_modifier_map(db, restaurant_id, ordered_item_ids)
+    return [
+        _serialize_waiter_menu_item(item_by_id[item_id], modifiers_by_item)
+        for item_id in ordered_item_ids[:8]
+        if item_id in item_by_id
+    ]
 
 
 @router.get("/menu/subcategories/{subcategory_id}/items", response_model=list[WaiterMenuItemResponse])
@@ -569,171 +797,245 @@ async def waiter_menu_items(
         for item in await get_menu_items(db, current_user.restaurant_id)
         if item.category_id == category_id
     ]
+    modifiers_by_item = await _load_modifier_map(
+        db,
+        current_user.restaurant_id,
+        [item.id for item in items],
+    )
 
     return [
-        WaiterMenuItemResponse(
-            id=str(item.id),
-            category_id=str(item.category_id),
-            name=item.name,
-            description=item.description or "",
-            price=float(item.price or 0),
-            available=bool(item.is_available),
-            is_available=bool(item.is_available),
-            featured=bool(item.is_featured),
-            is_featured=bool(item.is_featured),
-            image_url=item.image_url,
-            prep_time_min=int(item.prep_time_min or 0),
-            allergens=_extract_tags(item.allergens_json),
-            dietary_tags=_extract_tags(item.dietary_tags_json),
-            modifiers=[],
-        )
+        _serialize_waiter_menu_item(item, modifiers_by_item)
         for item in items
     ]
 
 
-@router.post("/orders", response_model=WaiterOrderCreateResponse, status_code=201)
-async def waiter_create_order(
-    payload: WaiterOrderCreateRequest,
+@router.get("/tables/{table_id}/last-order", response_model=WaiterTableLastOrderResponse)
+async def waiter_last_table_order(
+    table_id: int,
     current_user: User = Depends(_current_restaurant_user),
     db: AsyncSession = Depends(get_db),
 ):
     restaurant_id = current_user.restaurant_id
     table = await db.scalar(
         select(Table).where(
-            Table.id == int(payload.table_id),
+            Table.id == table_id,
             Table.restaurant_id == restaurant_id,
         )
     )
     if table is None:
         raise HTTPException(status_code=404, detail="Table not found")
-    if not payload.items:
-        raise HTTPException(status_code=400, detail="Order must contain at least one item")
 
-    table_reservation = await db.scalar(
-        select(Reservation).where(
-            Reservation.restaurant_id == restaurant_id,
-            Reservation.table_id == table.id,
-            Reservation.reservation_date == date.today(),
-            Reservation.status.in_(["confirmed", "arrived", "seated"]),
-        )
-    )
-    guest_count = (
-        payload.guest_count
-        or (table_reservation.party_size if table_reservation is not None else None)
-        or max(int(table.min_capacity or 1), 1)
-    )
+    order = await _load_last_table_order(db, restaurant_id, table_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="No previous order for this table")
 
-    active_session = await db.scalar(
-        select(TableSession).where(
-            TableSession.restaurant_id == restaurant_id,
-            TableSession.table_id == table.id,
-            TableSession.status == "active",
-        )
-    )
-    if active_session is None:
-        active_session = TableSession(
-            restaurant_id=restaurant_id,
-            table_id=table.id,
-            reservation_id=None,
-            started_at=datetime.now(timezone.utc),
-            ended_at=None,
-            status="active",
-            covers=guest_count,
-        )
-        db.add(active_session)
-        await db.flush()
-    else:
-        active_session.covers = guest_count
+    return await _serialize_last_table_order(db, restaurant_id, order)
 
-    menu_ids = [int(item.menu_item_id) for item in payload.items]
-    menu_rows = (
-        await db.execute(
-            select(MenuItem).where(
-                MenuItem.restaurant_id == restaurant_id,
-                MenuItem.id.in_(menu_ids),
+
+@router.post("/orders", response_model=WaiterOrderCreateResponse, status_code=201)
+async def waiter_create_order(
+    payload: WaiterOrderCreateRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    current_user: User = Depends(_current_restaurant_user),
+    db: AsyncSession = Depends(get_db),
+):
+    idempotency_token = set_idempotency_key(idempotency_key)
+    claim: IdempotencyClaim | None = None
+    restaurant_id = current_user.restaurant_id
+    try:
+        request_payload = payload.model_dump(mode="json", exclude_none=True)
+        claim_or_replay = await WaiterOrderIdempotencyService.claim_or_replay(
+            scope=f"rest:{restaurant_id}:waiter-order",
+            key=idempotency_key,
+            request_payload=request_payload,
+            request_source="waiter",
+            endpoint="/api/waiter/orders",
+        )
+        if isinstance(claim_or_replay, IdempotencyReplay):
+            return JSONResponse(
+                status_code=claim_or_replay.status_code,
+                content=claim_or_replay.response,
+            )
+        if isinstance(claim_or_replay, IdempotencyClaim):
+            claim = claim_or_replay
+
+        table = await db.scalar(
+            select(Table).where(
+                Table.id == int(payload.table_id),
+                Table.restaurant_id == restaurant_id,
             )
         )
-    ).scalars().all()
-    menu_by_id = {item.id: item for item in menu_rows}
-    if len(menu_by_id) != len(set(menu_ids)):
-        raise HTTPException(status_code=400, detail="One or more menu items were not found")
+        if table is None:
+            raise HTTPException(status_code=404, detail="Table not found")
+        if not payload.items:
+            raise HTTPException(status_code=400, detail="Order must contain at least one item")
 
-    modifier_ids = {
-        int(modifier_id)
-        for item in payload.items
-        for modifier_id in item.modifier_ids
-    }
-    modifiers_by_item: dict[int, dict[int, MenuModifier]] = {}
-    if modifier_ids:
-        modifier_rows = await db.execute(
-            select(MenuItemModifier.item_id, MenuModifier)
-            .join(MenuModifier, MenuModifier.id == MenuItemModifier.modifier_id)
-            .where(
-                MenuItemModifier.item_id.in_(list(set(menu_ids))),
-                MenuModifier.id.in_(list(modifier_ids)),
-                MenuModifier.restaurant_id == restaurant_id,
+        table_reservation = await db.scalar(
+            select(Reservation).where(
+                Reservation.restaurant_id == restaurant_id,
+                Reservation.table_id == table.id,
+                Reservation.reservation_date == date.today(),
+                Reservation.status.in_(["confirmed", "arrived", "seated"]),
             )
         )
-        for item_id, modifier in modifier_rows.all():
-            modifiers_by_item.setdefault(int(item_id), {})[int(modifier.id)] = modifier
+        guest_count = (
+            payload.guest_count
+            or (table_reservation.party_size if table_reservation is not None else None)
+            or max(int(table.min_capacity or 1), 1)
+        )
 
-    order = await create_billing_order(
-        db,
-        restaurant_id,
-        TableOrderCreate(
-            session_id=active_session.id,
-            table_id=table.id,
-            order_type="dine_in",
-            notes=payload.notes,
-            guest_name=None,
-        ),
-    )
+        active_session = await db.scalar(
+            select(TableSession).where(
+                TableSession.restaurant_id == restaurant_id,
+                TableSession.table_id == table.id,
+                TableSession.status == "active",
+            )
+        )
+        if active_session is None:
+            active_session = TableSession(
+                restaurant_id=restaurant_id,
+                table_id=table.id,
+                reservation_id=None,
+                started_at=datetime.now(timezone.utc),
+                ended_at=None,
+                status="active",
+                covers=guest_count,
+            )
+            db.add(active_session)
+            await db.flush()
+        else:
+            active_session.covers = guest_count
 
-    for position, item_request in enumerate(payload.items, start=1):
-        menu_item = menu_by_id[int(item_request.menu_item_id)]
-        selected_modifiers: list[dict[str, Any]] = []
-        modifier_total = 0.0
-        for modifier_id in item_request.modifier_ids:
-            resolved_modifier = modifiers_by_item.get(menu_item.id, {}).get(int(modifier_id))
-            if resolved_modifier is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Modifier {modifier_id} is not valid for menu item {menu_item.id}",
+        menu_ids = [int(item.menu_item_id) for item in payload.items]
+        menu_rows = (
+            await db.execute(
+                select(MenuItem).where(
+                    MenuItem.restaurant_id == restaurant_id,
+                    MenuItem.id.in_(menu_ids),
                 )
-            modifier_price = float(resolved_modifier.price_adjustment or 0)
-            modifier_total += modifier_price
-            selected_modifiers.append(
-                {
-                    "id": resolved_modifier.id,
-                    "name": resolved_modifier.name,
-                    "group_name": resolved_modifier.group_name,
-                    "price_adjustment": modifier_price,
-                }
             )
+        ).scalars().all()
+        menu_by_id = {item.id: item for item in menu_rows}
+        if len(menu_by_id) != len(set(menu_ids)):
+            raise HTTPException(status_code=400, detail="One or more menu items were not found")
 
-        created_item = await add_order_item(
+        modifier_ids = {
+            int(modifier_id)
+            for item in payload.items
+            for modifier_id in item.modifier_ids
+        }
+        modifiers_by_item: dict[int, dict[int, MenuModifier]] = {}
+        if modifier_ids:
+            modifier_rows = await db.execute(
+                select(MenuItemModifier.item_id, MenuModifier)
+                .join(MenuModifier, MenuModifier.id == MenuItemModifier.modifier_id)
+                .where(
+                    MenuItemModifier.item_id.in_(list(set(menu_ids))),
+                    MenuModifier.id.in_(list(modifier_ids)),
+                    MenuModifier.restaurant_id == restaurant_id,
+                )
+            )
+            for item_id, modifier in modifier_rows.all():
+                modifiers_by_item.setdefault(int(item_id), {})[int(modifier.id)] = modifier
+
+        order = await create_billing_order(
             db,
             restaurant_id,
-            order.id,
-            OrderItemCreate(
-                menu_item_id=menu_item.id,
-                item_name=menu_item.name,
-                quantity=item_request.quantity,
-                unit_price=round(float(menu_item.price or 0) + modifier_total, 2),
-                modifiers_json={"selected": selected_modifiers} if selected_modifiers else None,
-                notes=item_request.notes,
+            TableOrderCreate(
+                session_id=active_session.id,
+                table_id=table.id,
+                order_type="dine_in",
+                notes=payload.notes,
+                guest_name=None,
             ),
         )
-        created_item.course_number = position
 
-    order = await send_to_kitchen(db, restaurant_id, order.id)
-    table.status = "occupied"
+        for position, item_request in enumerate(payload.items, start=1):
+            menu_item = menu_by_id[int(item_request.menu_item_id)]
+            selected_modifiers: list[dict[str, Any]] = []
+            modifier_total = 0.0
+            for modifier_id in item_request.modifier_ids:
+                resolved_modifier = modifiers_by_item.get(menu_item.id, {}).get(int(modifier_id))
+                if resolved_modifier is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Modifier {modifier_id} is not valid for menu item {menu_item.id}",
+                    )
+                modifier_price = float(resolved_modifier.price_adjustment or 0)
+                modifier_total += modifier_price
+                selected_modifiers.append(
+                    {
+                        "id": resolved_modifier.id,
+                        "name": resolved_modifier.name,
+                        "group_name": resolved_modifier.group_name,
+                        "price_adjustment": modifier_price,
+                    }
+                )
 
-    return WaiterOrderCreateResponse(
-        order_id=str(order.id),
-        status="sent_to_kitchen",
-        created_at=order.created_at.isoformat() if order.created_at else datetime.now(timezone.utc).isoformat(),
-    )
+            created_item = await add_order_item(
+                db,
+                restaurant_id,
+                order.id,
+                OrderItemCreate(
+                    menu_item_id=menu_item.id,
+                    item_name=menu_item.name,
+                    quantity=item_request.quantity,
+                    unit_price=round(float(menu_item.price or 0) + modifier_total, 2),
+                    modifiers_json={"selected": selected_modifiers} if selected_modifiers else None,
+                    notes=item_request.notes,
+                ),
+            )
+            created_item.course_number = position
+
+        order = await send_to_kitchen(db, restaurant_id, order.id)
+        table.status = "occupied"
+
+        response_payload = WaiterOrderCreateResponse(
+            order_id=str(order.id),
+            status="sent_to_kitchen",
+            created_at=(
+                order.created_at.isoformat()
+                if order.created_at
+                else datetime.now(timezone.utc).isoformat()
+            ),
+        ).model_dump(mode="json")
+
+        if claim is None:
+            return response_payload
+
+        mark_session_commit_managed(db)
+        try:
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            await WaiterOrderIdempotencyService.release(
+                claim=claim,
+                request_source="waiter",
+                endpoint="/api/waiter/orders",
+                error="waiter_order_commit_failed",
+            )
+            claim = None
+            raise
+        await WaiterOrderIdempotencyService.complete_or_log(
+            claim=claim,
+            response=response_payload,
+            status_code=201,
+            request_source="waiter",
+            endpoint="/api/waiter/orders",
+        )
+        claim = None
+        return JSONResponse(status_code=201, content=response_payload)
+    except Exception:
+        if claim is not None:
+            await WaiterOrderIdempotencyService.release(
+                claim=claim,
+                request_source="waiter",
+                endpoint="/api/waiter/orders",
+                error="waiter_order_create_failed",
+            )
+        raise
+    finally:
+        reset_idempotency_key(idempotency_token)
 
 
 @router.post("/orders/{order_id}/payment", response_model=WaiterPaymentResponse)

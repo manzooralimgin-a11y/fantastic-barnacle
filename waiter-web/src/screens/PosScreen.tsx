@@ -8,7 +8,16 @@ import {
   useState,
 } from "react";
 import { OrderDetailModal } from "../components/OrderDetailModal";
-import { ApiError, waiterApi, type ReservationRead, type WaiterMenuItem, type WaiterTable } from "../lib/api";
+import {
+  ApiError,
+  waiterApi,
+  type OrderCreatePayload,
+  type ReservationRead,
+  type TableOrderRead,
+  type WaiterMenuItem,
+  type WaiterTable,
+  type WaiterTableLastOrder,
+} from "../lib/api";
 import {
   selectCartForTable,
   selectGuestCountForTable,
@@ -29,6 +38,12 @@ interface ItemComposerState {
   line?: CartLine;
 }
 
+interface PendingOrderSubmission {
+  key: string;
+  payload: OrderCreatePayload;
+  tableId: string;
+}
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -46,6 +61,18 @@ function todayIso(): string {
 
 function formatTime(value: string): string {
   return value.slice(0, 5);
+}
+
+function formatElapsedMinutes(value: number): string {
+  if (value <= 0) {
+    return "Now";
+  }
+  if (value < 60) {
+    return `${value}m`;
+  }
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
 function defaultReservationTime(): string {
@@ -102,6 +129,25 @@ function matchesSearch(item: WaiterMenuItem, query: string): boolean {
     .join(" ")
     .toLowerCase();
   return haystack.includes(query);
+}
+
+function makeIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `waiter-order-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function summarizeItemStatuses(
+  counts: WaiterTable["item_status_counts"] | null | undefined
+): Array<{ key: "preparing" | "ready" | "served"; label: string; count: number }> {
+  const source = counts ?? { preparing: 0, ready: 0, served: 0 };
+  const entries: Array<{ key: "preparing" | "ready" | "served"; label: string; count: number }> = [
+    { key: "preparing", label: "Preparing", count: source.preparing ?? 0 },
+    { key: "ready", label: "Ready", count: source.ready ?? 0 },
+    { key: "served", label: "Served", count: source.served ?? 0 },
+  ];
+  return entries.filter((entry) => entry.count > 0);
 }
 
 function MenuItemCard({
@@ -359,8 +405,18 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [pendingSubmission, setPendingSubmission] = useState<PendingOrderSubmission | null>(null);
   const [openOrderId, setOpenOrderId] = useState<number | null>(null);
   const [composerState, setComposerState] = useState<ItemComposerState | null>(null);
+  const [quickItems, setQuickItems] = useState<WaiterMenuItem[]>([]);
+  const [quickItemsLoading, setQuickItemsLoading] = useState(false);
+  const [lastOrdersByTable, setLastOrdersByTable] = useState<Record<string, WaiterTableLastOrder | null>>(
+    {}
+  );
+  const [lastOrderLoadingTableId, setLastOrderLoadingTableId] = useState<string | null>(null);
+  const [selectedOrderSnapshot, setSelectedOrderSnapshot] = useState<TableOrderRead | null>(null);
+  const [selectedOrderLoading, setSelectedOrderLoading] = useState(false);
+  const [selectedOrderError, setSelectedOrderError] = useState<string | null>(null);
   const [reservations, setReservations] = useState<ReservationRead[]>([]);
   const [reservationTableDrafts, setReservationTableDrafts] = useState<Record<number, string>>(
     {}
@@ -389,6 +445,9 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
   );
 
   const guestCount = storedGuestCount || defaultGuestCount(selectedTable);
+  const selectedTableOrderId = selectedTable?.current_order_id
+    ? Number(selectedTable.current_order_id)
+    : null;
 
   useEffect(() => {
     if (!menu.length) {
@@ -451,6 +510,136 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
     void loadReservations();
   }, [loadReservations]);
 
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setQuickItemsLoading(true);
+
+    waiterApi
+      .quickItems(controller.signal)
+      .then((items) => {
+        if (!active) {
+          return;
+        }
+        setQuickItems(items.filter((item) => item.available));
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+        if (error instanceof ApiError && error.status === 401) {
+          logout();
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setQuickItemsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [logout]);
+
+  const ensureLastOrder = useCallback(
+    async (tableId: string): Promise<WaiterTableLastOrder | null> => {
+      if (tableId in lastOrdersByTable) {
+        return lastOrdersByTable[tableId] ?? null;
+      }
+
+      setLastOrderLoadingTableId(tableId);
+      try {
+        const snapshot = await waiterApi.tableLastOrder(tableId);
+        setLastOrdersByTable((current) => ({
+          ...current,
+          [tableId]: snapshot,
+        }));
+        return snapshot;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          logout();
+          return null;
+        }
+        if (error instanceof ApiError && error.status === 404) {
+          setLastOrdersByTable((current) => ({
+            ...current,
+            [tableId]: null,
+          }));
+          return null;
+        }
+        throw error;
+      } finally {
+        setLastOrderLoadingTableId((current) => (current === tableId ? null : current));
+      }
+    },
+    [lastOrdersByTable, logout]
+  );
+
+  useEffect(() => {
+    if (!selectedTableId || selectedTableId in lastOrdersByTable) {
+      return;
+    }
+    void ensureLastOrder(selectedTableId).catch(() => undefined);
+  }, [ensureLastOrder, lastOrdersByTable, selectedTableId]);
+
+  useEffect(() => {
+    if (!selectedTableOrderId) {
+      setSelectedOrderSnapshot(null);
+      setSelectedOrderError(null);
+      setSelectedOrderLoading(false);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    const loadSelectedOrder = async () => {
+      if (!active) {
+        return;
+      }
+      setSelectedOrderLoading(true);
+      try {
+        const [detail, items] = await Promise.all([
+          waiterApi.orderDetail(selectedTableOrderId, controller.signal),
+          waiterApi.orderItems(selectedTableOrderId, controller.signal),
+        ]);
+        if (!active) {
+          return;
+        }
+        setSelectedOrderSnapshot({ ...detail, items });
+        setSelectedOrderError(null);
+      } catch (error) {
+        if (!active || controller.signal.aborted) {
+          return;
+        }
+        if (error instanceof ApiError && error.status === 401) {
+          logout();
+          return;
+        }
+        setSelectedOrderError(
+          error instanceof Error ? error.message : "Failed to load kitchen feedback"
+        );
+      } finally {
+        if (active) {
+          setSelectedOrderLoading(false);
+        }
+      }
+    };
+
+    void loadSelectedOrder();
+    const interval = window.setInterval(() => {
+      void loadSelectedOrder();
+    }, 5000);
+
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [logout, selectedTableOrderId]);
+
   const sectionOptions = useMemo(() => {
     const sections = [...new Set(tables.map((table) => table.section_name))];
     return sections.sort((left, right) => left.localeCompare(right));
@@ -484,6 +673,24 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
     return new Map(entries);
   }, [menu]);
 
+  const menuItemById = useMemo(
+    () =>
+      new Map(
+        menu.flatMap((category) =>
+          category.items.map((item) => [item.id, item] as const)
+        )
+      ),
+    [menu]
+  );
+
+  const featuredQuickItems = useMemo(() => {
+    const availableItems = menu.flatMap((category) => category.items).filter((item) => item.available);
+    const featuredItems = availableItems.filter((item) => item.featured);
+    return (featuredItems.length > 0 ? featuredItems : availableItems).slice(0, 8);
+  }, [menu]);
+
+  const visibleQuickItems = quickItems.length > 0 ? quickItems : featuredQuickItems;
+
   const visibleItems = useMemo(() => {
     const baseItems = deferredSearch
       ? menu.flatMap((category) => category.items)
@@ -508,6 +715,40 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
     [tables]
   );
 
+  const tableByOrderId = useMemo(() => {
+    const next = new Map<number, WaiterTable>();
+    tables.forEach((table) => {
+      if (!table.current_order_id) {
+        return;
+      }
+      const orderId = Number(table.current_order_id);
+      if (!Number.isNaN(orderId)) {
+        next.set(orderId, table);
+      }
+    });
+    return next;
+  }, [tables]);
+
+  const selectedTableLastOrder = selectedTable ? lastOrdersByTable[selectedTable.id] : null;
+  const selectedTableStatusSummary = summarizeItemStatuses(selectedTable?.item_status_counts);
+  const selectedOrderStatusSummary = useMemo(
+    () =>
+      summarizeItemStatuses(
+        selectedOrderSnapshot?.items?.reduce<WaiterTable["item_status_counts"]>(
+          (counts, item) => {
+            const nextKey =
+              item.status === "ready" || item.status === "served"
+                ? item.status
+                : "preparing";
+            counts[nextKey] += item.quantity;
+            return counts;
+          },
+          { preparing: 0, ready: 0, served: 0 }
+        )
+      ),
+    [selectedOrderSnapshot]
+  );
+
   const handleTableTap = (table: WaiterTable) => {
     selectTable(table.id);
     setSubmitError(null);
@@ -517,45 +758,155 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
     });
   };
 
-  const handleSubmitOrder = async () => {
+  const buildOrderPayload = useCallback((): OrderCreatePayload | null => {
+    if (!selectedTable) {
+      setSubmitError("Select a table first.");
+      return null;
+    }
+    if (cart.length === 0) {
+      setSubmitError("Add at least one item before sending.");
+      return null;
+    }
+
+    return {
+      table_id: selectedTable.id,
+      waiter_id: waiterId,
+      guest_count: guestCount,
+      items: cart.map((line) => ({
+        menu_item_id: line.item.id,
+        quantity: line.quantity,
+        notes: line.notes || null,
+        modifier_ids: line.modifiers.map((modifier) => modifier.id),
+      })),
+      notes: orderNotes.trim() || null,
+    };
+  }, [cart, guestCount, orderNotes, selectedTable, waiterId]);
+
+  const handleRepeatLastOrder = useCallback(async () => {
     if (!selectedTable) {
       setSubmitError("Select a table first.");
       return;
     }
-    if (cart.length === 0) {
-      setSubmitError("Add at least one item before sending.");
-      return;
-    }
 
-    setSubmitting(true);
-    setSubmitError(null);
-    setSubmitSuccess(null);
     try {
-      const response = await waiterApi.createOrder({
-        table_id: selectedTable.id,
-        waiter_id: waiterId,
-        guest_count: guestCount,
-        items: cart.map((line) => ({
-          menu_item_id: line.item.id,
-          quantity: line.quantity,
-          notes: line.notes || null,
-          modifier_ids: line.modifiers.map((modifier) => modifier.id),
-        })),
-        notes: orderNotes.trim() || null,
-      });
+      const snapshot = await ensureLastOrder(selectedTable.id);
+      if (!snapshot || snapshot.items.length === 0) {
+        setSubmitError("No previous order available for this table.");
+        return;
+      }
 
       clearCart(selectedTable.id);
-      await Promise.all([refreshTables(), refreshLiveOrders(), loadReservations()]);
-      setSubmitSuccess(`Order #${response.order_id} sent to kitchen.`);
+      let loadedLines = 0;
+      let skippedLines = 0;
+      snapshot.items.forEach((line) => {
+        const menuItem = menuItemById.get(line.menu_item_id);
+        if (!menuItem || !menuItem.available) {
+          skippedLines += 1;
+          return;
+        }
+        upsertCartLine(selectedTable.id, {
+          item: menuItem,
+          quantity: line.quantity,
+          notes: line.notes ?? "",
+          modifierIds: line.modifier_ids,
+        });
+        loadedLines += 1;
+      });
+      setOrderNotes(selectedTable.id, snapshot.notes ?? "");
       setSearch("");
+      setSubmitError(
+        loadedLines > 0
+          ? null
+          : "Last order items are no longer available in the current menu."
+      );
+      setSubmitSuccess(
+        loadedLines > 0
+          ? `Repeated order #${snapshot.order_id}.${skippedLines > 0 ? ` ${skippedLines} unavailable item${skippedLines === 1 ? "" : "s"} skipped.` : ""}`
+          : null
+      );
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         logout();
         return;
       }
       setSubmitError(
-        error instanceof Error ? error.message : "Failed to send order to kitchen"
+        error instanceof Error ? error.message : "Failed to load the last order"
       );
+    }
+  }, [
+    clearCart,
+    ensureLastOrder,
+    logout,
+    menuItemById,
+    selectedTable,
+    setOrderNotes,
+    setSearch,
+    upsertCartLine,
+  ]);
+
+  const handleSubmitOrder = async (retryPending = false) => {
+    const payload = retryPending ? pendingSubmission?.payload ?? null : buildOrderPayload();
+    const tableId = retryPending ? pendingSubmission?.tableId ?? null : selectedTable?.id ?? null;
+    if (!payload || !tableId) {
+      return;
+    }
+
+    const submission =
+      retryPending && pendingSubmission
+        ? pendingSubmission
+        : {
+            key: makeIdempotencyKey(),
+            payload,
+            tableId,
+          };
+
+    setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+    setPendingSubmission(submission);
+    try {
+      const response = await waiterApi.createOrder(submission.payload, {
+        idempotencyKey: submission.key,
+      });
+
+      clearCart(submission.tableId);
+      setPendingSubmission(null);
+      setSearch("");
+      const refreshResults = await Promise.allSettled([
+        refreshTables(),
+        refreshLiveOrders(),
+        loadReservations(),
+      ]);
+      const hasRefreshFailure = refreshResults.some((result) => result.status === "rejected");
+      setSubmitSuccess(
+        hasRefreshFailure
+          ? `Order #${response.order_id} sent to kitchen. Live panels are catching up.`
+          : `Order #${response.order_id} sent to kitchen.`
+      );
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        logout();
+        return;
+      }
+      const shouldKeepRetry =
+        !(error instanceof ApiError) ||
+        error.status === 0 ||
+        error.status === 409 ||
+        error.status >= 500;
+      if (!shouldKeepRetry) {
+        setPendingSubmission(null);
+      }
+      if (error instanceof ApiError && error.status === 409) {
+        setSubmitError("Order is still being processed. Retry safely in a moment.");
+      } else if (shouldKeepRetry) {
+        setSubmitError(
+          "We couldn't confirm whether this order reached kitchen. Retry safely with the same send."
+        );
+      } else {
+        setSubmitError(
+          error instanceof Error ? error.message : "Failed to send order to kitchen"
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -730,9 +1081,34 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                   </div>
                   <span className={`table-state table-state--${table.status}`}>{table.status}</span>
                 </div>
+                <div className="table-card__metrics">
+                  <div>
+                    <small>Total</small>
+                    <strong>{formatCurrency(table.current_total)}</strong>
+                  </div>
+                  <div>
+                    <small>Items</small>
+                    <strong>{table.item_count}</strong>
+                  </div>
+                  <div>
+                    <small>Elapsed</small>
+                    <strong>{formatElapsedMinutes(table.elapsed_minutes)}</strong>
+                  </div>
+                </div>
                 <div className="table-card__stats">
                   <span>{table.guest_count || table.seats} guests</span>
-                  <strong>{formatCurrency(table.current_total)}</strong>
+                  {summarizeItemStatuses(table.item_status_counts).length > 0 ? (
+                    <div className="service-chips">
+                      {summarizeItemStatuses(table.item_status_counts).map((entry) => (
+                        <span
+                          key={`${table.id}-${entry.key}`}
+                          className={`chip chip--status chip--status-${entry.key}`}
+                        >
+                          {entry.label} {entry.count}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 {table.reservation ? (
                   <p className="table-card__hint">
@@ -741,7 +1117,7 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                   </p>
                 ) : table.current_order_id ? (
                   <p className="table-card__hint">
-                    {table.item_count} items · open {table.occupied_since ? "now" : ""}
+                    Order #{table.current_order_id} · {formatElapsedMinutes(table.elapsed_minutes)}
                   </p>
                 ) : (
                   <p className="table-card__hint">Tap to start service</p>
@@ -773,7 +1149,12 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                     onClick={() => handleTableTap(table)}
                   >
                     <span>{table.number}</span>
-                    <small>{table.guest_count || table.seats}p</small>
+                    <small>
+                      {table.current_order_id
+                        ? `${table.item_count} · ${formatElapsedMinutes(table.elapsed_minutes)}`
+                        : `${table.guest_count || table.seats}p`}
+                    </small>
+                    {table.current_total > 0 ? <em>{formatCurrency(table.current_total)}</em> : null}
                   </button>
                 );
               })}
@@ -822,6 +1203,7 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                   <div className="table-mini-meta">
                     <span>{guestCount} guests</span>
                     <span>{selectedTable.status}</span>
+                    <span>{formatElapsedMinutes(selectedTable.elapsed_minutes)}</span>
                   </div>
                 ) : null}
               </div>
@@ -848,6 +1230,108 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                       </div>
                     </div>
                   </div>
+
+                  <div className="speed-panel">
+                    <div className="speed-panel__header">
+                      <div>
+                        <small className="eyebrow">Speed</small>
+                        <h3>Quick actions</h3>
+                      </div>
+                      <div className="speed-panel__actions">
+                        <button
+                          className="ghost sm"
+                          onClick={() => void handleRepeatLastOrder()}
+                          disabled={lastOrderLoadingTableId === selectedTable.id}
+                        >
+                          {lastOrderLoadingTableId === selectedTable.id
+                            ? "Loading last order..."
+                            : selectedTableLastOrder
+                              ? `Repeat order #${selectedTableLastOrder.order_id}`
+                              : "Repeat last order"}
+                        </button>
+                        {pendingSubmission?.tableId === selectedTable.id ? (
+                          <button
+                            className="ghost sm"
+                            onClick={() => void handleSubmitOrder(true)}
+                            disabled={submitting}
+                          >
+                            Retry last send
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="quick-items-strip">
+                      {visibleQuickItems.map((item) => (
+                        <button
+                          key={`quick-${item.id}`}
+                          className="quick-item"
+                          disabled={!item.available || !selectedTable}
+                          onClick={() => addToCart(item)}
+                        >
+                          <span>{item.name}</span>
+                          <strong>{formatCurrency(item.price)}</strong>
+                        </button>
+                      ))}
+                      {quickItemsLoading && visibleQuickItems.length === 0 ? (
+                        <div className="hint">Loading top sellers...</div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {selectedTable.current_order_id ? (
+                    <div className="service-feedback">
+                      <div className="service-feedback__header">
+                        <div>
+                          <small className="eyebrow">Kitchen feedback</small>
+                          <h3>Order #{selectedTable.current_order_id}</h3>
+                        </div>
+                        <button
+                          className="ghost sm"
+                          onClick={() => setOpenOrderId(Number(selectedTable.current_order_id))}
+                        >
+                          Open order
+                        </button>
+                      </div>
+
+                      <div className="service-chips">
+                        {(selectedOrderStatusSummary.length > 0
+                          ? selectedOrderStatusSummary
+                          : selectedTableStatusSummary
+                        ).map((entry) => (
+                          <span
+                            key={`selected-status-${entry.key}`}
+                            className={`chip chip--status chip--status-${entry.key}`}
+                          >
+                            {entry.label} {entry.count}
+                          </span>
+                        ))}
+                      </div>
+
+                      {selectedOrderLoading ? (
+                        <div className="hint">Updating kitchen status...</div>
+                      ) : null}
+                      {selectedOrderError ? <div className="status err">{selectedOrderError}</div> : null}
+
+                      {selectedOrderSnapshot?.items?.length ? (
+                        <div className="service-feedback__items">
+                          {selectedOrderSnapshot.items.map((item) => (
+                            <div key={item.id} className="service-feedback__item">
+                              <div>
+                                <strong>
+                                  {item.quantity}× {item.item_name ?? item.menu_item_name ?? `Item ${item.menu_item_id}`}
+                                </strong>
+                                {item.notes ? <p>{item.notes}</p> : null}
+                              </div>
+                              <span className={`chip chip--status chip--status-${item.status === "ready" || item.status === "served" ? item.status : "preparing"}`}>
+                                {item.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <div className="category-tabs">
                     {menu.map((category) => (
@@ -898,7 +1382,16 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                 ) : null}
               </div>
 
-              {submitError ? <div className="status err">{submitError}</div> : null}
+              {submitError ? (
+                <div className="status err status--actionable">
+                  <span>{submitError}</span>
+                  {pendingSubmission?.tableId === selectedTableId ? (
+                    <button className="ghost sm" onClick={() => void handleSubmitOrder(true)}>
+                      Retry safely
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               {submitSuccess ? <div className="status ok">{submitSuccess}</div> : null}
 
               <div className="cart-list">
@@ -984,7 +1477,7 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
               <button
                 className="primary send-button"
                 disabled={!selectedTable || cart.length === 0 || submitting}
-                onClick={handleSubmitOrder}
+                onClick={() => void handleSubmitOrder(false)}
               >
                 {submitting ? "Sending..." : "Send To Kitchen"}
               </button>
@@ -997,45 +1490,61 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
             {liveOrders
               .slice()
               .sort((left, right) => right.elapsed_minutes - left.elapsed_minutes)
-              .map((order) => (
-                <div
-                  key={order.id}
-                  className={`service-card ${
-                    order.elapsed_minutes >= 30 ? "is-late" : ""
-                  }`}
-                >
-                  <div className="service-card__header">
-                    <div>
-                      <small className="eyebrow">Order #{order.id}</small>
-                      <h3>{order.table_number ? order.table_number : "Takeaway"}</h3>
+              .map((order) => {
+                const orderTable = tableByOrderId.get(order.id);
+                const statusSummary = summarizeItemStatuses(orderTable?.item_status_counts);
+                return (
+                  <div
+                    key={order.id}
+                    className={`service-card ${
+                      order.elapsed_minutes >= 30 ? "is-late" : ""
+                    }`}
+                  >
+                    <div className="service-card__header">
+                      <div>
+                        <small className="eyebrow">Order #{order.id}</small>
+                        <h3>{order.table_number ? order.table_number : "Takeaway"}</h3>
+                      </div>
+                      <span className={`status-chip ${order.elapsed_minutes >= 30 ? "status-chip--danger" : "status-chip--occupied"}`}>
+                        {order.elapsed_minutes}m
+                      </span>
                     </div>
-                    <span className={`status-chip ${order.elapsed_minutes >= 30 ? "status-chip--danger" : "status-chip--occupied"}`}>
-                      {order.elapsed_minutes}m
-                    </span>
-                  </div>
-                  <div className="service-card__meta">
-                    <span>{order.item_count} items</span>
-                    <strong>{formatCurrency(order.total)}</strong>
-                  </div>
-                  <div className="service-card__actions">
-                    <button
-                      onClick={() => {
-                        if (order.table_id != null) {
-                          const table = tables.find((candidate) => Number(candidate.id) === order.table_id);
-                          if (table) {
-                            handleTableTap(table);
+                    <div className="service-card__meta">
+                      <span>{order.item_count} items</span>
+                      <strong>{formatCurrency(order.total)}</strong>
+                    </div>
+                    {statusSummary.length > 0 ? (
+                      <div className="service-chips">
+                        {statusSummary.map((entry) => (
+                          <span
+                            key={`${order.id}-${entry.key}`}
+                            className={`chip chip--status chip--status-${entry.key}`}
+                          >
+                            {entry.label} {entry.count}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="service-card__actions">
+                      <button
+                        onClick={() => {
+                          if (order.table_id != null) {
+                            const table = tables.find((candidate) => Number(candidate.id) === order.table_id);
+                            if (table) {
+                              handleTableTap(table);
+                            }
                           }
-                        }
-                      }}
-                    >
-                      Open Table
-                    </button>
-                    <button className="primary" onClick={() => setOpenOrderId(order.id)}>
-                      Details
-                    </button>
+                        }}
+                      >
+                        Open Table
+                      </button>
+                      <button className="primary" onClick={() => setOpenOrderId(order.id)}>
+                        Details
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             {liveOrders.length === 0 ? (
               <div className="empty-state empty-state--large">
                 No active orders right now.

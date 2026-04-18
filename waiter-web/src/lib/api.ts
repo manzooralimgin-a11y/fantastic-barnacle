@@ -70,10 +70,11 @@ interface RequestOptions {
   body?: unknown;
   auth?: boolean;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, auth = true, signal } = opts;
+  const { method = "GET", body, auth = true, signal, headers: extraHeaders } = opts;
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -85,6 +86,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+  }
+  if (extraHeaders) {
+    Object.assign(headers, extraHeaders);
   }
 
   let res: Response;
@@ -127,8 +131,9 @@ export const postJson = <T>(
   path: string,
   body: unknown,
   auth = true,
-  signal?: AbortSignal
-) => request<T>(path, { method: "POST", body, auth, signal });
+  signal?: AbortSignal,
+  headers?: Record<string, string>
+) => request<T>(path, { method: "POST", body, auth, signal, headers });
 
 export const patchJson = <T>(
   path: string,
@@ -182,6 +187,12 @@ export interface WaiterTable {
   current_total: number;
   guest_count: number;
   item_count: number;
+  elapsed_minutes: number;
+  item_status_counts: {
+    preparing: number;
+    ready: number;
+    served: number;
+  };
   reservation?: WaiterTableReservation | null;
 }
 
@@ -253,6 +264,22 @@ export interface OrderCreateResponse {
   order_id: string;
   status: string;
   created_at: string;
+}
+
+export interface WaiterRepeatOrderItem {
+  menu_item_id: string;
+  item_name: string;
+  quantity: number;
+  notes?: string | null;
+  modifier_ids: string[];
+}
+
+export interface WaiterTableLastOrder {
+  order_id: string;
+  status: string;
+  created_at: string;
+  notes?: string | null;
+  items: WaiterRepeatOrderItem[];
 }
 
 export interface OrderItemRead {
@@ -564,8 +591,25 @@ export const waiterApi = {
 
   menu: async (signal?: AbortSignal) => (await menuCatalog(signal)).categories,
 
-  createOrder: (payload: OrderCreatePayload) =>
-    postJson<OrderCreateResponse>("/waiter/orders", payload, true),
+  quickItems: (signal?: AbortSignal) =>
+    getJson<WaiterMenuItem[]>("/waiter/quick-items", true, signal),
+
+  tableLastOrder: (tableId: string, signal?: AbortSignal) =>
+    getJson<WaiterTableLastOrder>(`/waiter/tables/${tableId}/last-order`, true, signal),
+
+  createOrder: (
+    payload: OrderCreatePayload,
+    options?: { signal?: AbortSignal; idempotencyKey?: string }
+  ) =>
+    postJson<OrderCreateResponse>(
+      "/waiter/orders",
+      payload,
+      true,
+      options?.signal,
+      options?.idempotencyKey
+        ? { "Idempotency-Key": options.idempotencyKey }
+        : undefined
+    ),
 
   liveOrders: (signal?: AbortSignal) =>
     getJson<LiveOrderSummary[]>("/billing/orders/live", true, signal),

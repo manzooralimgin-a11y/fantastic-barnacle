@@ -142,12 +142,12 @@ export function OrderDetailModal({ orderId, onClose }: Props) {
                 {order.items.map((item) => (
                   <div
                     key={item.id}
-                    className="cart-row"
-                    style={{ gridTemplateColumns: "1fr auto auto" }}
+                      className="cart-row"
+                      style={{ gridTemplateColumns: "1fr auto auto" }}
                   >
                     <div>
                       <div className="name">
-                        {item.menu_item_name ?? `Item #${item.menu_item_id}`}
+                        {item.item_name ?? item.menu_item_name ?? `Item #${item.menu_item_id}`}
                       </div>
                       {item.notes ? (
                         <small className="hint">{item.notes}</small>

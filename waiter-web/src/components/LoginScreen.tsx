@@ -30,10 +30,10 @@ export function LoginScreen() {
   return (
     <div className="login">
       <div className="card">
-        <img className="logo" src="/das-elb-logo.png" alt="Das Elb" />
-        <h1>Das Elb · Waiter</h1>
+        <img className="logo" src="/das-elb-logo.png" alt="Das Elb POS" />
+        <h1>Das Elb POS</h1>
         <p className="sub">
-          Sign in to take orders, manage tables and print receipts.
+          Sign in to manage tables, send orders, seat guests, and print receipts.
         </p>
         <form onSubmit={submit}>
           <label style={{ display: "grid", gap: 6 }}>

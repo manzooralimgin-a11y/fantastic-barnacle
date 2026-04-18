@@ -15,8 +15,13 @@ export function Receipt({ order, bill, receipt, waiterName }: Props) {
 
   return (
     <div className="receipt">
-      <div className="brand">DAS ELB · RESTAURANT</div>
-      <div className="small">Goethestraße 1 · Hamburg</div>
+      <div className="receipt__brand">
+        <img className="receipt__logo" src="/das-elb-logo.png" alt="Das Elb" />
+        <div className="receipt__brand-copy">
+          <div className="brand">DAS ELB POS</div>
+          <div className="small">Restaurant · Goethestraße 1 · Hamburg</div>
+        </div>
+      </div>
       <div className="rule" />
       <div className="line">
         <span>Bill</span>
@@ -32,7 +37,7 @@ export function Receipt({ order, bill, receipt, waiterName }: Props) {
       </div>
       {waiterName ? (
         <div className="line">
-          <span>Waiter</span>
+          <span>Staff</span>
           <span>{waiterName}</span>
         </div>
       ) : null}
@@ -41,7 +46,7 @@ export function Receipt({ order, bill, receipt, waiterName }: Props) {
       {items.map((it) => (
         <div className="line" key={it.id}>
           <span>
-            {it.quantity}× {it.menu_item_name ?? `Item ${it.menu_item_id}`}
+            {it.quantity}× {it.item_name ?? it.menu_item_name ?? `Item ${it.menu_item_id}`}
           </span>
           <span>€{it.total_price.toFixed(2)}</span>
         </div>

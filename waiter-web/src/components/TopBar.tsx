@@ -1,73 +1,72 @@
-import { NavLink } from "react-router-dom";
+import { useMemo } from "react";
 import { useAppStore } from "../lib/store";
+import type { WorkspaceMode } from "../screens/PosScreen";
 
 interface Props {
   wsConnected: boolean;
+  workspace: WorkspaceMode;
+  onWorkspaceChange: (workspace: WorkspaceMode) => void;
 }
 
-export function TopBar({ wsConnected }: Props) {
-  const waiterName = useAppStore((s) => s.waiterName);
-  const liveOrders = useAppStore((s) => s.liveOrders);
-  const tables = useAppStore((s) => s.tables);
-  const logout = useAppStore((s) => s.logout);
+export function TopBar({ wsConnected, workspace, onWorkspaceChange }: Props) {
+  const waiterName = useAppStore((state) => state.waiterName);
+  const liveOrders = useAppStore((state) => state.liveOrders);
+  const tables = useAppStore((state) => state.tables);
+  const selectedTableId = useAppStore((state) => state.selectedTableId);
+  const logout = useAppStore((state) => state.logout);
 
-  const occupiedCount = tables.filter((t) => t.status !== "free").length;
+  const selectedTable = useMemo(
+    () => tables.find((table) => table.id === selectedTableId) ?? null,
+    [selectedTableId, tables]
+  );
+  const activeTables = tables.filter((table) => table.status !== "free").length;
 
   return (
-    <>
-      <header className="topbar">
-        <div className="left">
-          <img className="logo" src="/das-elb-logo.png" alt="Das Elb" />
-          <div className="brand">
-            <span className="title">DAS ELB · WAITER</span>
-            <span className="sub">
-              Signed in as {waiterName ?? "staff"} · {occupiedCount}/
-              {tables.length} tables active
-            </span>
-          </div>
-        </div>
-        <div className="right">
-          <span
-            className={`ws-dot ${wsConnected ? "on" : "off"}`}
-            title={wsConnected ? "Live updates on" : "Live updates off"}
-          />
-          <span className="hint" style={{ fontSize: "0.8rem" }}>
-            {wsConnected ? "Live" : "Polling"}
+    <header className="topbar">
+      <div className="topbar__brand">
+        <img className="logo" src="/das-elb-logo.png" alt="Das Elb" />
+        <div>
+          <strong>DAS ELB POS</strong>
+          <span>
+            {waiterName ?? "POS Staff"} · {activeTables}/{tables.length} tables active
           </span>
-          <button className="sm" onClick={logout}>
-            Log out
-          </button>
         </div>
-      </header>
-      <nav className="tabs">
-        <NavLink
-          to="/floor"
-          className={({ isActive }) => `tab ${isActive ? "active" : ""}`}
+      </div>
+
+      <div className="topbar__nav">
+        <button
+          className={workspace === "order" ? "is-active" : ""}
+          onClick={() => onWorkspaceChange("order")}
         >
-          Tables
-        </NavLink>
-        <NavLink
-          to="/menu"
-          className={({ isActive }) => `tab ${isActive ? "active" : ""}`}
+          Order
+        </button>
+        <button
+          className={workspace === "orders" ? "is-active" : ""}
+          onClick={() => onWorkspaceChange("orders")}
         >
-          Menu · Order
-        </NavLink>
-        <NavLink
-          to="/orders"
-          className={({ isActive }) => `tab ${isActive ? "active" : ""}`}
-        >
-          Open orders
-          {liveOrders.length > 0 ? (
-            <span className="badge">{liveOrders.length}</span>
-          ) : null}
-        </NavLink>
-        <NavLink
-          to="/reservations"
-          className={({ isActive }) => `tab ${isActive ? "active" : ""}`}
+          Open Orders
+          {liveOrders.length > 0 ? <span>{liveOrders.length}</span> : null}
+        </button>
+        <button
+          className={workspace === "reservations" ? "is-active" : ""}
+          onClick={() => onWorkspaceChange("reservations")}
         >
           Reservations
-        </NavLink>
-      </nav>
-    </>
+        </button>
+      </div>
+
+      <div className="topbar__meta">
+        <div className="live-pill">
+          <span className={`ws-dot ${wsConnected ? "on" : "off"}`} />
+          <span>{wsConnected ? "Live sync" : "Polling"}</span>
+        </div>
+        <div className="selected-pill">
+          {selectedTable ? `Table ${selectedTable.number}` : "No table selected"}
+        </div>
+        <button className="ghost sm" onClick={logout}>
+          Log out
+        </button>
+      </div>
+    </header>
   );
 }

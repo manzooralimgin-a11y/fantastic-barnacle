@@ -1,17 +1,10 @@
 /**
  * Waiter-web API client.
  *
- * Every endpoint here is backed by the existing central backend:
- *   - /api/waiter/*      → backend/app/waiter/router.py
- *   - /api/billing/*     → backend/app/billing/router.py   (orders, KDS, bills)
- *   - /api/reservations  → backend/app/reservations/router.py
- *
- * Base URL comes from VITE_API_BASE_URL. In production this is
- *   https://gestronomy-api-5atv.onrender.com/api
- *
- * Auth: the waiter login returns a normal tenant JWT (via
- * authenticate_user), so the same Bearer token is valid for /billing/*
- * and /reservations as long as the user has restaurant_id set.
+ * All restaurant data comes from the shared backend:
+ *   - /api/waiter/*      -> waiter tablet contracts
+ *   - /api/billing/*     -> canonical order / KDS / billing state
+ *   - /api/reservations  -> canonical table + reservation state
  */
 
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -19,9 +12,7 @@ export const API_BASE = RAW_BASE.replace(/\/+$/, "");
 
 if (!API_BASE) {
   // eslint-disable-next-line no-console
-  console.error(
-    "[waiter-web] VITE_API_BASE_URL is not set. API calls will fail."
-  );
+  console.error("[waiter-web] VITE_API_BASE_URL is not set. API calls will fail.");
 }
 
 const TOKEN_KEY = "waiter_access_token";
@@ -46,7 +37,9 @@ export const authStore = {
     localStorage.setItem(TOKEN_KEY, access);
     localStorage.setItem(REFRESH_KEY, refresh);
     localStorage.setItem(WAITER_ID_KEY, waiterId);
-    if (name) localStorage.setItem(WAITER_NAME_KEY, name);
+    if (name) {
+      localStorage.setItem(WAITER_NAME_KEY, name);
+    }
   },
   clear() {
     localStorage.removeItem(TOKEN_KEY);
@@ -60,6 +53,7 @@ export class ApiError extends Error {
   status: number;
   url: string;
   body: unknown;
+
   constructor(status: number, url: string, body: unknown, message: string) {
     super(message);
     this.name = "ApiError";
@@ -83,10 +77,14 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
   if (auth) {
     const token = authStore.getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
   }
 
   let res: Response;
@@ -139,8 +137,15 @@ export const patchJson = <T>(
   signal?: AbortSignal
 ) => request<T>(path, { method: "PATCH", body, auth, signal });
 
+export const putJson = <T>(
+  path: string,
+  body: unknown,
+  auth = true,
+  signal?: AbortSignal
+) => request<T>(path, { method: "PUT", body, auth, signal });
+
 /* =================================================================== */
-/*  Types — mirror backend Pydantic schemas                             */
+/* Types                                                                */
 /* =================================================================== */
 
 export interface LoginResponse {
@@ -150,45 +155,97 @@ export interface LoginResponse {
   waiter_id: string;
 }
 
+export interface WaiterTableReservation {
+  id: string;
+  guest_name: string;
+  party_size: number;
+  start_time: string;
+  status: string;
+}
+
 export interface WaiterTable {
   id: string;
   number: string;
   seats: number;
-  status: "free" | "occupied" | "reserved" | string;
+  minimum_party_size: number;
+  status: "free" | "occupied" | "reserved" | "billing" | string;
+  section_id: string;
+  section_name: string;
+  shape: string;
+  position_x: number;
+  position_y: number;
+  rotation: number;
+  width: number;
+  height: number;
   current_order_id: string | null;
   occupied_since: string | null;
+  current_total: number;
+  guest_count: number;
+  item_count: number;
+  reservation?: WaiterTableReservation | null;
+}
+
+export interface WaiterMenuModifier {
+  id: string;
+  name: string;
+  group_name: string;
+  price_adjustment: number;
+  is_default: boolean;
 }
 
 export interface WaiterMenuItem {
   id: string;
+  category_id: string;
   name: string;
   description: string;
   price: number;
-  emoji: string;
+  available: boolean;
   is_available: boolean;
+  featured: boolean;
+  is_featured: boolean;
   is_popular: boolean;
+  image_url: string | null;
+  prep_time_min: number;
   allergens: string[];
+  dietary_tags: string[];
+  modifiers: WaiterMenuModifier[];
+  emoji?: string | null;
 }
 
 export interface WaiterMenuSubcategory {
   id: string;
   name: string;
-  emoji: string;
+  emoji?: string | null;
   items: WaiterMenuItem[];
 }
 
 export interface WaiterMenuCategory {
   id: string;
   name: string;
-  emoji: string;
-  color_hex: string;
+  sort_order: number;
+  icon?: string | null;
+  emoji?: string | null;
+  color?: string | null;
+  color_hex?: string | null;
+  items: WaiterMenuItem[];
   subcategories: WaiterMenuSubcategory[];
+}
+
+export interface WaiterMenuCatalog {
+  categories: WaiterMenuCategory[];
+  items: WaiterMenuItem[];
 }
 
 export interface OrderCreatePayload {
   table_id: string;
   waiter_id?: string | null;
-  items: { menu_item_id: string; quantity: number; notes?: string | null }[];
+  guest_count?: number | null;
+  items: Array<{
+    menu_item_id: string;
+    quantity: number;
+    notes?: string | null;
+    modifier_ids?: string[];
+  }>;
   notes?: string | null;
 }
 
@@ -198,17 +255,17 @@ export interface OrderCreateResponse {
   created_at: string;
 }
 
-/* ---- Billing / order detail ---- */
-
 export interface OrderItemRead {
   id: number;
   order_id: number;
   menu_item_id: number;
+  item_name?: string | null;
   menu_item_name?: string | null;
   quantity: number;
   unit_price: number;
   total_price: number;
   status: string;
+  modifiers_json?: Record<string, unknown> | null;
   notes?: string | null;
   station?: string | null;
   course_number?: number | null;
@@ -217,7 +274,7 @@ export interface OrderItemRead {
 
 export interface TableOrderRead {
   id: number;
-  restaurant_id: number;
+  restaurant_id?: number;
   table_id: number | null;
   session_id?: number | null;
   status: string;
@@ -285,8 +342,6 @@ export interface ReceiptData {
   paid_at: string | null;
 }
 
-/* ---- Reservations (restaurant seating) ---- */
-
 export interface ReservationRead {
   id: number;
   kind?: string;
@@ -295,8 +350,8 @@ export interface ReservationRead {
   guest_email: string | null;
   table_id: number | null;
   party_size: number;
-  reservation_date: string; // ISO date
-  start_time: string; // HH:MM:SS
+  reservation_date: string;
+  start_time: string;
   duration_min: number;
   status: string;
   special_requests: string | null;
@@ -308,15 +363,20 @@ export interface ReservationCreatePayload {
   guest_name: string;
   guest_phone?: string | null;
   party_size: number;
-  reservation_date: string; // YYYY-MM-DD
-  start_time: string; // HH:MM
+  reservation_date: string;
+  start_time: string;
   duration_min?: number;
   table_id?: number | null;
   special_requests?: string | null;
   source?: string;
 }
 
-/* ---- Payments ---- */
+export interface ReservationUpdatePayload {
+  table_id?: number | null;
+  status?: string;
+  special_requests?: string | null;
+  notes?: string | null;
+}
 
 export interface WaiterPaymentRequest {
   order_id: string;
@@ -333,8 +393,156 @@ export interface WaiterPaymentResponse {
 }
 
 /* =================================================================== */
-/*  Endpoints                                                           */
+/* Menu normalization                                                   */
 /* =================================================================== */
+
+type RawMenuModifier = Partial<WaiterMenuModifier> & {
+  id?: string | number;
+  name?: string;
+  group_name?: string;
+  price_adjustment?: number;
+  is_default?: boolean;
+};
+
+type RawMenuItem = Partial<WaiterMenuItem> & {
+  id?: string | number;
+  category_id?: string | number;
+  name?: string;
+  description?: string;
+  price?: number;
+  available?: boolean;
+  is_available?: boolean;
+  featured?: boolean;
+  is_featured?: boolean;
+  is_popular?: boolean;
+  image_url?: string | null;
+  prep_time_min?: number;
+  allergens?: string[];
+  dietary_tags?: string[];
+  modifiers?: RawMenuModifier[];
+};
+
+type RawMenuSubcategory = {
+  id?: string | number;
+  name?: string;
+  emoji?: string | null;
+  items?: RawMenuItem[];
+};
+
+type RawMenuCategory = {
+  id?: string | number;
+  name?: string;
+  sort_order?: number;
+  icon?: string | null;
+  emoji?: string | null;
+  color?: string | null;
+  color_hex?: string | null;
+  items?: RawMenuItem[];
+  subcategories?: RawMenuSubcategory[];
+};
+
+type RawMenuPayload =
+  | RawMenuCategory[]
+  | {
+      categories?: RawMenuCategory[];
+      items?: RawMenuItem[];
+    };
+
+function normalizeModifier(raw: RawMenuModifier): WaiterMenuModifier {
+  return {
+    id: String(raw.id ?? ""),
+    name: raw.name ?? "",
+    group_name: raw.group_name ?? "Options",
+    price_adjustment: Number(raw.price_adjustment ?? 0),
+    is_default: Boolean(raw.is_default),
+  };
+}
+
+function normalizeMenuItem(raw: RawMenuItem, fallbackCategoryId = ""): WaiterMenuItem {
+  const available = Boolean(raw.available ?? raw.is_available ?? true);
+  const featured = Boolean(
+    raw.featured ?? raw.is_featured ?? raw.is_popular ?? false
+  );
+
+  return {
+    id: String(raw.id ?? ""),
+    category_id: String(raw.category_id ?? fallbackCategoryId),
+    name: raw.name ?? "",
+    description: raw.description ?? "",
+    price: Number(raw.price ?? 0),
+    available,
+    is_available: available,
+    featured,
+    is_featured: featured,
+    is_popular: featured,
+    image_url: raw.image_url ?? null,
+    prep_time_min: Number(raw.prep_time_min ?? 0),
+    allergens: Array.isArray(raw.allergens) ? raw.allergens : [],
+    dietary_tags: Array.isArray(raw.dietary_tags) ? raw.dietary_tags : [],
+    modifiers: Array.isArray(raw.modifiers)
+      ? raw.modifiers.map(normalizeModifier)
+      : [],
+    emoji: raw.emoji ?? null,
+  };
+}
+
+function normalizeCategory(raw: RawMenuCategory): WaiterMenuCategory {
+  const rawSubcategories = Array.isArray(raw.subcategories) ? raw.subcategories : [];
+  const rawItems = Array.isArray(raw.items) ? raw.items : [];
+
+  const subcategories: WaiterMenuSubcategory[] =
+    rawSubcategories.length > 0
+      ? rawSubcategories.map((subcategory) => ({
+          id: String(subcategory.id ?? `${raw.id ?? "category"}-default`),
+          name: subcategory.name ?? raw.name ?? "Category",
+          emoji: subcategory.emoji ?? raw.emoji ?? null,
+          items: Array.isArray(subcategory.items)
+            ? subcategory.items.map((item) =>
+                normalizeMenuItem(item, String(raw.id ?? ""))
+              )
+            : [],
+        }))
+      : [
+          {
+            id: `sub-${String(raw.id ?? "")}`,
+            name: raw.name ?? "Category",
+            emoji: raw.emoji ?? null,
+            items: rawItems.map((item) =>
+              normalizeMenuItem(item, String(raw.id ?? ""))
+            ),
+          },
+        ];
+
+  return {
+    id: String(raw.id ?? ""),
+    name: raw.name ?? "Category",
+    sort_order: Number(raw.sort_order ?? 0),
+    icon: raw.icon ?? raw.emoji ?? null,
+    emoji: raw.emoji ?? raw.icon ?? null,
+    color: raw.color ?? raw.color_hex ?? null,
+    color_hex: raw.color_hex ?? raw.color ?? null,
+    items: subcategories.flatMap((subcategory) => subcategory.items),
+    subcategories,
+  };
+}
+
+function normalizeMenuCatalog(payload: RawMenuPayload): WaiterMenuCatalog {
+  const categories = (Array.isArray(payload) ? payload : payload.categories ?? []).map(
+    normalizeCategory
+  );
+
+  return {
+    categories,
+    items: categories.flatMap((category) => category.items),
+  };
+}
+
+/* =================================================================== */
+/* Endpoints                                                            */
+/* =================================================================== */
+
+const menuCatalog = async (signal?: AbortSignal): Promise<WaiterMenuCatalog> =>
+  normalizeMenuCatalog(await getJson<RawMenuPayload>("/waiter/menu", true, signal));
 
 export const waiterApi = {
   login: (username: string, password: string, deviceId?: string) =>
@@ -346,17 +554,16 @@ export const waiterApi = {
 
   logout: () => postJson<{ status: string }>("/waiter/auth/logout", {}),
 
-  /* --- reference data --- */
   tables: (signal?: AbortSignal) =>
     getJson<WaiterTable[]>("/waiter/tables", true, signal),
 
   updateTableStatus: (tableId: string, status: string) =>
     patchJson<WaiterTable>(`/waiter/tables/${tableId}/status`, { status }),
 
-  menu: (signal?: AbortSignal) =>
-    getJson<WaiterMenuCategory[]>("/waiter/menu", true, signal),
+  menuCatalog,
 
-  /* --- orders --- */
+  menu: async (signal?: AbortSignal) => (await menuCatalog(signal)).categories,
+
   createOrder: (payload: OrderCreatePayload) =>
     postJson<OrderCreateResponse>("/waiter/orders", payload, true),
 
@@ -369,14 +576,12 @@ export const waiterApi = {
   orderItems: (orderId: number | string, signal?: AbortSignal) =>
     getJson<OrderItemRead[]>(`/billing/orders/${orderId}/items`, true, signal),
 
-  /* --- bills / receipt --- */
   billByOrder: (orderId: number | string, signal?: AbortSignal) =>
     getJson<BillRead>(`/billing/bills/by-order/${orderId}`, true, signal),
 
   receipt: (billId: number | string, signal?: AbortSignal) =>
     getJson<ReceiptData>(`/billing/bills/${billId}/receipt`, true, signal),
 
-  /* --- payment --- */
   payOrder: (payload: WaiterPaymentRequest) =>
     postJson<WaiterPaymentResponse>(
       `/waiter/orders/${payload.order_id}/payment`,
@@ -384,7 +589,6 @@ export const waiterApi = {
       true
     ),
 
-  /* --- reservations --- */
   reservations: (isoDate?: string, signal?: AbortSignal) => {
     const q = isoDate ? `?reservation_date=${isoDate}` : "";
     return getJson<ReservationRead[]>(`/reservations${q}`, true, signal);
@@ -397,6 +601,9 @@ export const waiterApi = {
       true
     ),
 
+  updateReservation: (reservationId: number, payload: ReservationUpdatePayload) =>
+    putJson<ReservationRead>(`/reservations/${reservationId}`, payload, true),
+
   cancelReservation: (reservationId: number) =>
     postJson<ReservationRead>(`/reservations/${reservationId}/cancel`, {}),
 
@@ -405,33 +612,22 @@ export const waiterApi = {
 };
 
 /* =================================================================== */
-/*  Realtime — WebSocket subscription                                   */
+/* Realtime                                                             */
 /* =================================================================== */
 
-/**
- * Connects to /ws/{restaurant_id}?token=<jwt>.
- *
- * The backend broadcasts on restaurant-scoped channels. We don't know
- * restaurant_id client-side (it's implicit in the JWT), so we try the
- * convention `/ws/current` — the backend ignores the path segment when
- * authenticated and scopes by the token's restaurant. If your backend
- * requires an explicit id, the server will reject and we fall back to
- * polling without blocking the UI.
- */
 export function openWaiterWebSocket(
-  onEvent: (event: { type: string; [k: string]: unknown }) => void,
+  onEvent: (event: { type: string; [key: string]: unknown }) => void,
   onError?: (err: Event) => void
 ): () => void {
   const token = authStore.getToken();
-  if (!token || !API_BASE) return () => {};
+  if (!token || !API_BASE) {
+    return () => {};
+  }
 
-  // Derive ws:// or wss:// from API_BASE
   const httpUrl = new URL(API_BASE);
   const wsProto = httpUrl.protocol === "https:" ? "wss:" : "ws:";
-  // API_BASE looks like https://host/api; WebSocket lives at host/ws/…
   const wsUrl = `${wsProto}//${httpUrl.host}/ws/current?token=${encodeURIComponent(token)}`;
 
-  let closed = false;
   let ws: WebSocket | null = null;
   try {
     ws = new WebSocket(wsUrl);
@@ -444,18 +640,23 @@ export function openWaiterWebSocket(
   ws.onmessage = (e) => {
     try {
       const data = JSON.parse(typeof e.data === "string" ? e.data : "");
-      if (data && typeof data === "object") onEvent(data);
+      if (data && typeof data === "object") {
+        onEvent(data as { type: string; [key: string]: unknown });
+      }
     } catch {
-      /* ignore non-JSON pings */
+      // Ignore non-JSON heartbeat messages.
     }
   };
+
   ws.onerror = (e) => {
-    if (onError) onError(e);
+    if (onError) {
+      onError(e);
+    }
   };
 
   return () => {
-    closed = true;
-    if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-    void closed;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.close();
+    }
   };
 }

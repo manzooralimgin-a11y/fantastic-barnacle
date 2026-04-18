@@ -511,12 +511,12 @@ async def waiter_tables(
             continue
         reservation_by_table[reservation.table_id] = reservation
 
-    live_order_by_table: dict[int, dict[str, Any]] = {}
+    live_orders_by_table: dict[int, list[dict[str, Any]]] = {}
     for order in live_orders:
         table_id = order.get("table_id")
-        if table_id is None or table_id in live_order_by_table:
+        if table_id is None:
             continue
-        live_order_by_table[int(table_id)] = order
+        live_orders_by_table.setdefault(int(table_id), []).append(order)
 
     latest_bill_by_order: dict[int, Bill] = {}
     for bill in sorted(
@@ -529,30 +529,49 @@ async def waiter_tables(
 
     payload: list[WaiterTableResponse] = []
     for table in table_rows:
-        live_order = live_order_by_table.get(table.id)
-        latest_bill = (
-            latest_bill_by_order.get(int(live_order["id"]))
-            if live_order is not None and live_order.get("id") is not None
+        table_live_orders = live_orders_by_table.get(table.id, [])
+        latest_order = (
+            max(
+                table_live_orders,
+                key=lambda current_order: (
+                    current_order.get("created_at") or datetime.min.replace(tzinfo=timezone.utc),
+                    current_order.get("id") or 0,
+                ),
+            )
+            if table_live_orders
             else None
         )
         reservation = reservation_by_table.get(table.id)
         active_session = session_by_table.get(table.id)
-        has_active_order = live_order is not None
-        has_billing = (
-            live_order is not None
-            and (
-                str(live_order.get("status", "")).lower() == "served"
-                or (
-                    latest_bill is not None
-                    and latest_bill.status in {"open", "partially_paid"}
-                )
+        has_active_order = bool(table_live_orders)
+        has_billing = any(
+            str(current_order.get("status", "")).lower() == "served"
+            or (
+                latest_bill_by_order.get(int(current_order["id"])) is not None
+                and latest_bill_by_order[int(current_order["id"])].status in {"open", "partially_paid"}
             )
+            for current_order in table_live_orders
+            if current_order.get("id") is not None
         )
         guest_count = 0
         if active_session is not None:
             guest_count = int(active_session.covers or 0)
         elif reservation is not None:
             guest_count = int(reservation.party_size or 0)
+        current_total = sum(float(current_order.get("total", 0) or 0) for current_order in table_live_orders)
+        item_count = sum(int(current_order.get("item_count", 0) or 0) for current_order in table_live_orders)
+        elapsed_minutes = max(
+            (int(current_order.get("elapsed_minutes", 0) or 0) for current_order in table_live_orders),
+            default=0,
+        )
+        item_status_counts = _empty_item_status_counts()
+        for current_order in table_live_orders:
+            order_id = current_order.get("id")
+            if order_id is None:
+                continue
+            for status_name, quantity in status_counts_by_order.get(int(order_id), _empty_item_status_counts()).items():
+                item_status_counts[status_name] += quantity
+
         payload.append(
             WaiterTableResponse(
                 id=str(table.id),
@@ -573,21 +592,17 @@ async def waiter_tables(
                 rotation=float(table.rotation or 0),
                 width=float(table.width or 1),
                 height=float(table.height or 1),
-                current_order_id=str(live_order["id"]) if has_active_order else None,
+                current_order_id=str(latest_order["id"]) if latest_order is not None else None,
                 occupied_since=(
-                    live_order["created_at"].isoformat()
-                    if has_active_order and live_order.get("created_at") is not None
+                    latest_order["created_at"].isoformat()
+                    if latest_order is not None and latest_order.get("created_at") is not None
                     else None
                 ),
-                current_total=float(live_order.get("total", 0)) if has_active_order else 0,
+                current_total=current_total if has_active_order else 0,
                 guest_count=guest_count,
-                item_count=int(live_order.get("item_count", 0)) if has_active_order else 0,
-                elapsed_minutes=int(live_order.get("elapsed_minutes", 0)) if has_active_order else 0,
-                item_status_counts=(
-                    status_counts_by_order.get(int(live_order["id"]), _empty_item_status_counts())
-                    if has_active_order
-                    else _empty_item_status_counts()
-                ),
+                item_count=item_count if has_active_order else 0,
+                elapsed_minutes=elapsed_minutes if has_active_order else 0,
+                item_status_counts=item_status_counts if has_active_order else _empty_item_status_counts(),
                 reservation=(
                     {
                         "id": str(reservation.id),

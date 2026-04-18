@@ -25,11 +25,11 @@ export default function SplashScreen() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600">
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-emerald-950 via-emerald-800 to-emerald-600">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -left-32  w-96 h-96 rounded-full bg-blue-400/20 blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl" />
+        <div className="absolute -top-32 -left-32  w-96 h-96 rounded-full bg-emerald-400/20 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-emerald-500/20 blur-3xl" />
         <div
           className="absolute inset-0 opacity-[0.04]"
           style={{

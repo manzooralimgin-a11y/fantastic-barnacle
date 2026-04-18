@@ -46,7 +46,7 @@ function StepIndicator({ current, total }) {
             i < current
               ? 'bg-emerald-500 text-white scale-95'
               : i === current
-                ? 'bg-blue-500 text-white ring-2 ring-blue-400/40 ring-offset-2 ring-offset-stone-950'
+                ? 'bg-emerald-500 text-white ring-2 ring-emerald-400/40 ring-offset-2 ring-offset-stone-950'
                 : 'bg-stone-800 text-stone-500',
           ].join(' ')}>
             {i < current ? <CheckCircle2 size={14} /> : i + 1}
@@ -79,7 +79,7 @@ function PermissionError({ error, onRetry, onSkip }) {
       <div className="flex flex-col gap-2 w-full max-w-xs">
         <button
           onClick={onRetry}
-          className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+          className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
         >
           <RefreshCw size={15} />
           Try Again
@@ -141,7 +141,7 @@ function CameraViewfinder({ videoRef, isReady, facingMode, onFlip, onCapture }) 
               <div key={i} className={`absolute w-5 h-5 border-white/0 -m-px ${cls.replace('border-t-2 border-l-2', '').replace('border-t-2 border-r-2', '').replace('border-b-2 border-l-2', '').replace('border-b-2 border-r-2', '')}`} />
             ))}
             {/* Scan line animation */}
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-blue-400/70 animate-[scanLine_2.5s_ease-in-out_infinite]" />
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-emerald-400/70 animate-[scanLine_2.5s_ease-in-out_infinite]" />
           </div>
         </div>
 
@@ -207,7 +207,7 @@ function ImageReview({ imageUrl, onRetake, onSubmit, loading, stepLabel }) {
         <button
           onClick={onSubmit}
           disabled={loading}
-          className="flex-[2] h-12 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+          className="flex-[2] h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
         >
           {loading ? (
             <><Loader2 size={16} className="animate-spin" /> Verifying…</>
@@ -382,7 +382,7 @@ export default function IDVerificationScreen() {
         <div className={`px-5 pb-4 shrink-0 transition-all duration-300 ${isPermissionBlocked ? 'hidden' : ''}`}>
           <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-stone-900 border border-stone-800">
             <div className="w-9 h-9 rounded-xl bg-stone-800 flex items-center justify-center shrink-0">
-              {currentStep.icon && <currentStep.icon size={18} className="text-blue-400" />}
+              {currentStep.icon && <currentStep.icon size={18} className="text-emerald-400" />}
             </div>
             <div>
               <p className="text-sm font-semibold text-white leading-tight">{currentStep.label}</p>

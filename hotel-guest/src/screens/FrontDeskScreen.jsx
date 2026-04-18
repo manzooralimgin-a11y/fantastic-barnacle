@@ -37,7 +37,7 @@ const URGENCY_OPTIONS = [
 
 const STATUS_CONFIG = {
   open:         { label: 'Pending',      color: 'text-amber-400',  bg: 'bg-amber-900/30 border-amber-700/40',  dot: 'bg-amber-400',  icon: Clock          },
-  acknowledged: { label: 'Acknowledged', color: 'text-blue-400',   bg: 'bg-blue-900/30 border-blue-700/40',    dot: 'bg-blue-400',   icon: CircleDot      },
+  acknowledged: { label: 'Acknowledged', color: 'text-emerald-400',   bg: 'bg-emerald-900/30 border-emerald-700/40',    dot: 'bg-emerald-400',   icon: CircleDot      },
   in_progress:  { label: 'In Progress',  color: 'text-violet-400', bg: 'bg-violet-900/30 border-violet-700/40',dot: 'bg-violet-400', icon: RefreshCw      },
   completed:    { label: 'Completed',    color: 'text-emerald-400',bg: 'bg-emerald-900/30 border-emerald-700/40',dot:'bg-emerald-400',icon: CheckCircle2   },
   cancelled:    { label: 'Cancelled',    color: 'text-stone-500',  bg: 'bg-stone-800/50 border-stone-700/40',  dot: 'bg-stone-500',  icon: Minus          },

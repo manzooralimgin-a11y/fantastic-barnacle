@@ -56,7 +56,7 @@ function CheckinProgress({ idVerified, keyActive }) {
                 done
                   ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
                   : current
-                    ? 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)] ring-2 ring-blue-400/30 ring-offset-2 ring-offset-stone-950'
+                    ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)] ring-2 ring-emerald-400/30 ring-offset-2 ring-offset-stone-950'
                     : 'bg-stone-800 border border-stone-700',
               ].join(' ')}>
                 {done
@@ -66,7 +66,7 @@ function CheckinProgress({ idVerified, keyActive }) {
                     : <span className="text-stone-500 text-xs font-bold">{i + 1}</span>
                 }
               </div>
-              <span className={`text-[10px] font-medium whitespace-nowrap ${done ? 'text-emerald-400' : current ? 'text-blue-400' : 'text-stone-600'}`}>
+              <span className={`text-[10px] font-medium whitespace-nowrap ${done ? 'text-emerald-400' : current ? 'text-emerald-400' : 'text-stone-600'}`}>
                 {label}
               </span>
             </div>
@@ -92,14 +92,14 @@ function KeyCard({ status, roomNumber, floor }) {
       {/* Outer glow rings — only when active */}
       {isActive && (
         <>
-          <div className="absolute w-72 h-72 rounded-full border border-blue-500/10 animate-[ringPulse_3s_ease-in-out_infinite]" />
-          <div className="absolute w-56 h-56 rounded-full border border-blue-500/15 animate-[ringPulse_3s_ease-in-out_infinite_0.4s]" />
-          <div className="absolute w-40 h-40 rounded-full border border-blue-500/20 animate-[ringPulse_3s_ease-in-out_infinite_0.8s]" />
+          <div className="absolute w-72 h-72 rounded-full border border-emerald-500/10 animate-[ringPulse_3s_ease-in-out_infinite]" />
+          <div className="absolute w-56 h-56 rounded-full border border-emerald-500/15 animate-[ringPulse_3s_ease-in-out_infinite_0.4s]" />
+          <div className="absolute w-40 h-40 rounded-full border border-emerald-500/20 animate-[ringPulse_3s_ease-in-out_infinite_0.8s]" />
         </>
       )}
       {/* Processing rings */}
       {isAssigning && (
-        <div className="absolute w-56 h-56 rounded-full border-2 border-dashed border-blue-500/30 animate-spin" style={{ animationDuration: '4s' }} />
+        <div className="absolute w-56 h-56 rounded-full border-2 border-dashed border-emerald-500/30 animate-spin" style={{ animationDuration: '4s' }} />
       )}
 
       {/* Card */}
@@ -107,7 +107,7 @@ function KeyCard({ status, roomNumber, floor }) {
         'relative w-64 rounded-3xl overflow-hidden transition-all duration-700',
         'shadow-2xl',
         isActive
-          ? 'shadow-blue-500/30 scale-100'
+          ? 'shadow-emerald-500/30 scale-100'
           : isAssigning
             ? 'scale-95 opacity-80'
             : 'scale-90 opacity-60',
@@ -132,7 +132,7 @@ function KeyCard({ status, roomNumber, floor }) {
           {[14, 10, 6].map((size, i) => (
             <div
               key={i}
-              className={`rounded-full border-t-2 border-r-2 transition-colors duration-500 ${isActive ? 'border-blue-400/70' : 'border-stone-600'}`}
+              className={`rounded-full border-t-2 border-r-2 transition-colors duration-500 ${isActive ? 'border-emerald-400/70' : 'border-stone-600'}`}
               style={{ width: size, height: size }}
             />
           ))}
@@ -140,7 +140,7 @@ function KeyCard({ status, roomNumber, floor }) {
 
         {/* Hotel logo chip */}
         <div className="absolute top-4 left-4">
-          <div className={`w-10 h-7 rounded-md flex items-center justify-center text-xs font-bold transition-colors duration-500 ${isActive ? 'bg-blue-500/30 text-blue-200 border border-blue-500/40' : 'bg-stone-700 text-stone-500 border border-stone-600'}`}>
+          <div className={`w-10 h-7 rounded-md flex items-center justify-center text-xs font-bold transition-colors duration-500 ${isActive ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/40' : 'bg-stone-700 text-stone-500 border border-stone-600'}`}>
             DE
           </div>
         </div>
@@ -149,7 +149,7 @@ function KeyCard({ status, roomNumber, floor }) {
         <div className="absolute bottom-4 left-4 right-4">
           <div className="flex items-end justify-between">
             <div>
-              <p className={`text-[10px] font-medium uppercase tracking-widest mb-0.5 transition-colors ${isActive ? 'text-blue-300/70' : 'text-stone-600'}`}>
+              <p className={`text-[10px] font-medium uppercase tracking-widest mb-0.5 transition-colors ${isActive ? 'text-emerald-300/70' : 'text-stone-600'}`}>
                 Room
               </p>
               <p className={`text-2xl font-bold tracking-tight transition-colors duration-500 ${isActive ? 'text-white' : 'text-stone-500'}`}>
@@ -161,9 +161,9 @@ function KeyCard({ status, roomNumber, floor }) {
                 </p>
               )}
             </div>
-            <div className={`transition-colors duration-500 ${isActive ? 'text-blue-400' : 'text-stone-700'}`}>
+            <div className={`transition-colors duration-500 ${isActive ? 'text-emerald-400' : 'text-stone-700'}`}>
               {isAssigning
-                ? <Loader2 size={22} className="animate-spin text-blue-400" />
+                ? <Loader2 size={22} className="animate-spin text-emerald-400" />
                 : isActive
                   ? <Nfc size={22} />
                   : <KeyRound size={22} />
@@ -174,7 +174,7 @@ function KeyCard({ status, roomNumber, floor }) {
 
         {/* Active glow edge */}
         {isActive && (
-          <div className="absolute inset-0 rounded-3xl ring-1 ring-blue-500/40 shadow-[inset_0_0_20px_rgba(59,130,246,0.08)]" />
+          <div className="absolute inset-0 rounded-3xl ring-1 ring-emerald-500/40 shadow-[inset_0_0_20px_rgba(16,185,129,0.08)]" />
         )}
       </div>
     </div>
@@ -224,8 +224,8 @@ function HowToUse() {
       <div className="flex flex-col gap-3">
         {steps.map(({ icon: Icon, text }, i) => (
           <div key={i} className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded-full bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
-              <Icon size={11} className="text-blue-400" />
+            <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <Icon size={11} className="text-emerald-400" />
             </div>
             <p className="text-sm text-stone-300">{text}</p>
           </div>
@@ -354,7 +354,7 @@ export default function RoomKeyScreen() {
             </div>
             <button
               onClick={handleRetry}
-              className="w-full h-13 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+              className="w-full h-13 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
               style={{ height: 52 }}
             >
               <RefreshCw size={16} />
@@ -364,7 +364,7 @@ export default function RoomKeyScreen() {
         ) : phase === 'idle' ? (
           <button
             onClick={handleAssign}
-            className="w-full rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-blue-600/25"
+            className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-600/25"
             style={{ height: 52 }}
           >
             <KeyRound size={17} />
@@ -372,7 +372,7 @@ export default function RoomKeyScreen() {
           </button>
         ) : phase === 'assigning' ? (
           <div
-            className="w-full rounded-2xl bg-blue-600/40 border border-blue-500/30 text-blue-300 font-semibold text-sm flex items-center justify-center gap-2.5"
+            className="w-full rounded-2xl bg-emerald-600/40 border border-emerald-500/30 text-emerald-300 font-semibold text-sm flex items-center justify-center gap-2.5"
             style={{ height: 52 }}
           >
             <Loader2 size={17} className="animate-spin" />

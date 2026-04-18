@@ -92,6 +92,14 @@ class Settings(BaseSettings):
     email_inbox_from_address: str = "reservations@daselb.local"
     email_inbox_default_property_id: int | None = None
     email_inbox_default_restaurant_id: int | None = None
+    # IMAP polling — set these to connect a live mailbox (e.g. IONOS, Gmail)
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_username: str = ""
+    imap_password: str = ""
+    imap_mailbox: str = "INBOX"
+    imap_use_ssl: bool = True
+    imap_poll_interval_seconds: int = 120
     availability_cache_ttl_seconds: int = 30
     availability_cache_version_ttl_seconds: int = 3600
     availability_cache_redis_timeout_ms: int = 75

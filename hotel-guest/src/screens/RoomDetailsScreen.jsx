@@ -59,7 +59,7 @@ function StatusBadge({ status }) {
     paid:         'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
     pending:      'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
     overdue:      'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
-    occupied:     'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
+    occupied:     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
     vacant:       'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
     cleaning:     'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400',
   }
@@ -298,8 +298,8 @@ export default function RoomDetailsScreen() {
               <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 overflow-hidden">
                 <div className="px-4 py-3 flex items-center justify-between border-b border-stone-100 dark:border-stone-800">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${roomKey ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-stone-100 dark:bg-stone-800'}`}>
-                      {roomKey ? <Nfc size={18} className="text-blue-600 dark:text-blue-400" /> : <KeyRound size={18} className="text-stone-400" />}
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${roomKey ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-stone-100 dark:bg-stone-800'}`}>
+                      {roomKey ? <Nfc size={18} className="text-emerald-600 dark:text-emerald-400" /> : <KeyRound size={18} className="text-stone-400" />}
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">NFC Digital Key</p>
@@ -321,7 +321,7 @@ export default function RoomDetailsScreen() {
                     <p className="text-sm text-stone-500 dark:text-stone-400">No active key assigned.</p>
                     <button
                       onClick={() => navigate(ROUTES.ROOM_KEY)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 transition-colors"
                     >
                       <KeyRound size={12} />
                       Get Key

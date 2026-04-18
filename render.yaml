@@ -65,6 +65,20 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: IMAP_HOST
+        value: imap.ionos.eu
+      - key: IMAP_PORT
+        value: "993"
+      - key: IMAP_USE_SSL
+        value: "true"
+      - key: IMAP_USERNAME
+        value: info@das-elb.de
+      - key: IMAP_PASSWORD
+        sync: false
+      - key: IMAP_MAILBOX
+        value: INBOX
+      - key: IMAP_POLL_INTERVAL_SECONDS
+        value: "120"
 
   - type: background_worker
     name: gestronomy-worker
@@ -115,6 +129,20 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: IMAP_HOST
+        value: imap.ionos.eu
+      - key: IMAP_PORT
+        value: "993"
+      - key: IMAP_USE_SSL
+        value: "true"
+      - key: IMAP_USERNAME
+        value: info@das-elb.de
+      - key: IMAP_PASSWORD
+        sync: false
+      - key: IMAP_MAILBOX
+        value: INBOX
+      - key: IMAP_POLL_INTERVAL_SECONDS
+        value: "120"
 
   - type: background_worker
     name: gestronomy-beat
@@ -165,6 +193,20 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: IMAP_HOST
+        value: imap.ionos.eu
+      - key: IMAP_PORT
+        value: "993"
+      - key: IMAP_USE_SSL
+        value: "true"
+      - key: IMAP_USERNAME
+        value: info@das-elb.de
+      - key: IMAP_PASSWORD
+        sync: false
+      - key: IMAP_MAILBOX
+        value: INBOX
+      - key: IMAP_POLL_INTERVAL_SECONDS
+        value: "120"
 
   - type: web
     name: gestronomy-web

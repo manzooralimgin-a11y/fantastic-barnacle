@@ -355,7 +355,8 @@ p {
   display: grid;
   grid-template-columns: minmax(330px, 38vw) minmax(0, 1fr);
   gap: 1rem;
-  min-height: calc(100dvh - 104px);
+  height: calc(100dvh - 104px);
+  overflow: hidden;
 }
 
 .tables-pane,
@@ -420,7 +421,24 @@ p {
 .category-tabs {
   display: flex;
   gap: 0.55rem;
+}
+
+.section-filter,
+.workspace-tabs {
   flex-wrap: wrap;
+}
+
+.category-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.category-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .status-chip,
@@ -1383,7 +1401,9 @@ p {
 
   .pos-shell {
     grid-template-columns: 1fr;
-    min-height: auto;
+    height: auto;
+    min-height: calc(100dvh - 104px);
+    overflow: visible;
   }
 
   .tables-pane,

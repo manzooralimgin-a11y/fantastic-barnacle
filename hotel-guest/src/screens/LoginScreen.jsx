@@ -56,7 +56,7 @@ function Field({ label, placeholder, value, onChange, error, type = 'text', icon
 // ---------------------------------------------------------------------------
 function SuccessOverlay({ guest }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-900 z-10 animate-[fadeIn_0.3s_ease-out]">
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-emerald-600 to-emerald-900 z-10 animate-[fadeIn_0.3s_ease-out]">
       <div className="flex flex-col items-center gap-4">
         <div className="w-20 h-20 rounded-full bg-white/15 border-2 border-white/30 flex items-center justify-center animate-[scaleIn_0.4s_cubic-bezier(0.34,1.56,0.64,1)_0.1s_both]">
           <CheckCircle2 size={40} className="text-white" />
@@ -130,15 +130,15 @@ export default function LoginScreen() {
 
 
   return (
-    <div className="relative min-h-dvh flex flex-col overflow-hidden bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600">
+    <div className="relative min-h-dvh flex flex-col overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-800 to-emerald-600">
       {/* Success overlay */}
       {loginSuccess && guest && <SuccessOverlay guest={guest} />}
 
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-blue-400/20 blur-3xl" />
-        <div className="absolute top-1/2 -left-32  w-80 h-80 rounded-full bg-blue-300/10 blur-3xl" />
-        <div className="absolute -bottom-20 right-20 w-64 h-64 rounded-full bg-indigo-500/20 blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-emerald-400/20 blur-3xl" />
+        <div className="absolute top-1/2 -left-32  w-80 h-80 rounded-full bg-emerald-300/10 blur-3xl" />
+        <div className="absolute -bottom-20 right-20 w-64 h-64 rounded-full bg-emerald-500/20 blur-3xl" />
         {/* Subtle grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.04]"
@@ -221,8 +221,8 @@ export default function LoginScreen() {
               className={[
                 'w-full h-13 rounded-xl flex items-center justify-center gap-2.5',
                 'font-semibold text-sm transition-all duration-150 mt-1',
-                'bg-white text-blue-900 shadow-lg shadow-blue-900/30',
-                'hover:bg-blue-50 active:scale-[0.98]',
+                'bg-white text-emerald-900 shadow-lg shadow-emerald-900/30',
+                'hover:bg-emerald-50 active:scale-[0.98]',
                 'disabled:opacity-60 disabled:cursor-not-allowed',
               ].join(' ')}
             >

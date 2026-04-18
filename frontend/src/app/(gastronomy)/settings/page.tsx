@@ -182,7 +182,18 @@ export default function SettingsPage() {
                     value={`${process.env.NEXT_PUBLIC_API_URL || ''}/mcp/voicebooker/sse`} 
                     className="bg-muted font-mono text-xs" 
                   />
-                  <Button variant="outline" onClick={() => navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_API_URL || ''}/mcp/voicebooker/sse`)}>
+                  <Button variant="outline" onClick={() => {
+                    const text = `${process.env.NEXT_PUBLIC_API_URL || ''}/mcp/voicebooker/sse`;
+                    navigator.clipboard.writeText(text).catch(() => {
+                      const el = document.createElement("textarea");
+                      el.value = text;
+                      el.style.cssText = "position:fixed;opacity:0;";
+                      document.body.appendChild(el);
+                      el.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(el);
+                    });
+                  }}>
                     Copy
                   </Button>
                 </div>

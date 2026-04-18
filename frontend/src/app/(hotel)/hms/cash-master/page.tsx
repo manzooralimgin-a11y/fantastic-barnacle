@@ -60,11 +60,14 @@ export default function CashMasterPage() {
     mutationFn: (invoiceId: number) => createPmsInvoiceDocument(invoiceId, "receipt"),
     onSuccess: (document) => {
       printTextDocument(document.title, document.body_text);
-      toast.success("Receipt opened for print or PDF.");
+      toast.success("Receipt ready — print dialog opened.");
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error("Failed to generate receipt", error);
-      toast.error("Failed to generate the receipt.");
+      // Surface the backend's specific reason (e.g. "no payment recorded yet")
+      const detail =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail ?? "Could not generate receipt. Record a payment first.");
     },
   });
 
@@ -72,10 +75,12 @@ export default function CashMasterPage() {
     try {
       const preview = await fetchPmsInvoicePreview(invoiceId);
       printInvoicePreview(preview.preview_data);
-      toast.success("Invoice opened for print or PDF.");
-    } catch (error) {
+      toast.success("Invoice ready — print dialog opened.");
+    } catch (error: unknown) {
       console.error("Failed to load invoice preview", error);
-      toast.error("Failed to open the invoice preview.");
+      const detail =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail ?? "Failed to open the invoice preview.");
     }
   }
 
@@ -305,10 +310,19 @@ export default function CashMasterPage() {
                           <button
                             type="button"
                             onClick={() => receiptMutation.mutate(row.invoice_id)}
-                            disabled={receiptMutation.isPending || row.paid_amount <= 0}
-                            className="rounded-xl border border-foreground/10 px-3 py-2 text-xs font-semibold text-foreground disabled:opacity-50"
+                            disabled={
+                              receiptMutation.isPending ||
+                              row.paid_amount <= 0 ||
+                              row.payment_status === "outstanding"
+                            }
+                            title={
+                              row.paid_amount <= 0 || row.payment_status === "outstanding"
+                                ? "No payment recorded — add a payment first"
+                                : "Print receipt"
+                            }
+                            className="rounded-xl border border-foreground/10 px-3 py-2 text-xs font-semibold text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            Receipt
+                            {receiptMutation.isPending ? "…" : "Receipt"}
                           </button>
                           <button
                             type="button"

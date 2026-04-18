@@ -99,7 +99,17 @@ export default function SignagePage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const copyCode = (code: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/display/${code}`);
+    const text = `${window.location.origin}/display/${code}`;
+    navigator.clipboard.writeText(text).catch(() => {
+      // Fallback for non-HTTPS or permission-denied contexts
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.style.cssText = "position:fixed;opacity:0;";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    });
     setCopied(code);
     setTimeout(() => setCopied(null), 2000);
   };

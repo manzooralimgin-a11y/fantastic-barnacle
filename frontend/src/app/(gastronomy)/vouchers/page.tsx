@@ -112,7 +112,15 @@ export default function VouchersPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
+    navigator.clipboard.writeText(code).catch(() => {
+      const el = document.createElement("textarea");
+      el.value = code;
+      el.style.cssText = "position:fixed;opacity:0;";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    });
     setCopied(code);
     setTimeout(() => setCopied(null), 2000);
   };

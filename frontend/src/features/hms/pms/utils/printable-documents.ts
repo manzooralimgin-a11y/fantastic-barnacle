@@ -11,35 +11,61 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
+const PRINT_STYLES = `
+  body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 24px; color: #111827; }
+  h1, h2, h3 { margin: 0; }
+  .muted { color: #6b7280; }
+  .grid { display: grid; gap: 16px; }
+  .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+  .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+  th, td { border-bottom: 1px solid #e5e7eb; padding: 10px 8px; text-align: left; font-size: 13px; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; }
+  .totals { margin-top: 24px; width: 360px; margin-left: auto; }
+  .totals-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+  .strong { font-weight: 700; }
+  .pre { white-space: pre-wrap; line-height: 1.55; }
+  @media print { body { margin: 0; padding: 24px; } }
+`;
+
+function buildPrintHtml(title: string, html: string) {
+  return `<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title><style>${PRINT_STYLES}</style></head><body>${html}</body></html>`;
+}
+
 function openPrintWindow(title: string, html: string) {
+  const fullHtml = buildPrintHtml(title, html);
+
+  // Prefer hidden iframe to avoid popup blockers.
+  // Falls back to window.open if iframe approach fails.
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:800px;height:600px;border:none;visibility:hidden;";
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (iframeDoc) {
+    iframeDoc.open();
+    iframeDoc.write(fullHtml);
+    iframeDoc.close();
+
+    // Small delay lets the browser render before print dialog opens
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }
+    }, 250);
+    return;
+  }
+
+  // Fallback: try popup (may be blocked)
+  document.body.removeChild(iframe);
   const popup = window.open("", "_blank", "noopener,noreferrer,width=1100,height=900");
   if (!popup) {
     throw new Error("Print window could not be opened");
   }
-  popup.document.write(`<!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>${escapeHtml(title)}</title>
-      <style>
-        body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 24px; color: #111827; }
-        h1, h2, h3 { margin: 0; }
-        .muted { color: #6b7280; }
-        .grid { display: grid; gap: 16px; }
-        .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-        .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 24px; }
-        th, td { border-bottom: 1px solid #e5e7eb; padding: 10px 8px; text-align: left; font-size: 13px; }
-        th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; }
-        .totals { margin-top: 24px; width: 360px; margin-left: auto; }
-        .totals-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-        .strong { font-weight: 700; }
-        .pre { white-space: pre-wrap; line-height: 1.55; }
-        @media print { body { margin: 0; padding: 24px; } }
-      </style>
-    </head>
-    <body>${html}</body>
-  </html>`);
+  popup.document.write(fullHtml);
   popup.document.close();
   popup.focus();
   popup.print();

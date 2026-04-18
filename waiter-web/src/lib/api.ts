@@ -626,7 +626,14 @@ export function openWaiterWebSocket(
 
   const httpUrl = new URL(API_BASE);
   const wsProto = httpUrl.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = `${wsProto}//${httpUrl.host}/ws/current?token=${encodeURIComponent(token)}`;
+  const claims = readTokenClaims(token);
+  const channelId = claims?.restaurant_id ?? claims?.active_property_id;
+  if (channelId == null) {
+    // eslint-disable-next-line no-console
+    console.warn("[waiter-web] websocket disabled, token does not expose a channel id");
+    return () => {};
+  }
+  const wsUrl = `${wsProto}//${httpUrl.host}/ws/${encodeURIComponent(String(channelId))}?token=${encodeURIComponent(token)}`;
 
   let ws: WebSocket | null = null;
   try {
@@ -659,4 +666,25 @@ export function openWaiterWebSocket(
       ws.close();
     }
   };
+}
+
+interface TokenClaims {
+  restaurant_id?: number | string | null;
+  active_property_id?: number | string | null;
+}
+
+function readTokenClaims(token: string): TokenClaims | null {
+  const [, payload] = token.split(".");
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as TokenClaims;
+  } catch {
+    return null;
+  }
 }

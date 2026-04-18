@@ -1,4 +1,5 @@
 import {
+  memo,
   startTransition,
   useCallback,
   useDeferredValue,
@@ -150,7 +151,7 @@ function summarizeItemStatuses(
   return entries.filter((entry) => entry.count > 0);
 }
 
-function MenuItemCard({
+const MenuItemCard = memo(function MenuItemCard({
   item,
   categoryName,
   onQuickAdd,
@@ -158,8 +159,8 @@ function MenuItemCard({
 }: {
   item: WaiterMenuItem;
   categoryName: string;
-  onQuickAdd: () => void;
-  onCustomize: () => void;
+  onQuickAdd: (item: WaiterMenuItem) => void;
+  onCustomize: (item: WaiterMenuItem) => void;
 }) {
   const pressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
@@ -179,14 +180,14 @@ function MenuItemCard({
     cancelTimer();
     pressTimerRef.current = window.setTimeout(() => {
       longPressTriggeredRef.current = true;
-      onCustomize();
+      onCustomize(item);
     }, 420);
   };
 
   const handlePointerEnd = (shouldAdd: boolean) => {
     cancelTimer();
     if (shouldAdd && !longPressTriggeredRef.current && item.available) {
-      onQuickAdd();
+      onQuickAdd(item);
     }
     longPressTriggeredRef.current = false;
   };
@@ -201,7 +202,7 @@ function MenuItemCard({
       onContextMenu={(event) => {
         event.preventDefault();
         if (item.available) {
-          onCustomize();
+          onCustomize(item);
         }
       }}
     >
@@ -241,14 +242,14 @@ function MenuItemCard({
         onPointerUp={(event) => event.stopPropagation()}
         onClick={(event) => {
           event.stopPropagation();
-          onQuickAdd();
+          onQuickAdd(item);
         }}
       >
         +
       </button>
     </article>
   );
-}
+});
 
 function ItemComposerDialog({
   state,
@@ -437,7 +438,18 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
   const [reservationCreateSuccess, setReservationCreateSuccess] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const categoryTabsRef = useRef<HTMLDivElement | null>(null);
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+
+  const handleQuickAdd = useCallback((item: WaiterMenuItem) => addToCart(item), [addToCart]);
+  const handleCustomize = useCallback((item: WaiterMenuItem) => setComposerState({ item }), []);
+
+  useEffect(() => {
+    const container = categoryTabsRef.current;
+    if (!container) return;
+    const activeBtn = container.querySelector<HTMLButtonElement>("button.is-active");
+    activeBtn?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [activeCategoryId]);
 
   const selectedTable = useMemo(
     () => tables.find((table) => table.id === selectedTableId) ?? null,
@@ -869,6 +881,22 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
         idempotencyKey: submission.key,
       });
 
+      setLastOrdersByTable((current) => ({
+        ...current,
+        [submission.tableId]: {
+          order_id: response.order_id,
+          status: response.status,
+          created_at: response.created_at,
+          notes: submission.payload.notes ?? null,
+          items: submission.payload.items.map((item) => ({
+            menu_item_id: item.menu_item_id,
+            item_name: menuItemById.get(item.menu_item_id)?.name ?? `Item ${item.menu_item_id}`,
+            quantity: item.quantity,
+            notes: item.notes ?? null,
+            modifier_ids: item.modifier_ids ?? [],
+          })),
+        },
+      }));
       clearCart(submission.tableId);
       setPendingSubmission(null);
       setSearch("");
@@ -1333,7 +1361,7 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                     </div>
                   ) : null}
 
-                  <div className="category-tabs">
+                  <div className="category-tabs" ref={categoryTabsRef}>
                     {menu.map((category) => (
                       <button
                         key={category.id}
@@ -1351,8 +1379,8 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                         key={`${item.id}-${categoryNameByItemId.get(item.id) ?? ""}`}
                         item={item}
                         categoryName={categoryNameByItemId.get(item.id) ?? activeCategory?.name ?? ""}
-                        onQuickAdd={() => addToCart(item)}
-                        onCustomize={() => setComposerState({ item })}
+                        onQuickAdd={handleQuickAdd}
+                        onCustomize={handleCustomize}
                       />
                     ))}
                     {visibleItems.length === 0 ? (

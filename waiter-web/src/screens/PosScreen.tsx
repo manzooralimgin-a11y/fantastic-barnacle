@@ -1006,7 +1006,7 @@ export function PosScreen({ workspace, onWorkspaceChange }: PosScreenProps) {
                 >
                   <div className="service-card__header">
                     <div>
-                      <small className="eyebrow">Table</small>
+                      <small className="eyebrow">Order #{order.id}</small>
                       <h3>{order.table_number ? order.table_number : "Takeaway"}</h3>
                     </div>
                     <span className={`status-chip ${order.elapsed_minutes >= 30 ? "status-chip--danger" : "status-chip--occupied"}`}>

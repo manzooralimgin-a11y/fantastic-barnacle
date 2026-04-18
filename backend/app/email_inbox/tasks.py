@@ -35,22 +35,54 @@ def process_email_thread_task(thread_id: int) -> None:
 
 
 async def _poll_and_ingest_imap_async() -> None:
-    from app.email_inbox.imap_poller import fetch_unseen_emails
+    from app.email_inbox.imap_poller import fetch_unseen_emails, mark_uid_seen
 
-    payloads = await asyncio.to_thread(fetch_unseen_emails)
-    if not payloads:
+    fetched = await asyncio.to_thread(fetch_unseen_emails)
+    fetched_count = len(fetched)
+    inserted_count = 0
+    duplicate_count = 0
+    failed_count = 0
+
+    if fetched_count == 0:
+        log_event(
+            logger,
+            logging.INFO,
+            "imap_poll_result",
+            fetched_count=0,
+            inserted_count=0,
+        )
         return
 
     async with async_session() as db:
-        for payload in payloads:
+        for item in fetched:
+            payload = item.payload
             try:
                 result = await ingest_email(db, payload, source="imap_poll")
                 await db.commit()
-                if not result.duplicate:
-                    await process_email_thread(db, thread_id=result.thread.id, source="imap_poll")
-                    await db.commit()
+                if result.duplicate:
+                    duplicate_count += 1
+                else:
+                    inserted_count += 1
+                    try:
+                        await process_email_thread(
+                            db, thread_id=result.thread.id, source="imap_poll"
+                        )
+                        await db.commit()
+                    except Exception as proc_exc:
+                        await db.rollback()
+                        log_event(
+                            logger,
+                            logging.ERROR,
+                            "imap_process_failed",
+                            external_id=payload.id,
+                            error=str(proc_exc),
+                        )
+                # Mark SEEN only after a successful DB write (UNSEEN-origin only).
+                if item.mark_seen:
+                    await asyncio.to_thread(mark_uid_seen, item.uid)
             except Exception as exc:
                 await db.rollback()
+                failed_count += 1
                 log_event(
                     logger,
                     logging.ERROR,
@@ -58,6 +90,16 @@ async def _poll_and_ingest_imap_async() -> None:
                     external_id=payload.id,
                     error=str(exc),
                 )
+
+    log_event(
+        logger,
+        logging.INFO,
+        "imap_poll_result",
+        fetched_count=fetched_count,
+        inserted_count=inserted_count,
+        duplicate_count=duplicate_count,
+        failed_count=failed_count,
+    )
 
 
 @celery.task(name="email_inbox.poll_imap_inbox")

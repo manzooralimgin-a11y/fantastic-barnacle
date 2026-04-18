@@ -4,6 +4,7 @@ import email
 import email.header
 import imaplib
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING
@@ -15,6 +16,19 @@ if TYPE_CHECKING:
     from app.email_inbox.schemas import NormalizedEmailPayload
 
 logger = logging.getLogger("app.email_inbox.imap_poller")
+
+# How many messages to backfill when the UNSEEN queue is empty.
+_BACKFILL_LIMIT = 10
+
+
+@dataclass(slots=True)
+class FetchedEmail:
+    """A single email fetched from IMAP, tagged with origin so the caller
+    knows whether to mark it SEEN (only for UNSEEN-derived messages)."""
+
+    payload: "NormalizedEmailPayload"
+    uid: bytes
+    mark_seen: bool
 
 
 def _decode_header_value(value: str | None) -> str:
@@ -71,21 +85,60 @@ def _make_external_id(msg: email.message.Message, uid: bytes) -> str:
     return f"imap-uid-{uid.decode(errors='replace')}"
 
 
-def fetch_unseen_emails() -> list[NormalizedEmailPayload]:
+def _fetch_one(
+    conn: imaplib.IMAP4 | imaplib.IMAP4_SSL,
+    uid: bytes,
+    *,
+    mark_seen: bool,
+) -> "FetchedEmail | None":
+    from app.email_inbox.schemas import NormalizedEmailPayload
+
+    # Use BODY.PEEK[] so a plain fetch does NOT implicitly mark the message
+    # as SEEN. We decide explicitly below whether to flag it.
+    _, msg_data = conn.uid("fetch", uid, "(BODY.PEEK[])")  # type: ignore[call-overload]
+    if not msg_data or not msg_data[0] or not isinstance(msg_data[0], tuple):
+        return None
+    raw = msg_data[0][1]
+    if not isinstance(raw, bytes):
+        return None
+
+    msg = email.message_from_bytes(raw)
+    external_id = _make_external_id(msg, uid)
+    sender = str(msg.get("From", "")).strip()
+    subject = _decode_header_value(msg.get("Subject"))
+    body = _extract_text_body(msg)
+    received_at = _parse_received_at(msg)
+
+    payload = NormalizedEmailPayload(
+        id=external_id,
+        sender=sender,
+        subject=subject or None,
+        body=body,
+        received_at=received_at,
+    )
+    return FetchedEmail(payload=payload, uid=uid, mark_seen=mark_seen)
+
+
+def fetch_unseen_emails() -> list[FetchedEmail]:
     """
-    Connect to the configured IMAP mailbox, fetch all UNSEEN messages,
-    mark them SEEN, and return a list of NormalizedEmailPayload objects
-    ready for the ingest pipeline.
+    Connect to the configured IMAP mailbox and return emails to ingest.
+
+    Behaviour:
+      1. Search UNSEEN. If any exist, return all of them. They WILL be
+         flagged SEEN by the caller after successful ingest.
+      2. Otherwise, fall back to the most recent `_BACKFILL_LIMIT` messages
+         (ALL search → last N UIDs). These are NOT marked SEEN — the user's
+         mailbox read-state stays untouched. Deduplication is handled
+         downstream by ingest_email() via the Message-ID unique index.
 
     Returns an empty list if IMAP is not configured or on connection failure.
     """
-    from app.email_inbox.schemas import NormalizedEmailPayload
 
     if not settings.imap_host or not settings.imap_username or not settings.imap_password:
         log_event(logger, logging.WARNING, "imap_poll_skipped", reason="imap_not_configured")
         return []
 
-    payloads: list[NormalizedEmailPayload] = []
+    fetched: list[FetchedEmail] = []
     conn: imaplib.IMAP4 | imaplib.IMAP4_SSL | None = None
     try:
         if settings.imap_use_ssl:
@@ -96,8 +149,21 @@ def fetch_unseen_emails() -> list[NormalizedEmailPayload]:
         conn.login(settings.imap_username, settings.imap_password)
         conn.select(settings.imap_mailbox)
 
-        _, uid_data = conn.uid("search", None, "UNSEEN")  # type: ignore[call-overload]
-        uids: list[bytes] = uid_data[0].split() if uid_data and uid_data[0] else []
+        # --- UNSEEN first -------------------------------------------------
+        _, unseen_data = conn.uid("search", None, "UNSEEN")  # type: ignore[call-overload]
+        unseen_uids: list[bytes] = unseen_data[0].split() if unseen_data and unseen_data[0] else []
+
+        mode = "unseen"
+        candidate_uids: list[bytes] = unseen_uids
+        mark_seen = True
+
+        if not unseen_uids:
+            # --- Backfill: last N emails (ALL search → tail) -------------
+            _, all_data = conn.uid("search", None, "ALL")  # type: ignore[call-overload]
+            all_uids: list[bytes] = all_data[0].split() if all_data and all_data[0] else []
+            candidate_uids = all_uids[-_BACKFILL_LIMIT:] if all_uids else []
+            mark_seen = False
+            mode = "backfill"
 
         log_event(
             logger,
@@ -105,44 +171,24 @@ def fetch_unseen_emails() -> list[NormalizedEmailPayload]:
             "imap_poll",
             host=settings.imap_host,
             mailbox=settings.imap_mailbox,
-            unseen_count=len(uids),
+            mode=mode,
+            candidate_count=len(candidate_uids),
         )
 
-        for uid in uids:
+        for uid in candidate_uids:
             try:
-                _, msg_data = conn.uid("fetch", uid, "(RFC822)")  # type: ignore[call-overload]
-                if not msg_data or not msg_data[0] or not isinstance(msg_data[0], tuple):
+                item = _fetch_one(conn, uid, mark_seen=mark_seen)
+                if item is None:
                     continue
-                raw = msg_data[0][1]
-                if not isinstance(raw, bytes):
-                    continue
-
-                msg = email.message_from_bytes(raw)
-                external_id = _make_external_id(msg, uid)
-                sender = str(msg.get("From", "")).strip()
-                subject = _decode_header_value(msg.get("Subject"))
-                body = _extract_text_body(msg)
-                received_at = _parse_received_at(msg)
-
-                payload = NormalizedEmailPayload(
-                    id=external_id,
-                    sender=sender,
-                    subject=subject or None,
-                    body=body,
-                    received_at=received_at,
-                )
-                payloads.append(payload)
-
-                # Mark SEEN before processing — dedup in ingest_email prevents re-processing.
-                conn.uid("store", uid, "+FLAGS", "\\Seen")  # type: ignore[call-overload]
-
+                fetched.append(item)
                 log_event(
                     logger,
                     logging.INFO,
                     "imap_email_fetched",
                     uid=uid.decode(errors="replace"),
-                    external_id=external_id,
-                    sender=sender,
+                    mode=mode,
+                    external_id=item.payload.id,
+                    sender=item.payload.sender,
                 )
             except Exception as exc:
                 log_event(
@@ -150,6 +196,7 @@ def fetch_unseen_emails() -> list[NormalizedEmailPayload]:
                     logging.ERROR,
                     "imap_email_fetch_error",
                     uid=uid.decode(errors="replace"),
+                    mode=mode,
                     error=str(exc),
                 )
 
@@ -162,4 +209,39 @@ def fetch_unseen_emails() -> list[NormalizedEmailPayload]:
             except Exception:
                 pass
 
-    return payloads
+    return fetched
+
+
+def mark_uid_seen(uid: bytes) -> None:
+    """Mark a single UID as SEEN on the IMAP server (best-effort, new connection).
+
+    Called by the ingest task after a successful DB insert so that failures
+    during processing don't cause the message's SEEN state to diverge from
+    its ingestion state.
+    """
+    if not settings.imap_host or not settings.imap_username or not settings.imap_password:
+        return
+
+    conn: imaplib.IMAP4 | imaplib.IMAP4_SSL | None = None
+    try:
+        if settings.imap_use_ssl:
+            conn = imaplib.IMAP4_SSL(settings.imap_host, settings.imap_port)
+        else:
+            conn = imaplib.IMAP4(settings.imap_host, settings.imap_port)
+        conn.login(settings.imap_username, settings.imap_password)
+        conn.select(settings.imap_mailbox)
+        conn.uid("store", uid, "+FLAGS", "\\Seen")  # type: ignore[call-overload]
+    except Exception as exc:
+        log_event(
+            logger,
+            logging.ERROR,
+            "imap_mark_seen_failed",
+            uid=uid.decode(errors="replace"),
+            error=str(exc),
+        )
+    finally:
+        if conn is not None:
+            try:
+                conn.logout()
+            except Exception:
+                pass

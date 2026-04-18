@@ -67,6 +67,8 @@ export interface AppState {
   setGuestCount: (tableId: string, guestCount: number) => void;
 }
 
+const EMPTY_CART: CartLine[] = [];
+
 function makeLineId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -421,7 +423,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 export const selectCartForTable =
   (tableId: string | null) =>
   (state: AppState): CartLine[] =>
-    tableId ? state.carts[tableId] ?? [] : [];
+    tableId ? state.carts[tableId] ?? EMPTY_CART : EMPTY_CART;
 
 export const selectNotesForTable =
   (tableId: string | null) =>

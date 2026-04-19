@@ -112,10 +112,13 @@ def _fetch_one(
     # Schema constraints: subject is a non-null str (default ""); body is
     # min_length=1. Coerce degenerate cases so validation never drops an
     # otherwise-valid email (e.g. HTML-only messages, missing subject).
-    subject_str = subject or ""
+    subject_str = (subject or "").strip()
     if len(subject_str) > 500:
         subject_str = subject_str[:500]
-    body_str = body or "(no text body)"
+    # Pydantic schema has str_strip_whitespace=True and body min_length=1.
+    # If the body is whitespace-only, stripping yields "" which fails. Force
+    # a placeholder so header-only / attachment-only emails still ingest.
+    body_str = (body or "").strip() or "(no text body)"
     if len(body_str) > 50_000:
         body_str = body_str[:50_000]
 

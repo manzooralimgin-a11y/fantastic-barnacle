@@ -443,6 +443,7 @@ from app.menu.router import router as menu_router  # noqa: E402
 from app.menu_designer.router import router as menu_designer_router  # noqa: E402
 from app.qr_ordering.router import admin_router as qr_admin_router  # noqa: E402
 from app.qr_ordering.router import router as qr_router  # noqa: E402
+from app.realtime.router import router as realtime_router  # noqa: E402
 from app.reservations.availability_router import router as availability_router  # noqa: E402
 from app.reservations.public_router import router as res_public_router  # noqa: E402
 from app.reservations.router import router as reservations_router  # noqa: E402
@@ -457,6 +458,7 @@ from app.workforce.router import router as workforce_router  # noqa: E402
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI"])
+app.include_router(realtime_router, prefix="/api/realtime", tags=["Realtime"])
 
 
 @app.get("/mcp/voicebooker", include_in_schema=False)

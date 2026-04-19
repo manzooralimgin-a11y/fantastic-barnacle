@@ -14,7 +14,7 @@ const PCM_SAMPLE_RATE = 24000;
 const PCM_CHUNK_SAMPLES = 1440;
 const PCM_MIN_CHUNK_SAMPLES = 480;
 const SESSION_INSTRUCTIONS =
-  "You are a helpful voice assistant connected to backend data.";
+  "You are Das Elb AI assistant for hotel and restaurant operations.";
 const SESSION_READY_TIMEOUT_MS = 10000;
 const PLAYBACK_QUEUE_CHUNK_SAMPLES = 1200;
 const PLAYBACK_START_LEAD_SECONDS = 0.03;
@@ -1162,6 +1162,7 @@ export function useRealtimeVoice() {
           JSON.stringify({
             type: "session.update",
             session: {
+              type: "realtime",
               instructions: SESSION_INSTRUCTIONS,
               output_modalities: ["audio"],
               tools: REALTIME_TOOLS,

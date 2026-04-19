@@ -105,8 +105,11 @@ async def create_realtime_client_secret(
         ) from exc
 
     data = response.json()
-    client_secret = data.get("client_secret") or {}
-    value = client_secret.get("value")
+    # OpenAI /v1/realtime/client_secrets returns { value, expires_at, session }
+    # at the top level. Older SDK shapes nested it under client_secret — accept
+    # both so we don't break on either response shape.
+    client_secret = data.get("client_secret") if isinstance(data.get("client_secret"), dict) else {}
+    value = data.get("value") or client_secret.get("value")
 
     if not isinstance(value, str) or not value:
         raise HTTPException(
@@ -114,7 +117,7 @@ async def create_realtime_client_secret(
             detail="OpenAI did not return a realtime client secret.",
         )
 
-    expires_at = client_secret.get("expires_at") or data.get("expires_at")
+    expires_at = data.get("expires_at") or client_secret.get("expires_at")
     session = data.get("session")
 
     if not isinstance(session, dict):

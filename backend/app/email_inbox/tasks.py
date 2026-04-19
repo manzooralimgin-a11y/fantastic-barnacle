@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from app.database import async_session
+from app.database import async_session, engine
 from app.email_inbox.service import ingest_email, process_email_thread
 from app.observability.logging import log_event
 from app.observability.metrics import api_metrics
@@ -29,13 +29,25 @@ async def process_email_thread_async(thread_id: int) -> None:
             )
 
 
+async def _run_process_email_thread(thread_id: int) -> None:
+    # Dispose the engine inside the new event loop so pooled connections
+    # bound to a previous Celery task's loop are not reused (which raises
+    # "Future attached to a different loop").
+    await engine.dispose()
+    await process_email_thread_async(thread_id)
+
+
 @celery.task(name="email_inbox.process_email_thread")
 def process_email_thread_task(thread_id: int) -> None:
-    asyncio.run(process_email_thread_async(thread_id))
+    asyncio.run(_run_process_email_thread(thread_id))
 
 
 async def _poll_and_ingest_imap_async() -> None:
     from app.email_inbox.imap_poller import fetch_unseen_emails, mark_uid_seen
+
+    # Dispose the engine inside the new event loop so pooled connections
+    # bound to a previous Celery task's loop are not reused.
+    await engine.dispose()
 
     fetched = await asyncio.to_thread(fetch_unseen_emails)
     fetched_count = len(fetched)

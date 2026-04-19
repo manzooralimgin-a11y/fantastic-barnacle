@@ -1,0 +1,22 @@
+{
+  "name": "Owner App",
+  "short_name": "OwnerApp",
+  "description": "Hotel owner management dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A1A14",
+  "theme_color": "#0A2F1F",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

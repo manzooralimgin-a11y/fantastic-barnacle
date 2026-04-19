@@ -109,11 +109,21 @@ def _fetch_one(
     body = _extract_text_body(msg)
     received_at = _parse_received_at(msg)
 
+    # Schema constraints: subject is a non-null str (default ""); body is
+    # min_length=1. Coerce degenerate cases so validation never drops an
+    # otherwise-valid email (e.g. HTML-only messages, missing subject).
+    subject_str = subject or ""
+    if len(subject_str) > 500:
+        subject_str = subject_str[:500]
+    body_str = body or "(no text body)"
+    if len(body_str) > 50_000:
+        body_str = body_str[:50_000]
+
     payload = NormalizedEmailPayload(
         id=external_id,
         sender=sender,
-        subject=subject or None,
-        body=body,
+        subject=subject_str,
+        body=body_str,
         received_at=received_at,
     )
     return FetchedEmail(payload=payload, uid=uid, mark_seen=mark_seen)

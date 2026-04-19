@@ -8,7 +8,7 @@ import type {
   VoiceTimelineMessage,
 } from "@/store";
 
-const REALTIME_URL = "wss://api.openai.com/v1/realtime?model=gpt-realtime";
+const REALTIME_URL = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview";
 const WORKLET_PATH = "/audio-worklets/realtime-pcm16-worklet.js";
 const PCM_SAMPLE_RATE = 24000;
 const PCM_CHUNK_SAMPLES = 1440;
@@ -1149,7 +1149,6 @@ export function useRealtimeVoice() {
       const socket = new WebSocket(REALTIME_URL, [
         "realtime",
         `openai-insecure-api-key.${tokenResponse.value}`,
-        "openai-beta.realtime-v1",
       ]);
 
       wsRef.current = socket;

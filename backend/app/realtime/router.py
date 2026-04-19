@@ -15,7 +15,7 @@ from app.dependencies import get_current_tenant_user
 router = APIRouter()
 
 OPENAI_REALTIME_CLIENT_SECRET_URL = "https://api.openai.com/v1/realtime/client_secrets"
-REALTIME_MODEL = "gpt-realtime"
+REALTIME_MODEL = "gpt-4o-realtime-preview"
 REALTIME_PCM_RATE = 24000
 REALTIME_INSTRUCTIONS = (
     "You are a helpful voice assistant connected to backend data."

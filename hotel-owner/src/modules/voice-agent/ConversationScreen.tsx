@@ -2,17 +2,22 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { AudioLines } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { useVoiceStore } from "@/store";
+import type { VoiceTimelineMessage } from "@/store";
 import { ConversationBubble } from "./ConversationBubble";
 
 interface ConversationScreenProps {
   className?: string;
+  isAwaitingResponse: boolean;
+  messages: VoiceTimelineMessage[];
 }
 
-export function ConversationScreen({ className }: ConversationScreenProps) {
-  const { conversation, isProcessing } = useVoiceStore();
+export function ConversationScreen({
+  className,
+  isAwaitingResponse,
+  messages,
+}: ConversationScreenProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,14 +27,14 @@ export function ConversationScreen({ className }: ConversationScreenProps) {
         behavior: "smooth",
       });
     }
-  }, [conversation.length, isProcessing]);
+  }, [messages.length, isAwaitingResponse]);
 
   return (
     <div
       ref={scrollRef}
       className={cn("flex-1 overflow-y-auto px-4", className)}
     >
-      {conversation.length === 0 ? (
+      {messages.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
@@ -37,7 +42,7 @@ export function ConversationScreen({ className }: ConversationScreenProps) {
             transition={{ duration: 0.5, ease: "easeOut" as const }}
             className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10"
           >
-            <Sparkles className="h-7 w-7 text-accent" />
+            <AudioLines className="h-7 w-7 text-accent" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -45,21 +50,21 @@ export function ConversationScreen({ className }: ConversationScreenProps) {
             transition={{ duration: 0.3, delay: 0.2, ease: "easeOut" as const }}
           >
             <h3 className="text-base font-semibold text-text-primary-dark">
-              How can I help?
+              Realtime Voice Ready
             </h3>
             <p className="mt-1 max-w-[240px] text-xs leading-relaxed text-text-secondary-dark">
-              Tap the microphone and ask about bookings, revenue, occupancy, emails, or meetings.
+              Tap once to start streaming microphone audio. Tap again to send
+              the turn and hear the assistant reply in voice.
             </p>
           </motion.div>
         </div>
       ) : (
         <div className="space-y-4 py-4">
-          {conversation.map((msg, i) => (
-            <ConversationBubble key={i} message={msg} />
+          {messages.map((message) => (
+            <ConversationBubble key={message.id} message={message} />
           ))}
 
-          {/* Typing indicator */}
-          {isProcessing && (
+          {isAwaitingResponse && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -67,15 +72,15 @@ export function ConversationScreen({ className }: ConversationScreenProps) {
               className="flex justify-start"
             >
               <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-white/10 bg-surface-dark/40 px-4 py-3 backdrop-blur-xl">
-                {[0, 1, 2].map((i) => (
+                {[0, 1, 2].map((index) => (
                   <motion.span
-                    key={i}
+                    key={index}
                     className="h-2 w-2 rounded-full bg-accent/60"
                     animate={{ y: [0, -6, 0] }}
                     transition={{
                       duration: 0.6,
                       repeat: Infinity,
-                      delay: i * 0.15,
+                      delay: index * 0.15,
                       ease: "easeInOut",
                     }}
                   />

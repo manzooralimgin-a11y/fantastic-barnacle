@@ -71,3 +71,28 @@ media/
 frontend/src-tauri/target/
 frontend/out/
 gestronomy copy/
+
+# PnP / package manager
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Build outputs
+/build
+/.next/
+/out/
+
+# Local hosting / deployment
+.vercel
+
+# TS / Next
+*.tsbuildinfo
+next-env.d.ts
+
+# Node debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Certificates
+*.pem

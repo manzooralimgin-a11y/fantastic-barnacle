@@ -273,10 +273,18 @@ services:
     dockerContext: ./hotel-owner
     buildArgs:
       - key: NEXT_PUBLIC_API_URL
-        value: https://gestronomy-api-5atv.onrender.com/api
+        value: https://gestronomy-api-5atv.onrender.com
+      - key: NEXT_PUBLIC_OWNER_EMAIL
+        value: admin@gestronomy.app
+      - key: NEXT_PUBLIC_OWNER_PASSWORD
+        sync: false
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://gestronomy-api-5atv.onrender.com/api
+        value: https://gestronomy-api-5atv.onrender.com
+      - key: NEXT_PUBLIC_OWNER_EMAIL
+        value: admin@gestronomy.app
+      - key: NEXT_PUBLIC_OWNER_PASSWORD
+        sync: false
 
   # Waiter Web — Vite+React restaurant waiter console (replaces SwiftUI
   # WaiterApp for browser-based production testing).

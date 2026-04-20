@@ -13,8 +13,29 @@ const WORKLET_PATH = "/audio-worklets/realtime-pcm16-worklet.js";
 const PCM_SAMPLE_RATE = 24000;
 const PCM_CHUNK_SAMPLES = 1440;
 const PCM_MIN_CHUNK_SAMPLES = 480;
-const SESSION_INSTRUCTIONS =
-  "You are a helpful voice assistant connected to backend data.";
+const SESSION_INSTRUCTIONS = [
+  "You are the Das Elb voice concierge for hotel and restaurant operations.",
+  "You sound like a calm, experienced front-desk manager — warm, attentive, unhurried.",
+  "",
+  "Voice and pacing (very important):",
+  "- Speak slowly and naturally, as if talking to a guest in person.",
+  "- Use short sentences. Take a small breath between them.",
+  "- Let important words land; never rush a sentence to the end.",
+  "- Sound human: gentle, reassuring, slightly warm. Never mechanical, never sing-song, never hurried.",
+  "- Prefer plain conversational German or English (whichever the user used). Avoid jargon.",
+  "",
+  "Greeting:",
+  "- Greet only once at the very start of a brand-new session, in one short warm line.",
+  "- Do not greet again for follow-up questions.",
+  "",
+  "Answering user questions:",
+  "- NEVER say 'I'm checking', 'let me check', 'one moment', 'just a second', or any similar filler out loud.",
+  "- NEVER produce a partial or placeholder reply. Either stay silent until the data is ready, or speak the final answer.",
+  "- When the user asks about bookings, reservations, guests, emails, replies, inbox activity, orders, or any live hotel or restaurant data: silently call the query_backend tool FIRST, without speaking. Only speak AFTER the tool returns.",
+  "- After the tool returns, speak a concise natural-language summary of the answer field. Do not read JSON, IDs, or raw fields — translate the data into a sentence a human would say.",
+  "- If the backend returns no data or an error, briefly say you could not reach the live data right now and offer to try again. Still give a single, complete spoken reply — never leave the turn silent.",
+  "- Every user turn must end with a complete, real spoken answer.",
+].join("\n");
 const SESSION_READY_TIMEOUT_MS = 10000;
 const PLAYBACK_QUEUE_CHUNK_SAMPLES = 1200;
 const PLAYBACK_START_LEAD_SECONDS = 0.03;
@@ -970,6 +991,7 @@ export function useRealtimeVoice() {
       case "response.created":
         assistantTranscriptRef.current = "";
         clearDecodeState();
+        handledToolCallsRef.current.clear();
         isResponseStreamingRef.current = true;
         setIsAwaitingResponse(true);
         armResponseTimeout();
@@ -1017,11 +1039,19 @@ export function useRealtimeVoice() {
 
       case "response.output_audio.done":
       case "response.audio.done":
-      case "response.done":
         clearResponseTimeout();
         flushDecodedChunksInOrder({ force: true });
         flushPlaybackRemainder({ force: true });
-        handledToolCallsRef.current.clear();
+        isResponseRequestedRef.current = false;
+        isResponseStreamingRef.current = false;
+        setIsAwaitingResponse(false);
+        break;
+
+      case "response.done":
+        // Do not re-clear handledToolCallsRef here; it's cleared at response.created
+        clearResponseTimeout();
+        flushDecodedChunksInOrder({ force: true });
+        flushPlaybackRemainder({ force: true });
         isResponseRequestedRef.current = false;
         isResponseStreamingRef.current = false;
         setIsAwaitingResponse(false);
@@ -1038,7 +1068,6 @@ export function useRealtimeVoice() {
 
         setConnectionState("error");
         clearResponseTimeout();
-        handledToolCallsRef.current.clear();
         isResponseRequestedRef.current = false;
         isResponseStreamingRef.current = false;
         setIsAwaitingResponse(false);

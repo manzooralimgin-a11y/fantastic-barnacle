@@ -743,7 +743,8 @@ export function useRealtimeVoice() {
         nextChunk.length,
         PCM_SAMPLE_RATE
       );
-      audioBuffer.copyToChannel(nextChunk, 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      audioBuffer.copyToChannel(nextChunk as any, 0);
 
       const source = audioContext.createBufferSource();
       source.buffer = audioBuffer;

@@ -9,7 +9,7 @@ import { ROUTES } from '../constants'
 // ---------------------------------------------------------------------------
 const initialState = {
   // Navigation
-  currentRoute: ROUTES.SPLASH,
+  currentRoute: ROUTES.LOGIN,
   routeParams:  {},
 
   // Auth

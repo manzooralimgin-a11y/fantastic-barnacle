@@ -62,7 +62,7 @@ function buildCards({ booking, idVerified, roomKey, unreadCount }) {
       iconBg:   'bg-amber-50 dark:bg-amber-900/20',
       iconColor:'text-amber-600 dark:text-amber-400',
       title:    'Restaurant Menu',
-      subtitle: 'Full à la carte & room service',
+      subtitle: '11:30 – 21:30 · À la carte & room service',
       badge:    null,
       route:    ROUTES.ROOM_SERVICE,
     },
